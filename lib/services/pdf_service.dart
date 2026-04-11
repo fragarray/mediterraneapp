@@ -82,7 +82,7 @@ class PdfService {
                         ),
                         pw.SizedBox(height: 10),
                         pw.Text(
-                          'Modulo tesseramento',
+                          'Modulo di adesione socio',
                           style: pw.TextStyle(
                             fontSize: 18,
                             fontWeight: pw.FontWeight.bold,
