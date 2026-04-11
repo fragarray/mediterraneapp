@@ -272,17 +272,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
               title: 'Privacy GDPR',
               subtitle: 'Accettazione obbligatoria prima dell\'invio.',
             ),
-            _InfoTile(
-              icon: Icons.draw_outlined,
-              title: 'Firma elettronica',
-              subtitle: 'La firma viene salvata in Supabase Storage.',
-            ),
-            _InfoTile(
-              icon: Icons.hourglass_top_outlined,
-              title: 'Stato richiesta',
-              subtitle: 'Ogni nuova iscrizione entra in stato pending.',
-            ),
-          ],
+                  ],
         ),
       ),
     );
