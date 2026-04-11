@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:signature/signature.dart';
 
 import '../models/member_model.dart';
@@ -17,9 +18,13 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final _formKey = GlobalKey<FormState>();
   final _nomeController = TextEditingController();
   final _cognomeController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _luogoNascitaController = TextEditingController();
+  final _dataNascitaController = TextEditingController();
+  final _residenzaController = TextEditingController();
+  final _comuneController = TextEditingController();
+  final _capController = TextEditingController();
   final _telefonoController = TextEditingController();
-  final _codiceFiscaleController = TextEditingController();
+  final _emailController = TextEditingController();
   final _membershipNumberController = TextEditingController(text: 'APP----');
   final SignatureController _signatureController = SignatureController(
     penStrokeWidth: 2.5,
@@ -41,9 +46,13 @@ class _RegistrationPageState extends State<RegistrationPage> {
   void dispose() {
     _nomeController.dispose();
     _cognomeController.dispose();
-    _emailController.dispose();
+    _luogoNascitaController.dispose();
+    _dataNascitaController.dispose();
+    _residenzaController.dispose();
+    _comuneController.dispose();
+    _capController.dispose();
     _telefonoController.dispose();
-    _codiceFiscaleController.dispose();
+    _emailController.dispose();
     _membershipNumberController.dispose();
     _signatureController.dispose();
     super.dispose();
@@ -78,8 +87,51 @@ class _RegistrationPageState extends State<RegistrationPage> {
     }
   }
 
+  DateTime? _parseBirthDate(String? value) {
+    final rawValue = (value ?? '').trim();
+    if (rawValue.isEmpty) {
+      return null;
+    }
+
+    final match = RegExp(r'^(\d{2})\/(\d{2})\/(\d{4})$').firstMatch(rawValue);
+    if (match == null) {
+      return null;
+    }
+
+    final day = int.tryParse(match.group(1)!);
+    final month = int.tryParse(match.group(2)!);
+    final year = int.tryParse(match.group(3)!);
+
+    if (day == null || month == null || year == null) {
+      return null;
+    }
+
+    final parsedDate = DateTime(year, month, day);
+    final isValidDate =
+        parsedDate.year == year &&
+        parsedDate.month == month &&
+        parsedDate.day == day;
+
+    if (!isValidDate) {
+      return null;
+    }
+
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (parsedDate.isAfter(today)) {
+      return null;
+    }
+
+    return parsedDate;
+  }
+
   Future<void> _submitRegistration() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final birthDate = _parseBirthDate(_dataNascitaController.text);
+    if (birthDate == null) {
+      _showMessage('Inserisci una data di nascita valida.', isError: true);
       return;
     }
 
@@ -112,9 +164,13 @@ class _RegistrationPageState extends State<RegistrationPage> {
       final member = MemberModel(
         nome: _nomeController.text.trim(),
         cognome: _cognomeController.text.trim(),
+        luogoNascita: _luogoNascitaController.text.trim(),
+        dataNascita: birthDate,
+        residenza: _residenzaController.text.trim(),
+        comune: _comuneController.text.trim(),
+        cap: _capController.text.trim(),
         email: _emailController.text.trim().toLowerCase(),
         telefono: _telefonoController.text.trim(),
-        codiceFiscale: _codiceFiscaleController.text.trim().toUpperCase(),
         firmaUrl: '',
         privacyAccepted: _privacyAccepted,
       );
@@ -129,9 +185,13 @@ class _RegistrationPageState extends State<RegistrationPage> {
       _formKey.currentState!.reset();
       _nomeController.clear();
       _cognomeController.clear();
-      _emailController.clear();
+      _luogoNascitaController.clear();
+      _dataNascitaController.clear();
+      _residenzaController.clear();
+      _comuneController.clear();
+      _capController.clear();
       _telefonoController.clear();
-      _codiceFiscaleController.clear();
+      _emailController.clear();
       _signatureController.clear();
       await _loadMembershipNumberPreview();
 
@@ -166,6 +226,20 @@ class _RegistrationPageState extends State<RegistrationPage> {
     return null;
   }
 
+  String? _validateBirthDate(String? value) {
+    final rawValue = (value ?? '').trim();
+    if (rawValue.isEmpty) {
+      return 'Data di nascita obbligatoria';
+    }
+
+    final parsedDate = _parseBirthDate(rawValue);
+    if (parsedDate == null) {
+      return 'Usa il formato gg/mm/aaaa';
+    }
+
+    return null;
+  }
+
   String? _validateEmail(String? value) {
     final requiredMessage = _validateRequired(value, 'Email');
     if (requiredMessage != null) {
@@ -195,14 +269,14 @@ class _RegistrationPageState extends State<RegistrationPage> {
     return null;
   }
 
-  String? _validateCodiceFiscale(String? value) {
-    final requiredMessage = _validateRequired(value, 'Codice fiscale');
+  String? _validateCap(String? value) {
+    final requiredMessage = _validateRequired(value, 'CAP');
     if (requiredMessage != null) {
       return requiredMessage;
     }
 
-    if (!RegExp(r'^[A-Za-z0-9]{16}$').hasMatch(value!.trim())) {
-      return 'Il codice fiscale deve avere 16 caratteri';
+    if (!RegExp(r'^\d{5}$').hasMatch(value!.trim())) {
+      return 'Il CAP deve avere 5 cifre';
     }
 
     return null;
@@ -316,9 +390,15 @@ class _RegistrationPageState extends State<RegistrationPage> {
             ),
             SizedBox(height: 12),
             Text(
-              'Compila il modulo, accetta la privacy e firma digitalmente per inviare la tua richiesta di tesseramento.',
+              'Compila tutti i dati anagrafici, accetta la privacy e firma digitalmente per inviare la richiesta di tesseramento.',
             ),
             SizedBox(height: 24),
+            _InfoTile(
+              icon: Icons.badge_outlined,
+              title: 'Dati completi',
+              subtitle:
+                  'Nome, nascita, residenza, contatti e firma vengono salvati nel profilo socio.',
+            ),
             _InfoTile(
               icon: Icons.verified_user_outlined,
               title: 'Privacy GDPR',
@@ -376,6 +456,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         child: TextFormField(
                           controller: _nomeController,
                           textInputAction: TextInputAction.next,
+                          textCapitalization: TextCapitalization.words,
                           decoration: const InputDecoration(labelText: 'Nome'),
                           validator: (value) =>
                               _validateRequired(value, 'Nome'),
@@ -386,6 +467,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         child: TextFormField(
                           controller: _cognomeController,
                           textInputAction: TextInputAction.next,
+                          textCapitalization: TextCapitalization.words,
                           decoration: const InputDecoration(
                             labelText: 'Cognome',
                           ),
@@ -396,11 +478,69 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       SizedBox(
                         width: fieldWidth,
                         child: TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
+                          controller: _luogoNascitaController,
                           textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(labelText: 'Email'),
-                          validator: _validateEmail,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Luogo di nascita',
+                          ),
+                          validator: (value) =>
+                              _validateRequired(value, 'Luogo di nascita'),
+                        ),
+                      ),
+                      SizedBox(
+                        width: fieldWidth,
+                        child: TextFormField(
+                          controller: _dataNascitaController,
+                          keyboardType: TextInputType.datetime,
+                          textInputAction: TextInputAction.next,
+                          inputFormatters: <TextInputFormatter>[
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(8),
+                            _DateTextInputFormatter(),
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'Data di nascita',
+                            hintText: '__/__/____',
+                            prefixIcon: Icon(Icons.event_outlined),
+                          ),
+                          validator: _validateBirthDate,
+                        ),
+                      ),
+                      SizedBox(
+                        width: fieldWidth,
+                        child: TextFormField(
+                          controller: _residenzaController,
+                          textInputAction: TextInputAction.next,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Residenza',
+                          ),
+                          validator: (value) =>
+                              _validateRequired(value, 'Residenza'),
+                        ),
+                      ),
+                      SizedBox(
+                        width: fieldWidth,
+                        child: TextFormField(
+                          controller: _comuneController,
+                          textInputAction: TextInputAction.next,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Comune',
+                          ),
+                          validator: (value) =>
+                              _validateRequired(value, 'Comune'),
+                        ),
+                      ),
+                      SizedBox(
+                        width: fieldWidth,
+                        child: TextFormField(
+                          controller: _capController,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(labelText: 'CAP'),
+                          validator: _validateCap,
                         ),
                       ),
                       SizedBox(
@@ -418,12 +558,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       SizedBox(
                         width: fieldWidth,
                         child: TextFormField(
-                          controller: _codiceFiscaleController,
-                          textCapitalization: TextCapitalization.characters,
-                          decoration: const InputDecoration(
-                            labelText: 'Codice Fiscale',
-                          ),
-                          validator: _validateCodiceFiscale,
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(labelText: 'Email'),
+                          validator: _validateEmail,
                         ),
                       ),
                       SizedBox(
@@ -515,6 +654,33 @@ class _RegistrationPageState extends State<RegistrationPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DateTextInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digitsOnly = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final trimmedDigits = digitsOnly.length > 8
+        ? digitsOnly.substring(0, 8)
+        : digitsOnly;
+
+    final buffer = StringBuffer();
+    for (var index = 0; index < trimmedDigits.length; index++) {
+      buffer.write(trimmedDigits[index]);
+      if ((index == 1 || index == 3) && index != trimmedDigits.length - 1) {
+        buffer.write('/');
+      }
+    }
+
+    final formattedText = buffer.toString();
+    return TextEditingValue(
+      text: formattedText,
+      selection: TextSelection.collapsed(offset: formattedText.length),
     );
   }
 }

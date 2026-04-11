@@ -24,84 +24,148 @@ class PdfService {
     final registrationDate = member.createdAt == null
         ? '-'
         : DateFormat('dd/MM/yyyy', 'it_IT').format(member.createdAt!);
+    final details = <MapEntry<String, String>>[
+      MapEntry('Numero tessera', member.membershipNumberLabel),
+      MapEntry('Data registrazione', registrationDate),
+      MapEntry('Nome', member.nome),
+      MapEntry('Cognome', member.cognome),
+      MapEntry('Luogo di nascita', member.luogoNascita),
+      MapEntry('Data di nascita', member.birthDateLabel),
+      MapEntry('Residenza', member.residenza),
+      MapEntry('Comune', member.comune),
+      MapEntry('CAP', member.cap),
+      MapEntry('Telefono', member.telefono),
+      MapEntry('Email', member.email),
+    ];
 
     document.addPage(
-      pw.MultiPage(
+      pw.Page(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(28),
-        build: (context) => <pw.Widget>[
-          if (logoBytes != null)
-            pw.Center(
-              child: pw.Image(
-                pw.MemoryImage(logoBytes),
-                width: 150,
-                fit: pw.BoxFit.contain,
-              ),
-            ),
-          pw.SizedBox(height: 14),
-          pw.Text(
-            'Modulo tesseramento',
-            style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 6),
-          pw.Text('Documento generato il $generatedAt'),
-          pw.SizedBox(height: 18),
-          _infoRow('Nome', member.nome),
-          _infoRow('Cognome', member.cognome),
-          _infoRow('Numero tessera', member.membershipNumberLabel),
-          _infoRow('Email', member.email),
-          _infoRow('Telefono', member.telefono),
-          _infoRow('Codice fiscale', member.codiceFiscale),
-          _infoRow('Stato', member.stato),
-          _infoRow(
-            'Privacy',
-            member.privacyAccepted ? 'Accettata' : 'Non accettata',
-          ),
-          _infoRow('Data registrazione', registrationDate),
-          pw.SizedBox(height: 24),
-          pw.Align(
-            alignment: pw.Alignment.centerRight,
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
-              children: <pw.Widget>[
-                pw.Text(
-                  'Firma',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-                pw.SizedBox(height: 8),
-                pw.Container(
-                  width: 130,
-                  height: 60,
-                  padding: const pw.EdgeInsets.all(6),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey400),
-                    borderRadius: const pw.BorderRadius.all(
-                      pw.Radius.circular(8),
+        margin: const pw.EdgeInsets.fromLTRB(22, 18, 22, 20),
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: <pw.Widget>[
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: <pw.Widget>[
+                  if (logoBytes != null)
+                    pw.Container(
+                      width: 92,
+                      height: 92,
+                      alignment: pw.Alignment.topLeft,
+                      child: pw.Image(
+                        pw.MemoryImage(logoBytes),
+                        fit: pw.BoxFit.contain,
+                      ),
                     ),
-                  ),
-                  child: signatureBytes != null && signatureBytes.isNotEmpty
-                      ? pw.Image(
-                          pw.MemoryImage(signatureBytes),
-                          fit: pw.BoxFit.contain,
-                        )
-                      : pw.Center(
-                          child: pw.Text(
-                            'Firma non disponibile',
-                            textAlign: pw.TextAlign.center,
-                            style: const pw.TextStyle(
-                              color: PdfColors.grey700,
-                              fontSize: 8,
-                            ),
+                  if (logoBytes != null) pw.SizedBox(width: 14),
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: <pw.Widget>[
+                        pw.Text(
+                          'JATA APS',
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.bold,
                           ),
                         ),
+                        pw.SizedBox(height: 3),
+                        pw.Text(
+                          'Via Giacomo Leopardi 1/C - 73020 Cutrofiano (LE)',
+                          style: const pw.TextStyle(fontSize: 9),
+                        ),
+                        pw.Text(
+                          'P.IVA / Cod. Fisc. 05190010750',
+                          style: const pw.TextStyle(fontSize: 9),
+                        ),
+                        pw.SizedBox(height: 10),
+                        pw.Text(
+                          'Modulo tesseramento',
+                          style: pw.TextStyle(
+                            fontSize: 18,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          'Documento generato il $generatedAt',
+                          style: const pw.TextStyle(fontSize: 9),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 12),
+              pw.Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: details
+                    .map(
+                      (entry) => pw.SizedBox(
+                        width: 255,
+                        child: _infoCard(entry.key, entry.value),
+                      ),
+                    )
+                    .toList(),
+              ),
+              pw.SizedBox(height: 14),
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: <pw.Widget>[
+                  pw.Expanded(
+                    child: pw.Text(
+                      'Firma del socio',
+                      style: pw.TextStyle(
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  pw.Container(
+                    width: 150,
+                    height: 62,
+                    padding: const pw.EdgeInsets.all(6),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.grey400),
+                      borderRadius: const pw.BorderRadius.all(
+                        pw.Radius.circular(8),
+                      ),
+                    ),
+                    child: signatureBytes != null && signatureBytes.isNotEmpty
+                        ? pw.Image(
+                            pw.MemoryImage(signatureBytes),
+                            fit: pw.BoxFit.contain,
+                          )
+                        : pw.Center(
+                            child: pw.Text(
+                              'Firma non disponibile',
+                              textAlign: pw.TextAlign.center,
+                              style: const pw.TextStyle(
+                                color: PdfColors.grey700,
+                                fontSize: 8,
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+              pw.Spacer(),
+              pw.Divider(color: PdfColors.grey300),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                'Acconsento al trattamento dei miei dati personali ai sensi del REg. UE 679/2016 (GDPR), esclusivamente per finalità associative e di comunicazione interna.',
+                textAlign: pw.TextAlign.center,
+                style: const pw.TextStyle(
+                  fontSize: 8,
+                  color: PdfColors.grey700,
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
 
@@ -121,28 +185,26 @@ class PdfService {
     );
   }
 
-  pw.Widget _infoRow(String label, String value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 8),
-      child: pw.Container(
-        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.grey100,
-          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-        ),
-        child: pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: <pw.Widget>[
-            pw.SizedBox(
-              width: 120,
-              child: pw.Text(
-                label,
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              ),
-            ),
-            pw.Expanded(child: pw.Text(value.isEmpty ? '-' : value)),
-          ],
-        ),
+  pw.Widget _infoCard(String label, String value) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey100,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: <pw.Widget>[
+          pw.Text(
+            label,
+            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 2),
+          pw.Text(
+            value.isEmpty ? '-' : value,
+            style: const pw.TextStyle(fontSize: 9),
+          ),
+        ],
       ),
     );
   }

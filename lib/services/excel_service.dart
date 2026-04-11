@@ -31,9 +31,13 @@ class ExcelService {
       'Numero Tessera',
       'Nome',
       'Cognome',
+      'Luogo di Nascita',
+      'Data di Nascita',
+      'Residenza',
+      'Comune',
+      'CAP',
       'Email',
       'Telefono',
-      'Codice Fiscale',
       'Stato',
       'Privacy',
       'Data Iscrizione',
@@ -57,37 +61,41 @@ class ExcelService {
       sheet.getRangeByIndex(excelRow, 1).setText(member.membershipNumberLabel);
       sheet.getRangeByIndex(excelRow, 2).setText(member.nome);
       sheet.getRangeByIndex(excelRow, 3).setText(member.cognome);
-      sheet.getRangeByIndex(excelRow, 4).setText(member.email);
-      sheet.getRangeByIndex(excelRow, 5).setText(member.telefono);
-      sheet.getRangeByIndex(excelRow, 6).setText(member.codiceFiscale);
-      sheet.getRangeByIndex(excelRow, 7).setText(member.stato);
+      sheet.getRangeByIndex(excelRow, 4).setText(member.luogoNascita);
+      sheet.getRangeByIndex(excelRow, 5).setText(member.birthDateLabel);
+      sheet.getRangeByIndex(excelRow, 6).setText(member.residenza);
+      sheet.getRangeByIndex(excelRow, 7).setText(member.comune);
+      sheet.getRangeByIndex(excelRow, 8).setText(member.cap);
+      sheet.getRangeByIndex(excelRow, 9).setText(member.email);
+      sheet.getRangeByIndex(excelRow, 10).setText(member.telefono);
+      sheet.getRangeByIndex(excelRow, 11).setText(member.stato);
       sheet
-          .getRangeByIndex(excelRow, 8)
+          .getRangeByIndex(excelRow, 12)
           .setText(member.privacyAccepted ? 'Accettata' : 'Non accettata');
       sheet
-          .getRangeByIndex(excelRow, 9)
+          .getRangeByIndex(excelRow, 13)
           .setText(
             member.createdAt == null
                 ? ''
                 : DateFormat('dd/MM/yyyy', 'it_IT').format(member.createdAt!),
           );
-      sheet.getRangeByIndex(excelRow, 10).setText(member.firmaUrl);
+      sheet.getRangeByIndex(excelRow, 14).setText(member.firmaUrl);
 
       final imageBytes = await _loadImageBytes(member.firmaUrl);
       if (imageBytes != null && imageBytes.isNotEmpty) {
-        final picture = sheet.pictures.addStream(excelRow, 11, imageBytes);
+        final picture = sheet.pictures.addStream(excelRow, 15, imageBytes);
         picture.lastRow = excelRow;
-        picture.lastColumn = 11;
+        picture.lastColumn = 15;
         picture.width = 72;
         picture.height = 44;
       }
     }
 
-    for (var column = 1; column <= 9; column++) {
+    for (var column = 1; column <= 13; column++) {
       sheet.autoFitColumn(column);
     }
-    sheet.getRangeByIndex(1, 10).columnWidth = 40;
-    sheet.getRangeByIndex(1, 11).columnWidth = 14;
+    sheet.getRangeByIndex(1, 14).columnWidth = 40;
+    sheet.getRangeByIndex(1, 15).columnWidth = 14;
 
     final bytes = Uint8List.fromList(workbook.saveAsStream());
     workbook.dispose();

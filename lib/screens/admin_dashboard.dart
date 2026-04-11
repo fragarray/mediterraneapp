@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -26,15 +28,35 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final _searchController = TextEditingController();
   final _nomeFilterController = TextEditingController();
   final _cognomeFilterController = TextEditingController();
+  final _luogoNascitaFilterController = TextEditingController();
+  final _dataNascitaFilterController = TextEditingController();
+  final _residenzaFilterController = TextEditingController();
+  final _comuneFilterController = TextEditingController();
+  final _capFilterController = TextEditingController();
   final _emailFilterController = TextEditingController();
   final _telefonoFilterController = TextEditingController();
-  final _codiceFiscaleFilterController = TextEditingController();
   final ScrollController _pendingTableScrollController = ScrollController();
   final ScrollController _approvedTableScrollController = ScrollController();
   final ScrollController _searchTableScrollController = ScrollController();
   late Stream<List<MemberModel>> _pendingMembersStream;
   late Stream<List<MemberModel>> _approvedMembersStream;
   late Stream<List<MemberModel>> _allMembersStream;
+
+  static const Map<String, double> _defaultColumnWidths = <String, double>{
+    'membership': 104,
+    'name': 170,
+    'birth': 190,
+    'residence': 230,
+    'email': 220,
+    'phone': 120,
+    'status': 110,
+    'signature': 132,
+    'date': 90,
+    'actions': 172,
+  };
+  final Map<String, double> _columnWidths = Map<String, double>.from(
+    _defaultColumnWidths,
+  );
 
   bool _isSigningIn = false;
   bool _isExporting = false;
@@ -50,9 +72,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _searchController,
         _nomeFilterController,
         _cognomeFilterController,
+        _luogoNascitaFilterController,
+        _dataNascitaFilterController,
+        _residenzaFilterController,
+        _comuneFilterController,
+        _capFilterController,
         _emailFilterController,
         _telefonoFilterController,
-        _codiceFiscaleFilterController,
       ];
 
   void _refreshMemberStreams() {
@@ -98,6 +124,60 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _selectedStatusFilter = 'all';
       _selectedPrivacyFilter = 'all';
       _registrationDateRange = null;
+    });
+  }
+
+  double _columnWidth(String key) {
+    return _columnWidths[key] ?? _defaultColumnWidths[key] ?? 120;
+  }
+
+  double _minColumnWidth(String key) {
+    switch (key) {
+      case 'membership':
+        return 84;
+      case 'name':
+      case 'birth':
+      case 'residence':
+      case 'email':
+        return 120;
+      case 'actions':
+        return 132;
+      default:
+        return 90;
+    }
+  }
+
+  void _resizeColumn(String key, double delta) {
+    final resizedWidth = (_columnWidth(key) + delta).clamp(
+      _minColumnWidth(key),
+      420.0,
+    );
+
+    if (resizedWidth == _columnWidth(key)) {
+      return;
+    }
+
+    setState(() {
+      _columnWidths[key] = resizedWidth;
+    });
+  }
+
+  void _resetColumnWidth(String key) {
+    final defaultWidth = _defaultColumnWidths[key];
+    if (defaultWidth == null) {
+      return;
+    }
+
+    setState(() {
+      _columnWidths[key] = defaultWidth;
+    });
+  }
+
+  void _resetColumnWidths() {
+    setState(() {
+      _columnWidths
+        ..clear()
+        ..addAll(_defaultColumnWidths);
     });
   }
 
@@ -202,11 +282,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final generalQuery = _searchController.text.trim().toLowerCase();
     final nomeQuery = _nomeFilterController.text.trim().toLowerCase();
     final cognomeQuery = _cognomeFilterController.text.trim().toLowerCase();
-    final emailQuery = _emailFilterController.text.trim().toLowerCase();
-    final telefonoQuery = _telefonoFilterController.text.trim().toLowerCase();
-    final codiceFiscaleQuery = _codiceFiscaleFilterController.text
+    final luogoNascitaQuery = _luogoNascitaFilterController.text
         .trim()
         .toLowerCase();
+    final dataNascitaQuery = _dataNascitaFilterController.text
+        .trim()
+        .toLowerCase();
+    final residenzaQuery = _residenzaFilterController.text.trim().toLowerCase();
+    final comuneQuery = _comuneFilterController.text.trim().toLowerCase();
+    final capQuery = _capFilterController.text.trim().toLowerCase();
+    final emailQuery = _emailFilterController.text.trim().toLowerCase();
+    final telefonoQuery = _telefonoFilterController.text.trim().toLowerCase();
 
     return members.where((member) {
       final createdDate = member.createdAt == null
@@ -218,9 +304,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
         member.nome,
         member.cognome,
         member.fullName,
+        member.luogoNascita,
+        member.birthDateLabel,
+        member.birthPlaceAndDateLabel,
+        member.residenza,
+        member.comune,
+        member.cap,
+        member.residenceLabel,
         member.email,
         member.telefono,
-        member.codiceFiscale,
         member.stato,
         member.privacyAccepted ? 'privacy accettata' : 'privacy non accettata',
         member.createdAtLabel,
@@ -238,16 +330,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
           !member.cognome.toLowerCase().contains(cognomeQuery)) {
         return false;
       }
+      if (luogoNascitaQuery.isNotEmpty &&
+          !member.luogoNascita.toLowerCase().contains(luogoNascitaQuery)) {
+        return false;
+      }
+      if (dataNascitaQuery.isNotEmpty &&
+          !member.birthDateLabel.toLowerCase().contains(dataNascitaQuery)) {
+        return false;
+      }
+      if (residenzaQuery.isNotEmpty &&
+          !member.residenza.toLowerCase().contains(residenzaQuery)) {
+        return false;
+      }
+      if (comuneQuery.isNotEmpty &&
+          !member.comune.toLowerCase().contains(comuneQuery)) {
+        return false;
+      }
+      if (capQuery.isNotEmpty && !member.cap.toLowerCase().contains(capQuery)) {
+        return false;
+      }
       if (emailQuery.isNotEmpty &&
           !member.email.toLowerCase().contains(emailQuery)) {
         return false;
       }
       if (telefonoQuery.isNotEmpty &&
           !member.telefono.toLowerCase().contains(telefonoQuery)) {
-        return false;
-      }
-      if (codiceFiscaleQuery.isNotEmpty &&
-          !member.codiceFiscale.toLowerCase().contains(codiceFiscaleQuery)) {
         return false;
       }
       if (_selectedStatusFilter != 'all' &&
@@ -355,11 +462,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final formKey = GlobalKey<FormState>();
     final nomeController = TextEditingController(text: member.nome);
     final cognomeController = TextEditingController(text: member.cognome);
+    final luogoNascitaController = TextEditingController(
+      text: member.luogoNascita,
+    );
+    final dataNascitaController = TextEditingController(
+      text: member.birthDateLabel == '-' ? '' : member.birthDateLabel,
+    );
+    final residenzaController = TextEditingController(text: member.residenza);
+    final comuneController = TextEditingController(text: member.comune);
+    final capController = TextEditingController(text: member.cap);
     final emailController = TextEditingController(text: member.email);
     final telefonoController = TextEditingController(text: member.telefono);
-    final codiceFiscaleController = TextEditingController(
-      text: member.codiceFiscale,
-    );
+    var selectedBirthDate = member.dataNascita;
     var selectedStatus = member.stato;
 
     final updatedMember = await showDialog<MemberModel>(
@@ -375,6 +489,30 @@ class _AdminDashboardState extends State<AdminDashboard> {
             final fieldWidth = twoColumns
                 ? (dialogWidth - 12) / 2
                 : dialogWidth;
+
+            Future<void> selectBirthDate() async {
+              final now = DateUtils.dateOnly(DateTime.now());
+              final fallbackDate = DateTime(now.year - 18, now.month, now.day);
+              final pickedDate = await showDatePicker(
+                context: dialogContext,
+                initialDate: selectedBirthDate ?? fallbackDate,
+                firstDate: DateTime(1900),
+                lastDate: now,
+                locale: const Locale('it', 'IT'),
+              );
+
+              if (pickedDate == null) {
+                return;
+              }
+
+              setDialogState(() {
+                selectedBirthDate = DateUtils.dateOnly(pickedDate);
+                dataNascitaController.text = DateFormat(
+                  'dd/MM/yyyy',
+                  'it_IT',
+                ).format(selectedBirthDate!);
+              });
+            }
 
             return Dialog(
               insetPadding: const EdgeInsets.symmetric(
@@ -441,6 +579,67 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               SizedBox(
                                 width: fieldWidth,
                                 child: TextFormField(
+                                  controller: luogoNascitaController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Luogo di nascita',
+                                  ),
+                                  validator: (value) => _validateRequired(
+                                    value,
+                                    'Luogo di nascita',
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: fieldWidth,
+                                child: TextFormField(
+                                  controller: dataNascitaController,
+                                  readOnly: true,
+                                  onTap: selectBirthDate,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Data di nascita',
+                                    prefixIcon: Icon(Icons.event_outlined),
+                                  ),
+                                  validator: (value) => _validateRequired(
+                                    value,
+                                    'Data di nascita',
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: fieldWidth,
+                                child: TextFormField(
+                                  controller: residenzaController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Residenza',
+                                  ),
+                                  validator: (value) =>
+                                      _validateRequired(value, 'Residenza'),
+                                ),
+                              ),
+                              SizedBox(
+                                width: fieldWidth,
+                                child: TextFormField(
+                                  controller: comuneController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Comune',
+                                  ),
+                                  validator: (value) =>
+                                      _validateRequired(value, 'Comune'),
+                                ),
+                              ),
+                              SizedBox(
+                                width: fieldWidth,
+                                child: TextFormField(
+                                  controller: capController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'CAP',
+                                  ),
+                                  validator: _validateCap,
+                                ),
+                              ),
+                              SizedBox(
+                                width: fieldWidth,
+                                child: TextFormField(
                                   controller: emailController,
                                   decoration: const InputDecoration(
                                     labelText: 'Email',
@@ -457,19 +656,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   ),
                                   validator: (value) =>
                                       _validateRequired(value, 'Telefono'),
-                                ),
-                              ),
-                              SizedBox(
-                                width: fieldWidth,
-                                child: TextFormField(
-                                  controller: codiceFiscaleController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Codice Fiscale',
-                                  ),
-                                  validator: (value) => _validateRequired(
-                                    value,
-                                    'Codice fiscale',
-                                  ),
                                 ),
                               ),
                               SizedBox(
@@ -561,14 +747,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                     member.copyWith(
                                       nome: nomeController.text.trim(),
                                       cognome: cognomeController.text.trim(),
+                                      luogoNascita: luogoNascitaController.text
+                                          .trim(),
+                                      dataNascita: selectedBirthDate,
+                                      residenza: residenzaController.text
+                                          .trim(),
+                                      comune: comuneController.text.trim(),
+                                      cap: capController.text.trim(),
                                       email: emailController.text
                                           .trim()
                                           .toLowerCase(),
                                       telefono: telefonoController.text.trim(),
-                                      codiceFiscale: codiceFiscaleController
-                                          .text
-                                          .trim()
-                                          .toUpperCase(),
                                       stato: selectedStatus,
                                     ),
                                   );
@@ -592,9 +781,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     nomeController.dispose();
     cognomeController.dispose();
+    luogoNascitaController.dispose();
+    dataNascitaController.dispose();
+    residenzaController.dispose();
+    comuneController.dispose();
+    capController.dispose();
     emailController.dispose();
     telefonoController.dispose();
-    codiceFiscaleController.dispose();
 
     if (updatedMember == null) {
       return;
@@ -736,6 +929,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
     const pattern = r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$';
     if (!RegExp(pattern).hasMatch(email)) {
       return 'Inserisci un indirizzo email valido';
+    }
+
+    return null;
+  }
+
+  String? _validateCap(String? value) {
+    final requiredMessage = _validateRequired(value, 'CAP');
+    if (requiredMessage != null) {
+      return requiredMessage;
+    }
+
+    if (!RegExp(r'^\d{5}$').hasMatch(value!.trim())) {
+      return 'Il CAP deve avere 5 cifre';
     }
 
     return null;
@@ -1213,7 +1419,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         prefixIcon: const Icon(Icons.search),
                         labelText: 'Ricerca generale',
                         hintText:
-                            'Tessera, nome, cognome, email, telefono, codice fiscale o data',
+                            'Tessera, nome, cognome, nascita, residenza, comune, CAP, email, telefono o data',
                         suffixIcon: IconButton(
                           tooltip: _showSearchPanel
                               ? 'Nascondi filtri'
@@ -1412,6 +1618,60 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 SizedBox(
                                   width: advancedWidth,
                                   child: TextField(
+                                    controller: _luogoNascitaFilterController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Luogo di nascita',
+                                      prefixIcon: Icon(Icons.place_outlined),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: advancedWidth,
+                                  child: TextField(
+                                    controller: _dataNascitaFilterController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Data di nascita',
+                                      prefixIcon: Icon(Icons.event_outlined),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: advancedWidth,
+                                  child: TextField(
+                                    controller: _residenzaFilterController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Residenza',
+                                      prefixIcon: Icon(Icons.home_outlined),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: advancedWidth,
+                                  child: TextField(
+                                    controller: _comuneFilterController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Comune',
+                                      prefixIcon: Icon(
+                                        Icons.location_city_outlined,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: advancedWidth,
+                                  child: TextField(
+                                    controller: _capFilterController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'CAP',
+                                      prefixIcon: Icon(
+                                        Icons.markunread_mailbox_outlined,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: advancedWidth,
+                                  child: TextField(
                                     controller: _emailFilterController,
                                     decoration: const InputDecoration(
                                       labelText: 'Email',
@@ -1428,18 +1688,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                     decoration: const InputDecoration(
                                       labelText: 'Telefono',
                                       prefixIcon: Icon(Icons.phone_outlined),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: advancedWidth,
-                                  child: TextField(
-                                    controller: _codiceFiscaleFilterController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Codice Fiscale',
-                                      prefixIcon: Icon(
-                                        Icons.credit_card_outlined,
-                                      ),
                                     ),
                                   ),
                                 ),
@@ -1581,14 +1829,39 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       else if (members.isEmpty)
                         _buildEmptyState(emptyMessage)
                       else
-                        _buildMembersTable(
-                          members,
-                          approvedSection: approvedSection,
-                          mixedStatuses: mixedStatuses,
-                          scrollController: _getTableScrollController(
-                            approvedSection: approvedSection,
-                            mixedStatuses: mixedStatuses,
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: <Widget>[
+                                Icon(
+                                  Icons.open_with_outlined,
+                                  size: 16,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const Text(
+                                  'Trascina il separatore nelle intestazioni per ridimensionare le colonne.',
+                                ),
+                                TextButton(
+                                  onPressed: _resetColumnWidths,
+                                  child: const Text('Ripristina larghezze'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMembersTable(
+                              members,
+                              approvedSection: approvedSection,
+                              mixedStatuses: mixedStatuses,
+                              scrollController: _getTableScrollController(
+                                approvedSection: approvedSection,
+                                mixedStatuses: mixedStatuses,
+                              ),
+                            ),
+                          ],
                         ),
                     ],
                   );
@@ -1609,10 +1882,30 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final minimumTableWidth = mixedStatuses ? 1420.0 : 1240.0;
-        final tableWidth = constraints.maxWidth < minimumTableWidth
-            ? minimumTableWidth
-            : constraints.maxWidth;
+        final visibleColumnKeys = <String>[
+          'membership',
+          'name',
+          'birth',
+          'residence',
+          'email',
+          'phone',
+          if (mixedStatuses) 'status',
+          'signature',
+          'date',
+          'actions',
+        ];
+        final minimumTableWidth =
+            visibleColumnKeys.fold<double>(
+              0,
+              (total, key) => total + _columnWidth(key),
+            ) +
+            ((visibleColumnKeys.length - 1) * 24.0) +
+            24.0;
+        final tableWidth = math.max(constraints.maxWidth, minimumTableWidth);
+        final signaturePreviewWidth = math.max(
+          72.0,
+          _columnWidth('signature') - 12,
+        );
 
         return Scrollbar(
           controller: scrollController,
@@ -1633,75 +1926,92 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 dataRowMinHeight: 76,
                 dataRowMaxHeight: 92,
                 columns: <DataColumn>[
-                  const DataColumn(label: Text('Tessera')),
-                  const DataColumn(label: Text('Nome')),
-                  const DataColumn(label: Text('Email')),
-                  const DataColumn(label: Text('Telefono')),
-                  const DataColumn(label: Text('Cod. Fiscale')),
-                  if (mixedStatuses) const DataColumn(label: Text('Stato')),
-                  const DataColumn(label: Text('Firma')),
-                  const DataColumn(label: Text('Data')),
-                  const DataColumn(label: Text('Azioni')),
+                  DataColumn(
+                    label: _buildResizableHeader('Tessera', 'membership'),
+                  ),
+                  DataColumn(label: _buildResizableHeader('Nome', 'name')),
+                  DataColumn(label: _buildResizableHeader('Nascita', 'birth')),
+                  DataColumn(
+                    label: _buildResizableHeader('Residenza', 'residence'),
+                  ),
+                  DataColumn(label: _buildResizableHeader('Email', 'email')),
+                  DataColumn(label: _buildResizableHeader('Telefono', 'phone')),
+                  if (mixedStatuses)
+                    DataColumn(label: _buildResizableHeader('Stato', 'status')),
+                  DataColumn(
+                    label: _buildResizableHeader('Firma', 'signature'),
+                  ),
+                  DataColumn(label: _buildResizableHeader('Data', 'date')),
+                  DataColumn(label: _buildResizableHeader('Azioni', 'actions')),
                 ],
                 rows: members.map((member) {
-                  final rowHasApprovedActions =
-                      approvedSection ||
-                      (mixedStatuses && member.stato == 'approved');
-                  final actionCellWidth = rowHasApprovedActions ? 132.0 : 172.0;
-
                   return DataRow(
                     cells: <DataCell>[
                       DataCell(
-                        SizedBox(
-                          width: 104,
-                          child: Text(
-                            member.membershipNumberLabel,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        _buildTableTextCell(
+                          member.membershipNumberLabel,
+                          columnKey: 'membership',
+                          maxLines: 1,
                         ),
                       ),
                       DataCell(
-                        SizedBox(width: 180, child: Text(member.fullName)),
+                        _buildTableTextCell(member.fullName, columnKey: 'name'),
                       ),
                       DataCell(
-                        SizedBox(
-                          width: 220,
-                          child: Text(
-                            member.email,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        _buildTableTextCell(
+                          member.birthPlaceAndDateLabel,
+                          columnKey: 'birth',
                         ),
                       ),
                       DataCell(
-                        SizedBox(width: 120, child: Text(member.telefono)),
+                        _buildTableTextCell(
+                          member.residenceLabel,
+                          columnKey: 'residence',
+                        ),
                       ),
                       DataCell(
-                        SizedBox(
-                          width: 140,
-                          child: Text(
-                            member.codiceFiscale,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        _buildTableTextCell(member.email, columnKey: 'email'),
+                      ),
+                      DataCell(
+                        _buildTableTextCell(
+                          member.telefono,
+                          columnKey: 'phone',
+                          maxLines: 1,
                         ),
                       ),
                       if (mixedStatuses)
-                        DataCell(_CounterChip(count: 1, label: member.stato)),
+                        DataCell(
+                          SizedBox(
+                            width: _columnWidth('status'),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: _CounterChip(
+                                count: 1,
+                                label: member.stato,
+                              ),
+                            ),
+                          ),
+                        ),
                       DataCell(
                         SizedBox(
-                          width: 132,
+                          width: _columnWidth('signature'),
                           child: _SignaturePreview(
                             url: member.firmaUrl,
-                            width: 120,
+                            width: signaturePreviewWidth,
                             height: 56,
                           ),
                         ),
                       ),
                       DataCell(
-                        SizedBox(width: 90, child: Text(member.createdAtLabel)),
+                        _buildTableTextCell(
+                          member.createdAtLabel,
+                          columnKey: 'date',
+                          maxLines: 1,
+                        ),
                       ),
                       DataCell(
                         SizedBox(
-                          width: actionCellWidth,
+                          width: _columnWidth('actions'),
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: _buildActionButtons(
@@ -1721,6 +2031,57 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildResizableHeader(String label, String columnKey) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return SizedBox(
+      width: _columnWidth(columnKey),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          Tooltip(
+            message:
+                'Trascina per ridimensionare · doppio click per ripristinare',
+            child: MouseRegion(
+              cursor: SystemMouseCursors.resizeLeftRight,
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onHorizontalDragUpdate: (details) =>
+                    _resizeColumn(columnKey, details.delta.dx),
+                onDoubleTap: () => _resetColumnWidth(columnKey),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Icon(
+                    Icons.drag_indicator,
+                    size: 16,
+                    color: primaryColor,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableTextCell(
+    String value, {
+    required String columnKey,
+    int maxLines = 2,
+  }) {
+    return SizedBox(
+      width: _columnWidth(columnKey),
+      child: Text(value, maxLines: maxLines, overflow: TextOverflow.ellipsis),
     );
   }
 
