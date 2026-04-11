@@ -4,8 +4,6 @@ import 'package:signature/signature.dart';
 import '../models/member_model.dart';
 import '../services/supabase_service.dart';
 
-const _associationGreen = Color(0xFF2E7D32);
-
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key, required this.supabaseConfigured});
 
@@ -24,7 +22,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final _codiceFiscaleController = TextEditingController();
   final SignatureController _signatureController = SignatureController(
     penStrokeWidth: 2.5,
-    penColor: _associationGreen,
+    penColor: Colors.black,
     exportBackgroundColor: Colors.white,
   );
 
@@ -170,10 +168,12 @@ class _RegistrationPageState extends State<RegistrationPage> {
       return;
     }
 
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red.shade700 : _associationGreen,
+        backgroundColor: isError ? Colors.red.shade700 : primaryColor,
       ),
     );
   }
@@ -191,7 +191,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tesseramento Associazione'),
+        title: const Text('Tesseramento Mediterranea'),
         actions: <Widget>[
           TextButton.icon(
             onPressed: () => Navigator.pushNamed(context, '/admin'),
@@ -209,23 +209,42 @@ class _RegistrationPageState extends State<RegistrationPage> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1180),
-            child: isDesktop
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Expanded(child: _buildIntroCard()),
-                      const SizedBox(width: 24),
-                      Expanded(flex: 2, child: _buildFormCard()),
-                    ],
-                  )
-                : Column(
-                    children: <Widget>[
-                      _buildIntroCard(),
-                      const SizedBox(height: 16),
-                      _buildFormCard(),
-                    ],
-                  ),
+            child: Column(
+              children: <Widget>[
+                _buildLogoHeader(isDesktop: isDesktop),
+                isDesktop
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Expanded(child: _buildIntroCard()),
+                          const SizedBox(width: 24),
+                          Expanded(flex: 2, child: _buildFormCard()),
+                        ],
+                      )
+                    : Column(
+                        children: <Widget>[
+                          _buildIntroCard(),
+                          const SizedBox(height: 16),
+                          _buildFormCard(),
+                        ],
+                      ),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoHeader({required bool isDesktop}) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isDesktop ? 20 : 14),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Image.asset(
+          'logopiccolo.png',
+          height: isDesktop ? 110 : 78,
+          fit: BoxFit.contain,
         ),
       ),
     );
@@ -239,8 +258,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: const <Widget>[
-            Icon(Icons.groups_2_outlined, size: 44, color: _associationGreen),
-            SizedBox(height: 16),
             Text(
               'Registrazione socio',
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
@@ -456,6 +473,8 @@ class _InfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(
@@ -464,10 +483,10 @@ class _InfoTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _associationGreen.withValues(alpha: 0.10),
+              color: primaryColor.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: _associationGreen),
+            child: Icon(icon, color: primaryColor),
           ),
           const SizedBox(width: 12),
           Expanded(

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../app_theme.dart';
 import '../models/member_model.dart';
 import '../services/excel_service.dart';
 import '../services/supabase_service.dart';
 
-const _associationGreen = Color(0xFF2E7D32);
+enum _AdminView { dashboard, search }
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key, required this.supabaseConfigured});
@@ -26,13 +28,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final _emailFilterController = TextEditingController();
   final _telefonoFilterController = TextEditingController();
   final _codiceFiscaleFilterController = TextEditingController();
-  late final Stream<List<MemberModel>> _pendingMembersStream;
-  late final Stream<List<MemberModel>> _approvedMembersStream;
+  late Stream<List<MemberModel>> _pendingMembersStream;
+  late Stream<List<MemberModel>> _approvedMembersStream;
+  late Stream<List<MemberModel>> _allMembersStream;
 
   bool _isSigningIn = false;
   bool _isExporting = false;
   bool _showPassword = false;
-  bool _showSearchPanel = true;
+  bool _showSearchPanel = false;
+  _AdminView _selectedView = _AdminView.dashboard;
+  DateTimeRange? _registrationDateRange;
   String _selectedStatusFilter = 'all';
   String _selectedPrivacyFilter = 'all';
 
@@ -46,11 +51,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _codiceFiscaleFilterController,
       ];
 
+  void _refreshMemberStreams() {
+    _pendingMembersStream = SupabaseService.instance.watchPendingMembers();
+    _approvedMembersStream = SupabaseService.instance.watchApprovedMembers();
+    _allMembersStream = SupabaseService.instance.watchAllMembers();
+  }
+
   @override
   void initState() {
     super.initState();
-    _pendingMembersStream = SupabaseService.instance.watchPendingMembers();
-    _approvedMembersStream = SupabaseService.instance.watchApprovedMembers();
+    _refreshMemberStreams();
     for (final controller in _filterControllers) {
       controller.addListener(_onSearchChanged);
     }
@@ -80,7 +90,105 @@ class _AdminDashboardState extends State<AdminDashboard> {
     setState(() {
       _selectedStatusFilter = 'all';
       _selectedPrivacyFilter = 'all';
+      _registrationDateRange = null;
     });
+  }
+
+  String _formatDateOnly(DateTime date) {
+    return DateFormat('dd/MM/yyyy', 'it_IT').format(DateUtils.dateOnly(date));
+  }
+
+  Future<void> _pickRegistrationBoundary({required bool isStart}) async {
+    final now = DateUtils.dateOnly(DateTime.now());
+    final currentStart = _registrationDateRange?.start;
+    final currentEnd = _registrationDateRange?.end;
+    final initialDate = isStart
+        ? (currentStart ?? now)
+        : (currentEnd ?? currentStart ?? now);
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: now.add(const Duration(days: 365)),
+      locale: const Locale('it', 'IT'),
+    );
+
+    if (pickedDate == null) {
+      return;
+    }
+
+    final normalized = DateUtils.dateOnly(pickedDate);
+
+    setState(() {
+      final start = isStart ? normalized : (currentStart ?? normalized);
+      final end = isStart ? (currentEnd ?? normalized) : normalized;
+
+      _registrationDateRange = DateTimeRange(
+        start: start.isAfter(end) ? end : start,
+        end: end.isBefore(start) ? start : end,
+      );
+    });
+  }
+
+  Widget _buildCompactDateField({
+    required String label,
+    required DateTime? value,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final hasValue = value != null;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: hasValue ? const Color(0xFFEAF5EA) : Colors.white,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: hasValue
+                  ? theme.colorScheme.primary.withValues(alpha: 0.30)
+                  : Colors.grey.shade300,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                Icons.event_outlined,
+                size: 14,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '$label: ${hasValue ? _formatDateOnly(value) : '--'}',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: hasValue
+                      ? theme.colorScheme.onSurface
+                      : Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<MemberModel> _latestApprovedMembers(List<MemberModel> members) {
+    final sorted = members.toList()
+      ..sort(
+        (first, second) => (second.createdAt ?? DateTime(1900)).compareTo(
+          first.createdAt ?? DateTime(1900),
+        ),
+      );
+
+    return sorted.take(30).toList();
   }
 
   List<MemberModel> _filterMembers(List<MemberModel> members) {
@@ -94,6 +202,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         .toLowerCase();
 
     return members.where((member) {
+      final createdDate = member.createdAt == null
+          ? null
+          : DateUtils.dateOnly(member.createdAt!);
+
       final searchable = <String>[
         member.nome,
         member.cognome,
@@ -138,6 +250,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return false;
       }
       if (_selectedPrivacyFilter == 'not_accepted' && member.privacyAccepted) {
+        return false;
+      }
+      if (_registrationDateRange != null && createdDate == null) {
+        return false;
+      }
+      if (_registrationDateRange != null &&
+          createdDate!.isBefore(_registrationDateRange!.start)) {
+        return false;
+      }
+      if (_registrationDateRange != null &&
+          createdDate!.isAfter(_registrationDateRange!.end)) {
         return false;
       }
 
@@ -205,6 +328,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
         memberId: memberId,
         status: status,
       );
+      if (mounted) {
+        setState(_refreshMemberStreams);
+      }
       _showMessage(
         status == 'approved'
             ? 'Socio approvato correttamente'
@@ -233,157 +359,212 @@ class _AdminDashboardState extends State<AdminDashboard> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text('Modifica ${member.fullName}'),
-              content: SizedBox(
-                width: 620,
-                child: SingleChildScrollView(
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          children: <Widget>[
-                            SizedBox(
-                              width: 280,
-                              child: TextFormField(
-                                controller: nomeController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Nome',
-                                ),
-                                validator: (value) =>
-                                    _validateRequired(value, 'Nome'),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 280,
-                              child: TextFormField(
-                                controller: cognomeController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Cognome',
-                                ),
-                                validator: (value) =>
-                                    _validateRequired(value, 'Cognome'),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 280,
-                              child: TextFormField(
-                                controller: emailController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Email',
-                                ),
-                                validator: _validateEmail,
-                              ),
-                            ),
-                            SizedBox(
-                              width: 280,
-                              child: TextFormField(
-                                controller: telefonoController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Telefono',
-                                ),
-                                validator: (value) =>
-                                    _validateRequired(value, 'Telefono'),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 280,
-                              child: TextFormField(
-                                controller: codiceFiscaleController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Codice Fiscale',
-                                ),
-                                validator: (value) =>
-                                    _validateRequired(value, 'Codice fiscale'),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 280,
-                              child: DropdownButtonFormField<String>(
-                                initialValue: selectedStatus,
-                                decoration: const InputDecoration(
-                                  labelText: 'Stato',
-                                ),
-                                items: const <DropdownMenuItem<String>>[
-                                  DropdownMenuItem(
-                                    value: 'pending',
-                                    child: Text('Pending'),
+            final screenWidth = MediaQuery.of(dialogContext).size.width;
+            final dialogWidth = screenWidth >= 760
+                ? 620.0
+                : ((screenWidth - 48).clamp(280.0, 620.0)).toDouble();
+            final twoColumns = dialogWidth >= 560;
+            final fieldWidth = twoColumns
+                ? (dialogWidth - 12) / 2
+                : dialogWidth;
+
+            return Dialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 24,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: dialogWidth,
+                  maxHeight: MediaQuery.of(dialogContext).size.height * 0.85,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SingleChildScrollView(
+                    child: Form(
+                      key: formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Modifica ${member.fullName}',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: <Widget>[
+                              SizedBox(
+                                width: fieldWidth,
+                                child: TextFormField(
+                                  controller: nomeController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Nome',
                                   ),
-                                  DropdownMenuItem(
-                                    value: 'approved',
-                                    child: Text('Confermato'),
+                                  validator: (value) =>
+                                      _validateRequired(value, 'Nome'),
+                                ),
+                              ),
+                              SizedBox(
+                                width: fieldWidth,
+                                child: TextFormField(
+                                  controller: cognomeController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Cognome',
                                   ),
-                                  DropdownMenuItem(
-                                    value: 'rejected',
-                                    child: Text('Rifiutato'),
+                                  validator: (value) =>
+                                      _validateRequired(value, 'Cognome'),
+                                ),
+                              ),
+                              SizedBox(
+                                width: fieldWidth,
+                                child: TextFormField(
+                                  controller: emailController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Email',
+                                  ),
+                                  validator: _validateEmail,
+                                ),
+                              ),
+                              SizedBox(
+                                width: fieldWidth,
+                                child: TextFormField(
+                                  controller: telefonoController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Telefono',
+                                  ),
+                                  validator: (value) =>
+                                      _validateRequired(value, 'Telefono'),
+                                ),
+                              ),
+                              SizedBox(
+                                width: fieldWidth,
+                                child: TextFormField(
+                                  controller: codiceFiscaleController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Codice Fiscale',
+                                  ),
+                                  validator: (value) => _validateRequired(
+                                    value,
+                                    'Codice fiscale',
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: fieldWidth,
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: selectedStatus,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Stato',
+                                  ),
+                                  items: const <DropdownMenuItem<String>>[
+                                    DropdownMenuItem(
+                                      value: 'pending',
+                                      child: Text('Pending'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'approved',
+                                      child: Text('Confermato'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'rejected',
+                                      child: Text('Rifiutato'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) {
+                                      return;
+                                    }
+                                    setDialogState(() {
+                                      selectedStatus = value;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (member.firmaUrl.isNotEmpty) ...<Widget>[
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Firma associata',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 8),
+                            if (twoColumns)
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  _SignaturePreview(
+                                    url: member.firmaUrl,
+                                    width: 180,
+                                    height: 72,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: SelectableText(member.firmaUrl),
                                   ),
                                 ],
-                                onChanged: (value) {
-                                  if (value == null) {
+                              )
+                            else
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  _SignaturePreview(
+                                    url: member.firmaUrl,
+                                    width: 180,
+                                    height: 72,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  SelectableText(member.firmaUrl),
+                                ],
+                              ),
+                          ],
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: <Widget>[
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(),
+                                child: const Text('Annulla'),
+                              ),
+                              const SizedBox(width: 8),
+                              FilledButton.icon(
+                                onPressed: () {
+                                  if (!formKey.currentState!.validate()) {
                                     return;
                                   }
-                                  setDialogState(() {
-                                    selectedStatus = value;
-                                  });
+
+                                  Navigator.of(dialogContext).pop(
+                                    member.copyWith(
+                                      nome: nomeController.text.trim(),
+                                      cognome: cognomeController.text.trim(),
+                                      email: emailController.text
+                                          .trim()
+                                          .toLowerCase(),
+                                      telefono: telefonoController.text.trim(),
+                                      codiceFiscale: codiceFiscaleController
+                                          .text
+                                          .trim()
+                                          .toUpperCase(),
+                                      stato: selectedStatus,
+                                    ),
+                                  );
                                 },
+                                icon: const Icon(Icons.save_outlined),
+                                label: const Text('Salva'),
                               ),
-                            ),
-                          ],
-                        ),
-                        if (member.firmaUrl.isNotEmpty) ...<Widget>[
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Firma associata',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              _SignaturePreview(url: member.firmaUrl),
-                              const SizedBox(width: 12),
-                              Expanded(child: SelectableText(member.firmaUrl)),
                             ],
                           ),
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Annulla'),
-                ),
-                FilledButton.icon(
-                  onPressed: () {
-                    if (!formKey.currentState!.validate()) {
-                      return;
-                    }
-
-                    Navigator.of(dialogContext).pop(
-                      member.copyWith(
-                        nome: nomeController.text.trim(),
-                        cognome: cognomeController.text.trim(),
-                        email: emailController.text.trim().toLowerCase(),
-                        telefono: telefonoController.text.trim(),
-                        codiceFiscale: codiceFiscaleController.text
-                            .trim()
-                            .toUpperCase(),
-                        stato: selectedStatus,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.save_outlined),
-                  label: const Text('Salva'),
-                ),
-              ],
             );
           },
         );
@@ -402,6 +583,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     try {
       await SupabaseService.instance.updateMember(updatedMember);
+      if (mounted) {
+        setState(_refreshMemberStreams);
+      }
       _showMessage('Socio aggiornato correttamente');
     } catch (error, stackTrace) {
       debugPrint('[AdminDashboard] editMember error: $error');
@@ -440,43 +624,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     try {
       await SupabaseService.instance.deleteMember(member);
+      if (mounted) {
+        setState(_refreshMemberStreams);
+      }
       _showMessage('Socio eliminato correttamente');
     } catch (error, stackTrace) {
       debugPrint('[AdminDashboard] deleteMember error: $error');
       debugPrintStack(stackTrace: stackTrace);
       _showMessage(_formatError(error), isError: true);
-    }
-  }
-
-  Future<void> _exportApprovedMembers() async {
-    if (!widget.supabaseConfigured) {
-      _showMessage('Configura Supabase per usare l\'export.', isError: true);
-      return;
-    }
-
-    setState(() {
-      _isExporting = true;
-    });
-
-    try {
-      final members = await SupabaseService.instance.getApprovedMembers();
-      if (members.isEmpty) {
-        _showMessage('Nessun socio approvato da esportare.');
-        return;
-      }
-
-      await ExcelService.instance.exportApprovedMembers(members);
-      _showMessage('File Excel generato correttamente');
-    } catch (error, stackTrace) {
-      debugPrint('[AdminDashboard] exportApprovedMembers error: $error');
-      debugPrintStack(stackTrace: stackTrace);
-      _showMessage(_formatError(error), isError: true);
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isExporting = false;
-        });
-      }
     }
   }
 
@@ -561,10 +716,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
       return;
     }
 
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red.shade700 : _associationGreen,
+        backgroundColor: isError ? Colors.red.shade700 : primaryColor,
       ),
     );
   }
@@ -585,42 +742,42 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   Widget build(BuildContext context) {
     final isAuthenticated = SupabaseService.instance.isAuthenticated;
+    final title = !isAuthenticated
+        ? 'Dashboard Admin'
+        : _selectedView == _AdminView.dashboard
+        ? 'Area Admin · Home'
+        : 'Area Admin · Ricerca';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard Admin'),
+        title: Text(title),
         actions: <Widget>[
+          if (isAuthenticated)
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _selectedView = _AdminView.dashboard;
+                });
+              },
+              icon: const Icon(Icons.home_outlined),
+              label: const Text('Home'),
+            ),
+          if (isAuthenticated)
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _selectedView = _AdminView.search;
+                });
+              },
+              icon: const Icon(Icons.search_outlined),
+              label: const Text('Ricerca'),
+            ),
+          if (isAuthenticated) _buildThemeMenuButton(),
           TextButton.icon(
             onPressed: () => Navigator.pushNamed(context, '/'),
             icon: const Icon(Icons.how_to_reg_outlined),
             label: const Text('Registrazione'),
           ),
-          if (isAuthenticated)
-            IconButton(
-              tooltip: _showSearchPanel ? 'Nascondi ricerca' : 'Mostra ricerca',
-              onPressed: () {
-                setState(() {
-                  _showSearchPanel = !_showSearchPanel;
-                });
-              },
-              icon: Icon(
-                _showSearchPanel
-                    ? Icons.menu_open_outlined
-                    : Icons.menu_outlined,
-              ),
-            ),
-          if (isAuthenticated)
-            TextButton.icon(
-              onPressed: _isExporting ? null : _exportApprovedMembers,
-              icon: _isExporting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.download_outlined),
-              label: const Text('Export XLSX'),
-            ),
           if (isAuthenticated)
             TextButton.icon(
               onPressed: _signOut,
@@ -659,32 +816,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Widget _buildDashboardContent({required bool isDesktop}) {
-    final mainContent = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        _buildOverviewSection(),
-        const SizedBox(height: 16),
-        _buildSearchCard(),
-        const SizedBox(height: 16),
-        _buildMembersSection(
-          title: 'Richieste pending',
-          description: 'Nuove richieste in attesa di approvazione o rifiuto.',
-          stream: _pendingMembersStream,
-          emptyMessage: 'Nessuna iscrizione pending trovata.',
-          approvedSection: false,
-        ),
-        const SizedBox(height: 16),
-        _buildMembersSection(
-          title: 'Soci confermati',
-          description:
-              'Gestisci i soci approvati, modifica i dati anagrafici o elimina il record.',
-          stream: _approvedMembersStream,
-          emptyMessage: 'Nessun socio confermato trovato.',
-          approvedSection: true,
-        ),
-      ],
-    );
-
     return SingleChildScrollView(
       padding: EdgeInsets.symmetric(
         horizontal: isDesktop ? 24 : 12,
@@ -692,58 +823,51 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1360),
-          child: isDesktop
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    if (_showSearchPanel) ...<Widget>[
-                      SizedBox(width: 340, child: _buildSidePanel()),
-                      const SizedBox(width: 24),
-                    ],
-                    Expanded(child: mainContent),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    if (_showSearchPanel) ...<Widget>[
-                      _buildSidePanel(),
-                      const SizedBox(height: 16),
-                    ],
-                    mainContent,
-                  ],
-                ),
+          constraints: const BoxConstraints(maxWidth: 1280),
+          child: SizedBox(
+            width: double.infinity,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: KeyedSubtree(
+                key: ValueKey<_AdminView>(_selectedView),
+                child: _selectedView == _AdminView.dashboard
+                    ? _buildHomePage()
+                    : _buildSearchPage(isDesktop: isDesktop),
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildConfigCard() {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640),
         child: Card(
           elevation: 0,
           margin: const EdgeInsets.all(16),
-          child: const Padding(
-            padding: EdgeInsets.all(24),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Icon(
                   Icons.settings_suggest_outlined,
-                  color: _associationGreen,
+                  color: primaryColor,
                   size: 40,
                 ),
-                SizedBox(height: 12),
-                Text(
+                const SizedBox(height: 12),
+                const Text(
                   'Configura Supabase',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                 ),
-                SizedBox(height: 8),
-                Text(
+                const SizedBox(height: 8),
+                const Text(
                   'La dashboard admin richiede Supabase Auth attivo. Una volta configurato, potrai approvare, modificare, eliminare ed esportare i soci approvati.',
                 ),
               ],
@@ -831,368 +955,417 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildOverviewSection() {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      children: <Widget>[
-        _buildStatusSummaryCard(
-          title: 'Richieste pending',
-          description: 'Da valutare',
-          icon: Icons.hourglass_top_outlined,
-          stream: _pendingMembersStream,
-        ),
-        _buildStatusSummaryCard(
-          title: 'Soci confermati',
-          description: 'Gestibili e esportabili',
-          icon: Icons.verified_user_outlined,
-          stream: _approvedMembersStream,
-        ),
-        ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 220, maxWidth: 280),
-          child: Card(
-            elevation: 0,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const Icon(Icons.file_download_done_outlined),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Export Excel',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Include URL e immagine della firma per ogni tesserato.',
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _isExporting ? null : _exportApprovedMembers,
-                      icon: _isExporting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.download_outlined),
-                      label: const Text('Scarica Excel'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+  Widget _buildThemeMenuButton() {
+    return ValueListenableBuilder<Color>(
+      valueListenable: AppThemeController.seedColor,
+      builder: (context, currentColor, _) {
+        return PopupMenuButton<Color>(
+          tooltip: 'Colore applicazione',
+          icon: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: <Color>[
+                Color(0xFF2E7D32),
+                Color(0xFF1565C0),
+                Color(0xFF6A1B9A),
+                Color(0xFFEF6C00),
+              ],
+            ).createShader(bounds),
+            child: const Icon(Icons.palette_outlined, color: Colors.white),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatusSummaryCard({
-    required String title,
-    required String description,
-    required IconData icon,
-    required Stream<List<MemberModel>> stream,
-  }) {
-    return StreamBuilder<List<MemberModel>>(
-      stream: stream,
-      builder: (context, snapshot) {
-        final count = snapshot.data?.length ?? 0;
-        return ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 220, maxWidth: 280),
-          child: Card(
-            elevation: 0,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Icon(icon, color: _associationGreen),
-                  const SizedBox(height: 12),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+          onSelected: AppThemeController.setSeedColor,
+          itemBuilder: (context) {
+            return AppThemeController.options.map((option) {
+              final isSelected = currentColor == option.color;
+              return PopupMenuItem<Color>(
+                value: option.color,
+                child: Row(
+                  children: <Widget>[
+                    Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: option.color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected
+                              ? Colors.black87
+                              : Colors.grey.shade300,
+                          width: isSelected ? 2.5 : 1,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(description),
-                  const SizedBox(height: 12),
-                  Text(
-                    '$count',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: _associationGreen,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+                    const SizedBox(width: 10),
+                    Text(option.label),
+                  ],
+                ),
+              );
+            }).toList();
+          },
         );
       },
     );
   }
 
-  Widget _buildSearchCard() {
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                const Expanded(
-                  child: Text(
-                    'Ricerca rapida',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _showSearchPanel = !_showSearchPanel;
-                    });
-                  },
-                  icon: Icon(
-                    _showSearchPanel
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                  ),
-                  label: Text(
-                    _showSearchPanel ? 'Nascondi filtri' : 'Mostra filtri',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Ricerca generale su tutti i campi di registrazione',
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: <Widget>[
-                FilledButton.tonalIcon(
-                  onPressed: _isExporting ? null : _exportSearchResults,
-                  icon: const Icon(Icons.filter_alt_outlined),
-                  label: const Text('Export risultati filtrati'),
-                ),
-                TextButton.icon(
-                  onPressed: _clearFilters,
-                  icon: const Icon(Icons.restart_alt_outlined),
-                  label: const Text('Pulisci tutti i filtri'),
-                ),
-              ],
-            ),
-          ],
+  Widget _buildHomePage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _buildMembersSection(
+          title: 'Richieste pending',
+          description:
+              'Qui gestisci le nuove richieste in attesa di approvazione o rifiuto.',
+          stream: _pendingMembersStream,
+          emptyMessage: 'Nessuna iscrizione pending trovata.',
+          approvedSection: false,
+          countLabel: 'pending',
         ),
-      ),
+        const SizedBox(height: 16),
+        _buildMembersSection(
+          title: 'Ultimi associati',
+          description: 'Ultimi 30 soci confermati registrati più di recente.',
+          stream: _approvedMembersStream,
+          emptyMessage: 'Nessun socio confermato trovato.',
+          approvedSection: true,
+          transformMembers: _latestApprovedMembers,
+          countLabel: 'associati',
+        ),
+      ],
     );
   }
 
-  Widget _buildSidePanel() {
-    final userEmail = SupabaseService.instance.currentUser?.email ?? 'Admin';
+  Widget _buildSearchPage({required bool isDesktop}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = isDesktop && constraints.maxWidth >= 980;
+        final primaryWidth = wide ? 220.0 : constraints.maxWidth;
+        final advancedWidth = wide
+            ? (constraints.maxWidth - 24) / 3
+            : constraints.maxWidth;
 
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  const Expanded(
-                    child: Text(
-                      'Ricerca avanzata',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Nascondi pannello',
-                    onPressed: () {
-                      setState(() {
-                        _showSearchPanel = false;
-                      });
-                    },
-                    icon: const Icon(Icons.close_fullscreen_outlined),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text('Utente autenticato: $userEmail'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _nomeFilterController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _cognomeFilterController,
-                decoration: const InputDecoration(
-                  labelText: 'Cognome',
-                  prefixIcon: Icon(Icons.badge_outlined),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _emailFilterController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.alternate_email_outlined),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _telefonoFilterController,
-                decoration: const InputDecoration(
-                  labelText: 'Telefono',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _codiceFiscaleFilterController,
-                decoration: const InputDecoration(
-                  labelText: 'Codice Fiscale',
-                  prefixIcon: Icon(Icons.credit_card_outlined),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey<String>('status-$_selectedStatusFilter'),
-                initialValue: _selectedStatusFilter,
-                decoration: const InputDecoration(
-                  labelText: 'Stato pratica',
-                  prefixIcon: Icon(Icons.rule_folder_outlined),
-                ),
-                items: const <DropdownMenuItem<String>>[
-                  DropdownMenuItem(
-                    value: 'all',
-                    child: Text('Tutti gli stati'),
-                  ),
-                  DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                  DropdownMenuItem(
-                    value: 'approved',
-                    child: Text('Confermati'),
-                  ),
-                  DropdownMenuItem(value: 'rejected', child: Text('Rifiutati')),
-                ],
-                onChanged: (value) {
-                  if (value == null) {
-                    return;
-                  }
-                  setState(() {
-                    _selectedStatusFilter = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey<String>('privacy-$_selectedPrivacyFilter'),
-                initialValue: _selectedPrivacyFilter,
-                decoration: const InputDecoration(
-                  labelText: 'Privacy',
-                  prefixIcon: Icon(Icons.privacy_tip_outlined),
-                ),
-                items: const <DropdownMenuItem<String>>[
-                  DropdownMenuItem(value: 'all', child: Text('Tutti')),
-                  DropdownMenuItem(
-                    value: 'accepted',
-                    child: Text('Privacy accettata'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'not_accepted',
-                    child: Text('Privacy non accettata'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value == null) {
-                    return;
-                  }
-                  setState(() {
-                    _selectedPrivacyFilter = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _isExporting ? null : _exportSearchResults,
-                  icon: _isExporting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.file_download_outlined),
-                  label: const Text('Scarica risultati ricerca'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _clearFilters,
-                  icon: const Icon(Icons.restart_alt_outlined),
-                  label: const Text('Reset filtri'),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _associationGreen.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Column(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Card(
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      'Ricerca disponibile su',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: <Widget>[
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 720),
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'Ricerca tesserati',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Filtra in modo rapido e controlla la tabella prima di esportare.',
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _selectedView = _AdminView.dashboard;
+                            });
+                          },
+                          icon: const Icon(Icons.arrow_back_outlined),
+                          label: const Text('Torna alla home'),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 8),
-                    Text('• Nome e cognome'),
-                    Text('• Email e telefono'),
-                    Text('• Codice fiscale'),
-                    Text('• Stato pratica e privacy'),
-                    Text('• URL firma e data di iscrizione'),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        labelText: 'Ricerca generale',
+                        hintText:
+                            'Nome, cognome, email, telefono, codice fiscale o data',
+                        suffixIcon: IconButton(
+                          tooltip: _showSearchPanel
+                              ? 'Nascondi filtri'
+                              : 'Mostra filtri',
+                          onPressed: () {
+                            setState(() {
+                              _showSearchPanel = !_showSearchPanel;
+                            });
+                          },
+                          icon: Icon(
+                            _showSearchPanel ? Icons.tune : Icons.tune_outlined,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_showSearchPanel) ...<Widget>[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAF7),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: <Widget>[
+                                SizedBox(
+                                  width: primaryWidth,
+                                  child: DropdownButtonFormField<String>(
+                                    key: ValueKey<String>(
+                                      'status-$_selectedStatusFilter',
+                                    ),
+                                    initialValue: _selectedStatusFilter,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Stato',
+                                      prefixIcon: Icon(
+                                        Icons.rule_folder_outlined,
+                                      ),
+                                    ),
+                                    items: const <DropdownMenuItem<String>>[
+                                      DropdownMenuItem(
+                                        value: 'all',
+                                        child: Text('Tutti gli stati'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'pending',
+                                        child: Text('Pending'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'approved',
+                                        child: Text('Confermati'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'rejected',
+                                        child: Text('Rifiutati'),
+                                      ),
+                                    ],
+                                    onChanged: (value) {
+                                      if (value == null) {
+                                        return;
+                                      }
+                                      setState(() {
+                                        _selectedStatusFilter = value;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: primaryWidth,
+                                  child: DropdownButtonFormField<String>(
+                                    key: ValueKey<String>(
+                                      'privacy-$_selectedPrivacyFilter',
+                                    ),
+                                    initialValue: _selectedPrivacyFilter,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Privacy',
+                                      prefixIcon: Icon(
+                                        Icons.privacy_tip_outlined,
+                                      ),
+                                    ),
+                                    items: const <DropdownMenuItem<String>>[
+                                      DropdownMenuItem(
+                                        value: 'all',
+                                        child: Text('Tutti'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'accepted',
+                                        child: Text('Accettata'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'not_accepted',
+                                        child: Text('Non accettata'),
+                                      ),
+                                    ],
+                                    onChanged: (value) {
+                                      if (value == null) {
+                                        return;
+                                      }
+                                      setState(() {
+                                        _selectedPrivacyFilter = value;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF3F7F1),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      Icon(
+                                        Icons.date_range_outlined,
+                                        size: 14,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Text(
+                                        'Registrazione',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                _buildCompactDateField(
+                                  label: 'Da',
+                                  value: _registrationDateRange?.start,
+                                  onTap: () =>
+                                      _pickRegistrationBoundary(isStart: true),
+                                ),
+                                _buildCompactDateField(
+                                  label: 'A',
+                                  value: _registrationDateRange?.end,
+                                  onTap: () =>
+                                      _pickRegistrationBoundary(isStart: false),
+                                ),
+                                if (_registrationDateRange != null)
+                                  TextButton.icon(
+                                    style: TextButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _registrationDateRange = null;
+                                      });
+                                    },
+                                    icon: const Icon(
+                                      Icons.close_outlined,
+                                      size: 16,
+                                    ),
+                                    label: const Text('Azzera'),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: <Widget>[
+                                SizedBox(
+                                  width: advancedWidth,
+                                  child: TextField(
+                                    controller: _nomeFilterController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Nome',
+                                      prefixIcon: Icon(Icons.person_outline),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: advancedWidth,
+                                  child: TextField(
+                                    controller: _cognomeFilterController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Cognome',
+                                      prefixIcon: Icon(Icons.badge_outlined),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: advancedWidth,
+                                  child: TextField(
+                                    controller: _emailFilterController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Email',
+                                      prefixIcon: Icon(
+                                        Icons.alternate_email_outlined,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: advancedWidth,
+                                  child: TextField(
+                                    controller: _telefonoFilterController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Telefono',
+                                      prefixIcon: Icon(Icons.phone_outlined),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: advancedWidth,
+                                  child: TextField(
+                                    controller: _codiceFiscaleFilterController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Codice Fiscale',
+                                      prefixIcon: Icon(
+                                        Icons.credit_card_outlined,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  onPressed: _clearFilters,
+                                  icon: const Icon(Icons.restart_alt_outlined),
+                                  label: const Text('Pulisci filtri'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
+            const SizedBox(height: 16),
+            _buildMembersSection(
+              title: 'Risultati ricerca',
+              description:
+                  'Anteprima live dei risultati. La tabella si aggiorna mentre scrivi.',
+              stream: _allMembersStream,
+              emptyMessage: 'Nessun socio trovato con i filtri correnti.',
+              approvedSection: false,
+              applySearchFilters: true,
+              mixedStatuses: true,
+              countLabel: 'risultati',
+              headerActions: FilledButton.icon(
+                onPressed: _isExporting ? null : _exportSearchResults,
+                icon: _isExporting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.download_outlined),
+                label: const Text('Export Excel'),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1202,68 +1375,107 @@ class _AdminDashboardState extends State<AdminDashboard> {
     required Stream<List<MemberModel>> stream,
     required String emptyMessage,
     required bool approvedSection,
+    bool applySearchFilters = false,
+    bool mixedStatuses = false,
+    String? countLabel,
+    Widget? headerActions,
+    List<MemberModel> Function(List<MemberModel> members)? transformMembers,
   }) {
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: StreamBuilder<List<MemberModel>>(
-          stream: stream,
-          builder: (context, snapshot) {
-            final members = _filterMembers(
-              snapshot.data ?? const <MemberModel>[],
-            );
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        elevation: 0,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: StreamBuilder<List<MemberModel>>(
+            stream: stream,
+            builder: (context, snapshot) {
+              final rawMembers = snapshot.data ?? const <MemberModel>[];
+              final transformedMembers = transformMembers != null
+                  ? transformMembers(rawMembers)
+                  : rawMembers;
+              final members = applySearchFilters
+                  ? _filterMembers(transformedMembers)
+                  : transformedMembers;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final tableThreshold = mixedStatuses ? 1180.0 : 980.0;
+                  final useTableLayout = constraints.maxWidth >= tableThreshold;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: <Widget>[
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 720),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  title,
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(description),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(description),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: <Widget>[
+                              ?headerActions,
+                              _CounterChip(
+                                count: members.length,
+                                label:
+                                    countLabel ??
+                                    (approvedSection
+                                        ? 'confermati'
+                                        : 'pending'),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    _CounterChip(
-                      count: members.length,
-                      label: approvedSection ? 'confermati' : 'pending',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                if (snapshot.connectionState == ConnectionState.waiting)
-                  const Center(child: CircularProgressIndicator())
-                else if (members.isEmpty)
-                  _buildEmptyState(emptyMessage)
-                else if (MediaQuery.sizeOf(context).width >= 980)
-                  _buildMembersTable(members, approvedSection: approvedSection)
-                else
-                  Column(
-                    children: members
-                        .map(
-                          (member) => _buildMemberCard(
-                            member,
-                            approvedSection: approvedSection,
-                          ),
+                      const SizedBox(height: 16),
+                      if (snapshot.connectionState == ConnectionState.waiting)
+                        const Center(child: CircularProgressIndicator())
+                      else if (members.isEmpty)
+                        _buildEmptyState(emptyMessage)
+                      else if (useTableLayout)
+                        _buildMembersTable(
+                          members,
+                          approvedSection: approvedSection,
+                          mixedStatuses: mixedStatuses,
                         )
-                        .toList(),
-                  ),
-              ],
-            );
-          },
+                      else
+                        Column(
+                          children: members
+                              .map(
+                                (member) => _buildMemberCard(
+                                  member,
+                                  approvedSection: approvedSection,
+                                  mixedStatuses: mixedStatuses,
+                                ),
+                              )
+                              .toList(),
+                        ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -1272,59 +1484,136 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildMembersTable(
     List<MemberModel> members, {
     required bool approvedSection,
+    bool mixedStatuses = false,
   }) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 18,
-        dataRowMinHeight: 76,
-        dataRowMaxHeight: 92,
-        columns: const <DataColumn>[
-          DataColumn(label: Text('Nome')),
-          DataColumn(label: Text('Email')),
-          DataColumn(label: Text('Telefono')),
-          DataColumn(label: Text('Cod. Fiscale')),
-          DataColumn(label: Text('Firma')),
-          DataColumn(label: Text('Data')),
-          DataColumn(label: Text('Azioni')),
-        ],
-        rows: members.map((member) {
-          return DataRow(
-            cells: <DataCell>[
-              DataCell(SizedBox(width: 160, child: Text(member.fullName))),
-              DataCell(
-                SizedBox(
-                  width: 180,
-                  child: Text(member.email, overflow: TextOverflow.ellipsis),
-                ),
-              ),
-              DataCell(Text(member.telefono)),
-              DataCell(
-                SizedBox(
-                  width: 130,
-                  child: Text(
-                    member.codiceFiscale,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              DataCell(_SignaturePreview(url: member.firmaUrl)),
-              DataCell(Text(member.createdAtLabel)),
-              DataCell(
-                _buildActionButtons(member, approvedSection: approvedSection),
-              ),
-            ],
-          );
-        }).toList(),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          primary: false,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              horizontalMargin: 12,
+              columnSpacing: 24,
+              dataRowMinHeight: 76,
+              dataRowMaxHeight: 92,
+              columns: <DataColumn>[
+                const DataColumn(label: Text('Nome')),
+                const DataColumn(label: Text('Email')),
+                const DataColumn(label: Text('Telefono')),
+                const DataColumn(label: Text('Cod. Fiscale')),
+                if (mixedStatuses) const DataColumn(label: Text('Stato')),
+                const DataColumn(label: Text('Firma')),
+                const DataColumn(label: Text('Data')),
+                const DataColumn(label: Text('Azioni')),
+              ],
+              rows: members.map((member) {
+                return DataRow(
+                  cells: <DataCell>[
+                    DataCell(
+                      SizedBox(width: 180, child: Text(member.fullName)),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 220,
+                        child: Text(
+                          member.email,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(width: 120, child: Text(member.telefono)),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 140,
+                        child: Text(
+                          member.codiceFiscale,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    if (mixedStatuses)
+                      DataCell(_CounterChip(count: 1, label: member.stato)),
+                    DataCell(
+                      SizedBox(
+                        width: 132,
+                        child: _SignaturePreview(
+                          url: member.firmaUrl,
+                          width: 120,
+                          height: 56,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(width: 90, child: Text(member.createdAtLabel)),
+                    ),
+                    DataCell(
+                      _buildActionButtons(
+                        member,
+                        approvedSection: approvedSection,
+                        mixedStatuses: mixedStatuses,
+                        compact: true,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildActionButtons(
     MemberModel member, {
     required bool approvedSection,
+    bool mixedStatuses = false,
+    bool compact = false,
   }) {
-    if (approvedSection) {
+    final showApprovedActions =
+        approvedSection || (mixedStatuses && member.stato == 'approved');
+
+    if (compact) {
+      if (showApprovedActions) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            IconButton(
+              tooltip: 'Modifica socio',
+              onPressed: () => _editMember(member),
+              icon: const Icon(Icons.edit_outlined),
+            ),
+            IconButton(
+              tooltip: 'Elimina socio',
+              onPressed: () => _deleteMember(member),
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ],
+        );
+      }
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          IconButton(
+            tooltip: 'Approva richiesta',
+            onPressed: () => _changeStatus(member, 'approved'),
+            icon: const Icon(Icons.check_circle_outline),
+          ),
+          IconButton(
+            tooltip: 'Rifiuta richiesta',
+            onPressed: () => _changeStatus(member, 'rejected'),
+            icon: const Icon(Icons.close_outlined),
+          ),
+        ],
+      );
+    }
+
+    if (showApprovedActions) {
       return Wrap(
         spacing: 8,
         runSpacing: 8,
@@ -1361,7 +1650,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildMemberCard(MemberModel member, {required bool approvedSection}) {
+  Widget _buildMemberCard(
+    MemberModel member, {
+    required bool approvedSection,
+    bool mixedStatuses = false,
+  }) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
@@ -1402,7 +1695,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
               const SizedBox(width: 12),
               Column(
                 children: <Widget>[
-                  _SignaturePreview(url: member.firmaUrl),
+                  _SignaturePreview(
+                    url: member.firmaUrl,
+                    width: 120,
+                    height: 56,
+                  ),
                   const SizedBox(height: 8),
                   _CounterChip(count: 1, label: member.stato),
                 ],
@@ -1410,7 +1707,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildActionButtons(member, approvedSection: approvedSection),
+          _buildActionButtons(
+            member,
+            approvedSection: approvedSection,
+            mixedStatuses: mixedStatuses,
+          ),
         ],
       ),
     );
@@ -1444,78 +1745,79 @@ class _CounterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: _associationGreen.withValues(alpha: 0.10),
+        color: primaryColor.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Text(
         '$count $label',
-        style: const TextStyle(
-          color: _associationGreen,
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(color: primaryColor, fontWeight: FontWeight.w700),
       ),
     );
   }
 }
 
 class _SignaturePreview extends StatelessWidget {
-  const _SignaturePreview({required this.url});
+  const _SignaturePreview({
+    required this.url,
+    this.width = 120,
+    this.height = 56,
+  });
 
   final String url;
+  final double width;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
-    if (url.isEmpty) {
+    Widget buildFrame(Widget child) {
       return Container(
-        width: 56,
-        height: 56,
+        width: width,
+        height: height,
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.grey.shade300),
         ),
-        child: const Icon(Icons.draw_outlined, color: Colors.grey),
+        alignment: Alignment.center,
+        child: child,
       );
+    }
+
+    if (url.isEmpty) {
+      return buildFrame(const Icon(Icons.draw_outlined, color: Colors.grey));
     }
 
     return Tooltip(
       message: url,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          url,
-          width: 56,
-          height: 56,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              width: 56,
-              height: 56,
-              color: Colors.grey.shade100,
-              alignment: Alignment.center,
-              child: const Icon(Icons.broken_image_outlined),
-            );
-          },
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) {
-              return child;
-            }
+        child: buildFrame(
+          Image.network(
+            url,
+            width: width,
+            height: height,
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(Icons.broken_image_outlined);
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) {
+                return child;
+              }
 
-            return Container(
-              width: 56,
-              height: 56,
-              color: Colors.grey.shade100,
-              alignment: Alignment.center,
-              child: const SizedBox(
+              return const SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

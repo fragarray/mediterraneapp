@@ -179,16 +179,9 @@ class SupabaseService {
       return Stream<List<MemberModel>>.value(const <MemberModel>[]);
     }
 
-    return _client
-        .from('soci')
-        .stream(primaryKey: <String>['id'])
-        .eq('stato', status)
-        .order('created_at', ascending: false)
-        .map(
-          (rows) => rows
-              .map((row) => MemberModel.fromMap(Map<String, dynamic>.from(row)))
-              .toList(),
-        );
+    return watchAllMembers().map(
+      (members) => members.where((member) => member.stato == status).toList(),
+    );
   }
 
   Stream<List<MemberModel>> watchPendingMembers() {
@@ -197,6 +190,22 @@ class SupabaseService {
 
   Stream<List<MemberModel>> watchApprovedMembers() {
     return watchMembersByStatus('approved');
+  }
+
+  Stream<List<MemberModel>> watchAllMembers() {
+    if (!_configured) {
+      return Stream<List<MemberModel>>.value(const <MemberModel>[]);
+    }
+
+    return _client
+        .from('soci')
+        .stream(primaryKey: <String>['id'])
+        .order('created_at', ascending: false)
+        .map(
+          (rows) => rows
+              .map((row) => MemberModel.fromMap(Map<String, dynamic>.from(row)))
+              .toList(),
+        );
   }
 
   Future<void> updateMemberStatus({

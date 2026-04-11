@@ -32,7 +32,7 @@ class MemberModel {
       return '-';
     }
 
-    return DateFormat('dd/MM/yyyy HH:mm', 'it_IT').format(createdAt!);
+    return DateFormat('dd/MM/yyyy', 'it_IT').format(createdAt!);
   }
 
   MemberModel copyWith({

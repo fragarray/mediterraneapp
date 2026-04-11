@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -69,10 +67,7 @@ class ExcelService {
           .setText(
             member.createdAt == null
                 ? ''
-                : DateFormat(
-                    'dd/MM/yyyy HH:mm',
-                    'it_IT',
-                  ).format(member.createdAt!),
+                : DateFormat('dd/MM/yyyy', 'it_IT').format(member.createdAt!),
           );
       sheet.getRangeByIndex(excelRow, 9).setText(member.firmaUrl);
 

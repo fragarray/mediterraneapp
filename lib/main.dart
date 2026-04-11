@@ -2,15 +2,16 @@ import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'app_theme.dart';
 import 'screens/admin_dashboard.dart';
 import 'screens/registration_page.dart';
 import 'services/supabase_service.dart';
 
-const _associationGreen = Color(0xFF2E7D32);
 const _supabaseUrl = 'https://bfdxxlwacimbknamxnjn.supabase.co';
 const _supabaseAnonKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmZHh4bHdhY2ltYmtuYW14bmpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NzU5MzEsImV4cCI6MjA5MTQ1MTkzMX0.ZqJfp2WdJBA51A235jZRNPjyz60K_LorALpE_FYRR1E';
@@ -103,55 +104,86 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: _associationGreen,
-      primary: _associationGreen,
-    );
+    return ValueListenableBuilder<Color>(
+      valueListenable: AppThemeController.seedColor,
+      builder: (context, selectedColor, _) {
+        final colorScheme = ColorScheme.fromSeed(
+          seedColor: selectedColor,
+          primary: selectedColor,
+        );
 
-    return MaterialApp(
-      title: 'Tesseramento Associazione',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: colorScheme,
-        scaffoldBackgroundColor: const Color(0xFFF5F7F3),
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          backgroundColor: Colors.transparent,
-          foregroundColor: Color(0xFF152417),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+        return MaterialApp(
+          title: 'Tesseramento Mediterranea',
+          debugShowCheckedModeBanner: false,
+          locale: const Locale('it', 'IT'),
+          supportedLocales: const <Locale>[
+            Locale('it', 'IT'),
+            Locale('en', 'US'),
+          ],
+          localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          theme: ThemeData(
+            useMaterial3: true,
+            colorScheme: colorScheme,
+            scaffoldBackgroundColor: AppThemeController.scaffoldBackground(
+              selectedColor,
+            ),
+            appBarTheme: const AppBarTheme(
+              centerTitle: false,
+              backgroundColor: Colors.transparent,
+              foregroundColor: Color(0xFF152417),
+            ),
+            filledButtonTheme: FilledButtonThemeData(
+              style: FilledButton.styleFrom(
+                backgroundColor: selectedColor,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            checkboxTheme: CheckboxThemeData(
+              fillColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return selectedColor;
+                }
+                return null;
+              }),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: selectedColor, width: 1.5),
+              ),
+            ),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: _associationGreen, width: 1.5),
-          ),
-        ),
-      ),
-      initialRoute: '/',
-      onGenerateRoute: (settings) {
-        switch (settings.name) {
-          case '/admin':
-            return MaterialPageRoute<void>(
-              builder: (_) =>
-                  AdminDashboard(supabaseConfigured: supabaseConfigured),
-            );
-          case '/':
-          default:
-            return MaterialPageRoute<void>(
-              builder: (_) =>
-                  RegistrationPage(supabaseConfigured: supabaseConfigured),
-            );
-        }
+          initialRoute: '/',
+          onGenerateRoute: (settings) {
+            switch (settings.name) {
+              case '/admin':
+                return MaterialPageRoute<void>(
+                  builder: (_) =>
+                      AdminDashboard(supabaseConfigured: supabaseConfigured),
+                );
+              case '/':
+              default:
+                return MaterialPageRoute<void>(
+                  builder: (_) =>
+                      RegistrationPage(supabaseConfigured: supabaseConfigured),
+                );
+            }
+          },
+        );
       },
     );
   }
