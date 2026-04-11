@@ -1,0 +1,158 @@
+import 'dart:convert';
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'screens/admin_dashboard.dart';
+import 'screens/registration_page.dart';
+import 'services/supabase_service.dart';
+
+const _associationGreen = Color(0xFF2E7D32);
+const _supabaseUrl = 'https://bfdxxlwacimbknamxnjn.supabase.co';
+const _supabaseAnonKey =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmZHh4bHdhY2ltYmtuYW14bmpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NzU5MzEsImV4cCI6MjA5MTQ1MTkzMX0.ZqJfp2WdJBA51A235jZRNPjyz60K_LorALpE_FYRR1E';
+
+Map<String, dynamic>? _decodeJwtPayload(String token) {
+  try {
+    final parts = token.split('.');
+    if (parts.length < 2) {
+      return null;
+    }
+
+    final normalized = base64Url.normalize(parts[1]);
+    final decoded = utf8.decode(base64Url.decode(normalized));
+    return jsonDecode(decoded) as Map<String, dynamic>;
+  } catch (_) {
+    return null;
+  }
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final keyPayload = _decodeJwtPayload(_supabaseAnonKey);
+  final urlHost = Uri.tryParse(_supabaseUrl)?.host;
+  final keyRef = keyPayload?['ref'];
+  final keyRole = keyPayload?['role'];
+  final keyMatchesUrl =
+      keyRef is String &&
+      urlHost != null &&
+      urlHost.contains('$keyRef.supabase.co');
+
+  debugPrint(
+    '[SupabaseConfig] host=$urlHost anonKeyPresent=${_supabaseAnonKey.isNotEmpty} ref=$keyRef role=$keyRole keyMatchesUrl=$keyMatchesUrl',
+  );
+
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('[FlutterError] ${details.exceptionAsString()}');
+    if (details.stack != null) {
+      debugPrintStack(stackTrace: details.stack);
+    }
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('[UncaughtError] $error');
+    debugPrintStack(stackTrace: stack);
+    return false;
+  };
+
+  Intl.defaultLocale = 'it_IT';
+  await initializeDateFormatting('it_IT');
+
+  var supabaseConfigured = false;
+
+  if (_supabaseUrl.isNotEmpty && _supabaseAnonKey.isNotEmpty) {
+    try {
+      await Supabase.initialize(
+        url: _supabaseUrl,
+        anonKey: _supabaseAnonKey,
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.pkce,
+        ),
+      );
+      supabaseConfigured = true;
+    } catch (error) {
+      debugPrint('[SupabaseInit] error: $error');
+      debugPrint('Supabase init error: $error');
+    }
+  }
+
+  SupabaseService.setConfigured(supabaseConfigured);
+
+  if (supabaseConfigured) {
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final event = data.event;
+      final session = data.session;
+      debugPrint(
+        '[AuthState] event=$event session=${session != null} user=${session?.user.email}',
+      );
+    });
+  }
+
+  runApp(MyApp(supabaseConfigured: supabaseConfigured));
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key, this.supabaseConfigured = false});
+
+  final bool supabaseConfigured;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: _associationGreen,
+      primary: _associationGreen,
+    );
+
+    return MaterialApp(
+      title: 'Tesseramento Associazione',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: colorScheme,
+        scaffoldBackgroundColor: const Color(0xFFF5F7F3),
+        appBarTheme: const AppBarTheme(
+          centerTitle: false,
+          backgroundColor: Colors.transparent,
+          foregroundColor: Color(0xFF152417),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: _associationGreen, width: 1.5),
+          ),
+        ),
+      ),
+      initialRoute: '/',
+      onGenerateRoute: (settings) {
+        switch (settings.name) {
+          case '/admin':
+            return MaterialPageRoute<void>(
+              builder: (_) =>
+                  AdminDashboard(supabaseConfigured: supabaseConfigured),
+            );
+          case '/':
+          default:
+            return MaterialPageRoute<void>(
+              builder: (_) =>
+                  RegistrationPage(supabaseConfigured: supabaseConfigured),
+            );
+        }
+      },
+    );
+  }
+}

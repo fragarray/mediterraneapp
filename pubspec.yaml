@@ -1,0 +1,25 @@
+name: mediterraneapp
+description: "WebApp Flutter per il tesseramento di un'associazione."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  supabase_flutter: ^2.10.3
+  signature: ^6.3.0
+  syncfusion_flutter_xlsio: ^30.2.4
+  file_saver: ^0.3.1
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
