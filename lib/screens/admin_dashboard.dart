@@ -21,28 +21,50 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _searchController = TextEditingController();
+  final _nomeFilterController = TextEditingController();
+  final _cognomeFilterController = TextEditingController();
+  final _emailFilterController = TextEditingController();
+  final _telefonoFilterController = TextEditingController();
+  final _codiceFiscaleFilterController = TextEditingController();
   late final Stream<List<MemberModel>> _pendingMembersStream;
   late final Stream<List<MemberModel>> _approvedMembersStream;
 
   bool _isSigningIn = false;
   bool _isExporting = false;
   bool _showPassword = false;
+  bool _showSearchPanel = true;
+  String _selectedStatusFilter = 'all';
+  String _selectedPrivacyFilter = 'all';
+
+  Iterable<TextEditingController> get _filterControllers =>
+      <TextEditingController>[
+        _searchController,
+        _nomeFilterController,
+        _cognomeFilterController,
+        _emailFilterController,
+        _telefonoFilterController,
+        _codiceFiscaleFilterController,
+      ];
 
   @override
   void initState() {
     super.initState();
     _pendingMembersStream = SupabaseService.instance.watchPendingMembers();
     _approvedMembersStream = SupabaseService.instance.watchApprovedMembers();
-    _searchController.addListener(_onSearchChanged);
+    for (final controller in _filterControllers) {
+      controller.addListener(_onSearchChanged);
+    }
   }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _searchController
-      ..removeListener(_onSearchChanged)
-      ..dispose();
+    for (final controller in _filterControllers) {
+      controller
+        ..removeListener(_onSearchChanged)
+        ..dispose();
+    }
     super.dispose();
   }
 
@@ -50,21 +72,76 @@ class _AdminDashboardState extends State<AdminDashboard> {
     setState(() {});
   }
 
-  List<MemberModel> _filterMembers(List<MemberModel> members) {
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) {
-      return members;
+  void _clearFilters() {
+    for (final controller in _filterControllers) {
+      controller.clear();
     }
+
+    setState(() {
+      _selectedStatusFilter = 'all';
+      _selectedPrivacyFilter = 'all';
+    });
+  }
+
+  List<MemberModel> _filterMembers(List<MemberModel> members) {
+    final generalQuery = _searchController.text.trim().toLowerCase();
+    final nomeQuery = _nomeFilterController.text.trim().toLowerCase();
+    final cognomeQuery = _cognomeFilterController.text.trim().toLowerCase();
+    final emailQuery = _emailFilterController.text.trim().toLowerCase();
+    final telefonoQuery = _telefonoFilterController.text.trim().toLowerCase();
+    final codiceFiscaleQuery = _codiceFiscaleFilterController.text
+        .trim()
+        .toLowerCase();
 
     return members.where((member) {
       final searchable = <String>[
+        member.nome,
+        member.cognome,
         member.fullName,
         member.email,
         member.telefono,
         member.codiceFiscale,
+        member.stato,
+        member.privacyAccepted ? 'privacy accettata' : 'privacy non accettata',
+        member.createdAtLabel,
+        member.firmaUrl,
       ].join(' ').toLowerCase();
 
-      return searchable.contains(query);
+      if (generalQuery.isNotEmpty && !searchable.contains(generalQuery)) {
+        return false;
+      }
+      if (nomeQuery.isNotEmpty &&
+          !member.nome.toLowerCase().contains(nomeQuery)) {
+        return false;
+      }
+      if (cognomeQuery.isNotEmpty &&
+          !member.cognome.toLowerCase().contains(cognomeQuery)) {
+        return false;
+      }
+      if (emailQuery.isNotEmpty &&
+          !member.email.toLowerCase().contains(emailQuery)) {
+        return false;
+      }
+      if (telefonoQuery.isNotEmpty &&
+          !member.telefono.toLowerCase().contains(telefonoQuery)) {
+        return false;
+      }
+      if (codiceFiscaleQuery.isNotEmpty &&
+          !member.codiceFiscale.toLowerCase().contains(codiceFiscaleQuery)) {
+        return false;
+      }
+      if (_selectedStatusFilter != 'all' &&
+          member.stato != _selectedStatusFilter) {
+        return false;
+      }
+      if (_selectedPrivacyFilter == 'accepted' && !member.privacyAccepted) {
+        return false;
+      }
+      if (_selectedPrivacyFilter == 'not_accepted' && member.privacyAccepted) {
+        return false;
+      }
+
+      return true;
     }).toList();
   }
 
@@ -403,6 +480,60 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
+  Future<void> _exportSearchResults() async {
+    if (!widget.supabaseConfigured) {
+      _showMessage(
+        'Configura Supabase per esportare i risultati.',
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() {
+      _isExporting = true;
+    });
+
+    try {
+      final pending = await SupabaseService.instance.getMembersByStatus(
+        'pending',
+      );
+      final approved = await SupabaseService.instance.getMembersByStatus(
+        'approved',
+      );
+      final rejected = await SupabaseService.instance.getMembersByStatus(
+        'rejected',
+      );
+
+      final filteredResults = _filterMembers(<MemberModel>[
+        ...pending,
+        ...approved,
+        ...rejected,
+      ]);
+
+      if (filteredResults.isEmpty) {
+        _showMessage('Nessun risultato da esportare con i filtri correnti.');
+        return;
+      }
+
+      await ExcelService.instance.exportMembers(
+        filteredResults,
+        sheetName: 'Risultati ricerca',
+        filePrefix: 'risultati_ricerca',
+      );
+      _showMessage('Export dei risultati della ricerca completato');
+    } catch (error, stackTrace) {
+      debugPrint('[AdminDashboard] exportSearchResults error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showMessage(_formatError(error), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExporting = false;
+        });
+      }
+    }
+  }
+
   String? _validateRequired(String? value, String label) {
     if (value == null || value.trim().isEmpty) {
       return '$label obbligatorio';
@@ -464,6 +595,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
             icon: const Icon(Icons.how_to_reg_outlined),
             label: const Text('Registrazione'),
           ),
+          if (isAuthenticated)
+            IconButton(
+              tooltip: _showSearchPanel ? 'Nascondi ricerca' : 'Mostra ricerca',
+              onPressed: () {
+                setState(() {
+                  _showSearchPanel = !_showSearchPanel;
+                });
+              },
+              icon: Icon(
+                _showSearchPanel
+                    ? Icons.menu_open_outlined
+                    : Icons.menu_outlined,
+              ),
+            ),
           if (isAuthenticated)
             TextButton.icon(
               onPressed: _isExporting ? null : _exportApprovedMembers,
@@ -552,17 +697,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    SizedBox(width: 320, child: _buildSidePanel()),
-                    const SizedBox(width: 24),
+                    if (_showSearchPanel) ...<Widget>[
+                      SizedBox(width: 340, child: _buildSidePanel()),
+                      const SizedBox(width: 24),
+                    ],
                     Expanded(child: mainContent),
                   ],
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
+                    if (_showSearchPanel) ...<Widget>[
+                      _buildSidePanel(),
+                      const SizedBox(height: 16),
+                    ],
                     mainContent,
-                    const SizedBox(height: 16),
-                    _buildSidePanel(),
                   ],
                 ),
         ),
@@ -716,7 +865,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Include anche la colonna con l\'URL della firma.',
+                    'Include URL e immagine della firma per ogni tesserato.',
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -798,12 +947,60 @@ class _AdminDashboardState extends State<AdminDashboard> {
       elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: TextField(
-          controller: _searchController,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.search),
-            hintText: 'Cerca per nome, email, telefono o codice fiscale',
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                const Expanded(
+                  child: Text(
+                    'Ricerca rapida',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showSearchPanel = !_showSearchPanel;
+                    });
+                  },
+                  icon: Icon(
+                    _showSearchPanel
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                  ),
+                  label: Text(
+                    _showSearchPanel ? 'Nascondi filtri' : 'Mostra filtri',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Ricerca generale su tutti i campi di registrazione',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: <Widget>[
+                FilledButton.tonalIcon(
+                  onPressed: _isExporting ? null : _exportSearchResults,
+                  icon: const Icon(Icons.filter_alt_outlined),
+                  label: const Text('Export risultati filtrati'),
+                ),
+                TextButton.icon(
+                  onPressed: _clearFilters,
+                  icon: const Icon(Icons.restart_alt_outlined),
+                  label: const Text('Pulisci tutti i filtri'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -816,39 +1013,184 @@ class _AdminDashboardState extends State<AdminDashboard> {
       elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const Text(
-              'Pannello controllo',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text('Utente autenticato: $userEmail'),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _associationGreen.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
                 children: <Widget>[
-                  Text(
-                    'Operazioni disponibili',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                  const Expanded(
+                    child: Text(
+                      'Ricerca avanzata',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                  SizedBox(height: 8),
-                  Text('• Visualizza le richieste pending in tempo reale'),
-                  Text('• Approva o rifiuta i nuovi iscritti'),
-                  Text('• Modifica o elimina i soci confermati'),
-                  Text('• Esporta l\'elenco approvato con firma inclusa'),
+                  IconButton(
+                    tooltip: 'Nascondi pannello',
+                    onPressed: () {
+                      setState(() {
+                        _showSearchPanel = false;
+                      });
+                    },
+                    icon: const Icon(Icons.close_fullscreen_outlined),
+                  ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text('Utente autenticato: $userEmail'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _nomeFilterController,
+                decoration: const InputDecoration(
+                  labelText: 'Nome',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _cognomeFilterController,
+                decoration: const InputDecoration(
+                  labelText: 'Cognome',
+                  prefixIcon: Icon(Icons.badge_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _emailFilterController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.alternate_email_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _telefonoFilterController,
+                decoration: const InputDecoration(
+                  labelText: 'Telefono',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _codiceFiscaleFilterController,
+                decoration: const InputDecoration(
+                  labelText: 'Codice Fiscale',
+                  prefixIcon: Icon(Icons.credit_card_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey<String>('status-$_selectedStatusFilter'),
+                initialValue: _selectedStatusFilter,
+                decoration: const InputDecoration(
+                  labelText: 'Stato pratica',
+                  prefixIcon: Icon(Icons.rule_folder_outlined),
+                ),
+                items: const <DropdownMenuItem<String>>[
+                  DropdownMenuItem(
+                    value: 'all',
+                    child: Text('Tutti gli stati'),
+                  ),
+                  DropdownMenuItem(value: 'pending', child: Text('Pending')),
+                  DropdownMenuItem(
+                    value: 'approved',
+                    child: Text('Confermati'),
+                  ),
+                  DropdownMenuItem(value: 'rejected', child: Text('Rifiutati')),
+                ],
+                onChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() {
+                    _selectedStatusFilter = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey<String>('privacy-$_selectedPrivacyFilter'),
+                initialValue: _selectedPrivacyFilter,
+                decoration: const InputDecoration(
+                  labelText: 'Privacy',
+                  prefixIcon: Icon(Icons.privacy_tip_outlined),
+                ),
+                items: const <DropdownMenuItem<String>>[
+                  DropdownMenuItem(value: 'all', child: Text('Tutti')),
+                  DropdownMenuItem(
+                    value: 'accepted',
+                    child: Text('Privacy accettata'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'not_accepted',
+                    child: Text('Privacy non accettata'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() {
+                    _selectedPrivacyFilter = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _isExporting ? null : _exportSearchResults,
+                  icon: _isExporting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.file_download_outlined),
+                  label: const Text('Scarica risultati ricerca'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _clearFilters,
+                  icon: const Icon(Icons.restart_alt_outlined),
+                  label: const Text('Reset filtri'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _associationGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Ricerca disponibile su',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    SizedBox(height: 8),
+                    Text('• Nome e cognome'),
+                    Text('• Email e telefono'),
+                    Text('• Codice fiscale'),
+                    Text('• Stato pratica e privacy'),
+                    Text('• URL firma e data di iscrizione'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

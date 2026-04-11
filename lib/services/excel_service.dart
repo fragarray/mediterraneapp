@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:file_saver/file_saver.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
 
@@ -12,9 +13,21 @@ class ExcelService {
   static final ExcelService instance = ExcelService._();
 
   Future<void> exportApprovedMembers(List<MemberModel> members) async {
+    await exportMembers(
+      members,
+      sheetName: 'Soci approvati',
+      filePrefix: 'soci_approvati',
+    );
+  }
+
+  Future<void> exportMembers(
+    List<MemberModel> members, {
+    String sheetName = 'Soci',
+    String filePrefix = 'soci',
+  }) async {
     final workbook = xlsio.Workbook();
     final sheet = workbook.worksheets[0];
-    sheet.name = 'Soci approvati';
+    sheet.name = sheetName;
 
     final headers = <String>[
       'Nome',
@@ -22,8 +35,11 @@ class ExcelService {
       'Email',
       'Telefono',
       'Codice Fiscale',
+      'Stato',
+      'Privacy',
       'Data Iscrizione',
       'Firma URL',
+      'Firma',
     ];
 
     for (var index = 0; index < headers.length; index++) {
@@ -38,13 +54,18 @@ class ExcelService {
       final member = members[rowIndex];
       final excelRow = rowIndex + 2;
 
+      sheet.getRangeByIndex(excelRow, 1).rowHeight = 54;
       sheet.getRangeByIndex(excelRow, 1).setText(member.nome);
       sheet.getRangeByIndex(excelRow, 2).setText(member.cognome);
       sheet.getRangeByIndex(excelRow, 3).setText(member.email);
       sheet.getRangeByIndex(excelRow, 4).setText(member.telefono);
       sheet.getRangeByIndex(excelRow, 5).setText(member.codiceFiscale);
+      sheet.getRangeByIndex(excelRow, 6).setText(member.stato);
       sheet
-          .getRangeByIndex(excelRow, 6)
+          .getRangeByIndex(excelRow, 7)
+          .setText(member.privacyAccepted ? 'Accettata' : 'Non accettata');
+      sheet
+          .getRangeByIndex(excelRow, 8)
           .setText(
             member.createdAt == null
                 ? ''
@@ -53,18 +74,29 @@ class ExcelService {
                     'it_IT',
                   ).format(member.createdAt!),
           );
-      sheet.getRangeByIndex(excelRow, 7).setText(member.firmaUrl);
+      sheet.getRangeByIndex(excelRow, 9).setText(member.firmaUrl);
+
+      final imageBytes = await _loadImageBytes(member.firmaUrl);
+      if (imageBytes != null && imageBytes.isNotEmpty) {
+        final picture = sheet.pictures.addStream(excelRow, 10, imageBytes);
+        picture.lastRow = excelRow;
+        picture.lastColumn = 10;
+        picture.width = 72;
+        picture.height = 44;
+      }
     }
 
-    for (var column = 1; column <= headers.length; column++) {
+    for (var column = 1; column <= 8; column++) {
       sheet.autoFitColumn(column);
     }
+    sheet.getRangeByIndex(1, 9).columnWidth = 40;
+    sheet.getRangeByIndex(1, 10).columnWidth = 14;
 
     final bytes = Uint8List.fromList(workbook.saveAsStream());
     workbook.dispose();
 
     final fileName =
-        'soci_approvati_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}';
+        '${filePrefix}_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}';
 
     await FileSaver.instance.saveFile(
       name: fileName,
@@ -72,5 +104,18 @@ class ExcelService {
       fileExtension: 'xlsx',
       mimeType: MimeType.microsoftExcel,
     );
+  }
+
+  Future<Uint8List?> _loadImageBytes(String url) async {
+    if (url.isEmpty) {
+      return null;
+    }
+
+    try {
+      final data = await NetworkAssetBundle(Uri.parse(url)).load(url);
+      return data.buffer.asUint8List();
+    } catch (_) {
+      return null;
+    }
   }
 }
