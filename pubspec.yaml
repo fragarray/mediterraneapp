@@ -17,6 +17,7 @@ dependencies:
   syncfusion_flutter_xlsio: ^30.2.4
   file_saver: ^0.3.1
   intl: ^0.20.2
+  pdf: ^3.11.3
 
 dev_dependencies:
   flutter_test:

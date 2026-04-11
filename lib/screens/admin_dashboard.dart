@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../app_theme.dart';
 import '../models/member_model.dart';
 import '../services/excel_service.dart';
+import '../services/pdf_service.dart';
 import '../services/supabase_service.dart';
 
 enum _AdminView { dashboard, search }
@@ -594,6 +595,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
+  Future<void> _exportMemberPdf(MemberModel member) async {
+    try {
+      await PdfService.instance.exportMemberForm(member);
+      _showMessage('PDF generato per ${member.fullName}');
+    } catch (error, stackTrace) {
+      debugPrint('[AdminDashboard] exportMemberPdf error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showMessage(_formatError(error), isError: true);
+    }
+  }
+
   Future<void> _deleteMember(MemberModel member) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -724,6 +736,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
         backgroundColor: isError ? Colors.red.shade700 : primaryColor,
       ),
     );
+  }
+
+  Future<void> _saveThemeColor(Color color) async {
+    AppThemeController.setSeedColor(color);
+
+    if (!widget.supabaseConfigured) {
+      return;
+    }
+
+    try {
+      await SupabaseService.instance.saveThemeSeedColorHex(
+        AppThemeController.colorToHex(color),
+      );
+      _showMessage('Tema salvato in modo persistente.');
+    } catch (error) {
+      _showMessage(
+        'Tema applicato localmente, ma non salvato su Supabase. Crea la tabella app_settings e le policy indicate.',
+        isError: true,
+      );
+    }
   }
 
   String _formatError(Object error) {
@@ -972,7 +1004,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ).createShader(bounds),
             child: const Icon(Icons.palette_outlined, color: Colors.white),
           ),
-          onSelected: AppThemeController.setSeedColor,
+          onSelected: _saveThemeColor,
           itemBuilder: (context) {
             return AppThemeController.options.map((option) {
               final isSelected = currentColor == option.color;
@@ -1509,6 +1541,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 const DataColumn(label: Text('Azioni')),
               ],
               rows: members.map((member) {
+                final rowHasApprovedActions =
+                    approvedSection ||
+                    (mixedStatuses && member.stato == 'approved');
+                final actionCellWidth = rowHasApprovedActions ? 132.0 : 172.0;
+
                 return DataRow(
                   cells: <DataCell>[
                     DataCell(
@@ -1551,11 +1588,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       SizedBox(width: 90, child: Text(member.createdAtLabel)),
                     ),
                     DataCell(
-                      _buildActionButtons(
-                        member,
-                        approvedSection: approvedSection,
-                        mixedStatuses: mixedStatuses,
-                        compact: true,
+                      SizedBox(
+                        width: actionCellWidth,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _buildActionButtons(
+                            member,
+                            approvedSection: approvedSection,
+                            mixedStatuses: mixedStatuses,
+                            compact: true,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -1565,6 +1608,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildCompactActionIcon({
+    required String tooltip,
+    required VoidCallback onPressed,
+    required IconData icon,
+  }) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+      padding: EdgeInsets.zero,
+      splashRadius: 18,
+      iconSize: 18,
+      icon: Icon(icon),
     );
   }
 
@@ -1579,35 +1639,52 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     if (compact) {
       if (showApprovedActions) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
+        return Wrap(
+          spacing: 2,
+          runSpacing: 2,
           children: <Widget>[
-            IconButton(
+            _buildCompactActionIcon(
               tooltip: 'Modifica socio',
               onPressed: () => _editMember(member),
-              icon: const Icon(Icons.edit_outlined),
+              icon: Icons.edit_outlined,
             ),
-            IconButton(
+            _buildCompactActionIcon(
+              tooltip: 'Genera PDF',
+              onPressed: () => _exportMemberPdf(member),
+              icon: Icons.picture_as_pdf_outlined,
+            ),
+            _buildCompactActionIcon(
               tooltip: 'Elimina socio',
               onPressed: () => _deleteMember(member),
-              icon: const Icon(Icons.delete_outline),
+              icon: Icons.delete_outline,
             ),
           ],
         );
       }
 
-      return Row(
-        mainAxisSize: MainAxisSize.min,
+      return Wrap(
+        spacing: 2,
+        runSpacing: 2,
         children: <Widget>[
-          IconButton(
+          _buildCompactActionIcon(
+            tooltip: 'Genera PDF',
+            onPressed: () => _exportMemberPdf(member),
+            icon: Icons.picture_as_pdf_outlined,
+          ),
+          _buildCompactActionIcon(
+            tooltip: 'Elimina socio',
+            onPressed: () => _deleteMember(member),
+            icon: Icons.delete_outline,
+          ),
+          _buildCompactActionIcon(
             tooltip: 'Approva richiesta',
             onPressed: () => _changeStatus(member, 'approved'),
-            icon: const Icon(Icons.check_circle_outline),
+            icon: Icons.check_circle_outline,
           ),
-          IconButton(
+          _buildCompactActionIcon(
             tooltip: 'Rifiuta richiesta',
             onPressed: () => _changeStatus(member, 'rejected'),
-            icon: const Icon(Icons.close_outlined),
+            icon: Icons.close_outlined,
           ),
         ],
       );
@@ -1624,6 +1701,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
             label: const Text('Modifica'),
           ),
           OutlinedButton.icon(
+            onPressed: () => _exportMemberPdf(member),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: const Text('PDF'),
+          ),
+          OutlinedButton.icon(
             onPressed: () => _deleteMember(member),
             icon: const Icon(Icons.delete_outline),
             label: const Text('Elimina'),
@@ -1636,6 +1718,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
       spacing: 8,
       runSpacing: 8,
       children: <Widget>[
+        OutlinedButton.icon(
+          onPressed: () => _exportMemberPdf(member),
+          icon: const Icon(Icons.picture_as_pdf_outlined),
+          label: const Text('PDF'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _deleteMember(member),
+          icon: const Icon(Icons.delete_outline),
+          label: const Text('Elimina'),
+        ),
         FilledButton.icon(
           onPressed: () => _changeStatus(member, 'approved'),
           icon: const Icon(Icons.check_circle_outline),

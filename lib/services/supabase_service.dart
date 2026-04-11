@@ -7,6 +7,7 @@ class SupabaseService {
   SupabaseService._();
 
   static final SupabaseService instance = SupabaseService._();
+  static const String _themeSettingKey = 'theme_seed_color';
 
   static bool _configured = false;
 
@@ -172,6 +173,46 @@ class SupabaseService {
     }
 
     return _client.storage.from('firme').getPublicUrl(fileName);
+  }
+
+  Future<String?> getThemeSeedColorHex() async {
+    if (!_configured) {
+      return null;
+    }
+
+    try {
+      final response = await _client
+          .from('app_settings')
+          .select('value')
+          .eq('key', _themeSettingKey)
+          .maybeSingle();
+
+      if (response == null) {
+        return null;
+      }
+
+      return response['value'] as String?;
+    } catch (error, stackTrace) {
+      _logError('getThemeSeedColorHex', error, stackTrace);
+      return null;
+    }
+  }
+
+  Future<void> saveThemeSeedColorHex(String hexColor) async {
+    if (!_configured) {
+      throw StateError('Configura Supabase per salvare il tema applicazione.');
+    }
+
+    try {
+      await _client.from('app_settings').upsert(<String, dynamic>{
+        'key': _themeSettingKey,
+        'value': hexColor,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'key');
+    } catch (error, stackTrace) {
+      _logError('saveThemeSeedColorHex', error, stackTrace);
+      rethrow;
+    }
   }
 
   Stream<List<MemberModel>> watchMembersByStatus(String status) {

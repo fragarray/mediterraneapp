@@ -16,6 +16,36 @@ class AppThemeController {
     defaultSeed,
   );
 
+  static String colorToHex(Color color) {
+    final rgb = color.toARGB32() & 0x00FFFFFF;
+    return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
+  }
+
+  static Color? colorFromHex(String? value) {
+    if (value == null) {
+      return null;
+    }
+
+    final normalized = value.trim().replaceFirst('#', '');
+    if (normalized.length != 6 && normalized.length != 8) {
+      return null;
+    }
+
+    final parsed = int.tryParse(normalized, radix: 16);
+    if (parsed == null) {
+      return null;
+    }
+
+    return Color(normalized.length == 6 ? (0xFF000000 | parsed) : parsed);
+  }
+
+  static void applySavedColor(String? value) {
+    final parsedColor = colorFromHex(value);
+    if (parsedColor != null) {
+      setSeedColor(parsedColor);
+    }
+  }
+
   static const List<AppThemeOption> options = <AppThemeOption>[
     AppThemeOption(label: 'Verde', color: Color(0xFF2E7D32)),
     AppThemeOption(label: 'Blu', color: Color(0xFF1565C0)),

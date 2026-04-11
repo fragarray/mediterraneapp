@@ -85,6 +85,10 @@ Future<void> main() async {
   SupabaseService.setConfigured(supabaseConfigured);
 
   if (supabaseConfigured) {
+    final savedThemeColor = await SupabaseService.instance
+        .getThemeSeedColorHex();
+    AppThemeController.applySavedColor(savedThemeColor);
+
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final event = data.event;
       final session = data.session;
