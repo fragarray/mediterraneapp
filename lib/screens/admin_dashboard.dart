@@ -29,6 +29,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final _emailFilterController = TextEditingController();
   final _telefonoFilterController = TextEditingController();
   final _codiceFiscaleFilterController = TextEditingController();
+  final ScrollController _pendingTableScrollController = ScrollController();
+  final ScrollController _approvedTableScrollController = ScrollController();
+  final ScrollController _searchTableScrollController = ScrollController();
   late Stream<List<MemberModel>> _pendingMembersStream;
   late Stream<List<MemberModel>> _approvedMembersStream;
   late Stream<List<MemberModel>> _allMembersStream;
@@ -71,6 +74,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _pendingTableScrollController.dispose();
+    _approvedTableScrollController.dispose();
+    _searchTableScrollController.dispose();
     for (final controller in _filterControllers) {
       controller
         ..removeListener(_onSearchChanged)
@@ -208,6 +214,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           : DateUtils.dateOnly(member.createdAt!);
 
       final searchable = <String>[
+        member.numeroTessera,
         member.nome,
         member.cognome,
         member.fullName,
@@ -398,6 +405,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             spacing: 12,
                             runSpacing: 12,
                             children: <Widget>[
+                              SizedBox(
+                                width: fieldWidth,
+                                child: TextFormField(
+                                  initialValue: member.membershipNumberLabel,
+                                  readOnly: true,
+                                  enabled: false,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Numero tessera',
+                                  ),
+                                ),
+                              ),
                               SizedBox(
                                 width: fieldWidth,
                                 child: TextFormField(
@@ -611,9 +629,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Elimina socio'),
+          title: const Text('Archivia socio'),
           content: Text(
-            'Vuoi eliminare definitivamente ${member.fullName}? Verrà rimosso anche il riferimento alla firma.',
+            'Vuoi archiviare ${member.fullName}? Il record verrà conservato nel database e il numero tessera ${member.membershipNumberLabel} non sarà più riutilizzato.',
           ),
           actions: <Widget>[
             TextButton(
@@ -623,7 +641,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             FilledButton.icon(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               icon: const Icon(Icons.delete_outline),
-              label: const Text('Elimina'),
+              label: const Text('Archivia'),
             ),
           ],
         );
@@ -639,7 +657,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (mounted) {
         setState(_refreshMemberStreams);
       }
-      _showMessage('Socio eliminato correttamente');
+      _showMessage('Socio archiviato correttamente');
     } catch (error, stackTrace) {
       debugPrint('[AdminDashboard] deleteMember error: $error');
       debugPrintStack(stackTrace: stackTrace);
@@ -1042,6 +1060,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        _buildActiveMembersOverview(),
+        const SizedBox(height: 16),
         _buildMembersSection(
           title: 'Richieste pending',
           description:
@@ -1062,6 +1082,72 @@ class _AdminDashboardState extends State<AdminDashboard> {
           countLabel: 'associati',
         ),
       ],
+    );
+  }
+
+  Widget _buildActiveMembersOverview() {
+    return StreamBuilder<List<MemberModel>>(
+      stream: _approvedMembersStream,
+      builder: (context, snapshot) {
+        final activeApprovedMembers = snapshot.data ?? const <MemberModel>[];
+
+        return SizedBox(
+          width: double.infinity,
+          child: Card(
+            elevation: 0,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: <Widget>[
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Soci attivi totali',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Conteggio dei soci approvati e attivi. Le richieste pending non vengono conteggiate.',
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF5EA),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          '${activeApprovedMembers.length}',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Text('attivi'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1127,7 +1213,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         prefixIcon: const Icon(Icons.search),
                         labelText: 'Ricerca generale',
                         hintText:
-                            'Nome, cognome, email, telefono, codice fiscale o data',
+                            'Tessera, nome, cognome, email, telefono, codice fiscale o data',
                         suffixIcon: IconButton(
                           tooltip: _showSearchPanel
                               ? 'Nascondi filtri'
@@ -1401,6 +1487,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  ScrollController _getTableScrollController({
+    required bool approvedSection,
+    required bool mixedStatuses,
+  }) {
+    if (mixedStatuses) {
+      return _searchTableScrollController;
+    }
+
+    return approvedSection
+        ? _approvedTableScrollController
+        : _pendingTableScrollController;
+  }
+
   Widget _buildMembersSection({
     required String title,
     required String description,
@@ -1432,9 +1531,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
               return LayoutBuilder(
                 builder: (context, constraints) {
-                  final tableThreshold = mixedStatuses ? 1180.0 : 980.0;
-                  final useTableLayout = constraints.maxWidth >= tableThreshold;
-
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
@@ -1484,23 +1580,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         const Center(child: CircularProgressIndicator())
                       else if (members.isEmpty)
                         _buildEmptyState(emptyMessage)
-                      else if (useTableLayout)
+                      else
                         _buildMembersTable(
                           members,
                           approvedSection: approvedSection,
                           mixedStatuses: mixedStatuses,
-                        )
-                      else
-                        Column(
-                          children: members
-                              .map(
-                                (member) => _buildMemberCard(
-                                  member,
-                                  approvedSection: approvedSection,
-                                  mixedStatuses: mixedStatuses,
-                                ),
-                              )
-                              .toList(),
+                          scrollController: _getTableScrollController(
+                            approvedSection: approvedSection,
+                            mixedStatuses: mixedStatuses,
+                          ),
                         ),
                     ],
                   );
@@ -1516,94 +1604,119 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildMembersTable(
     List<MemberModel> members, {
     required bool approvedSection,
+    required ScrollController scrollController,
     bool mixedStatuses = false,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          primary: false,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: DataTable(
-              horizontalMargin: 12,
-              columnSpacing: 24,
-              dataRowMinHeight: 76,
-              dataRowMaxHeight: 92,
-              columns: <DataColumn>[
-                const DataColumn(label: Text('Nome')),
-                const DataColumn(label: Text('Email')),
-                const DataColumn(label: Text('Telefono')),
-                const DataColumn(label: Text('Cod. Fiscale')),
-                if (mixedStatuses) const DataColumn(label: Text('Stato')),
-                const DataColumn(label: Text('Firma')),
-                const DataColumn(label: Text('Data')),
-                const DataColumn(label: Text('Azioni')),
-              ],
-              rows: members.map((member) {
-                final rowHasApprovedActions =
-                    approvedSection ||
-                    (mixedStatuses && member.stato == 'approved');
-                final actionCellWidth = rowHasApprovedActions ? 132.0 : 172.0;
+        final minimumTableWidth = mixedStatuses ? 1420.0 : 1240.0;
+        final tableWidth = constraints.maxWidth < minimumTableWidth
+            ? minimumTableWidth
+            : constraints.maxWidth;
 
-                return DataRow(
-                  cells: <DataCell>[
-                    DataCell(
-                      SizedBox(width: 180, child: Text(member.fullName)),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 220,
-                        child: Text(
-                          member.email,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(width: 120, child: Text(member.telefono)),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 140,
-                        child: Text(
-                          member.codiceFiscale,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    if (mixedStatuses)
-                      DataCell(_CounterChip(count: 1, label: member.stato)),
-                    DataCell(
-                      SizedBox(
-                        width: 132,
-                        child: _SignaturePreview(
-                          url: member.firmaUrl,
-                          width: 120,
-                          height: 56,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(width: 90, child: Text(member.createdAtLabel)),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: actionCellWidth,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: _buildActionButtons(
-                            member,
-                            approvedSection: approvedSection,
-                            mixedStatuses: mixedStatuses,
-                            compact: true,
+        return Scrollbar(
+          controller: scrollController,
+          thumbVisibility: true,
+          trackVisibility: true,
+          interactive: true,
+          notificationPredicate: (notification) =>
+              notification.metrics.axis == Axis.horizontal,
+          child: SingleChildScrollView(
+            controller: scrollController,
+            scrollDirection: Axis.horizontal,
+            primary: false,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: tableWidth),
+              child: DataTable(
+                horizontalMargin: 12,
+                columnSpacing: 24,
+                dataRowMinHeight: 76,
+                dataRowMaxHeight: 92,
+                columns: <DataColumn>[
+                  const DataColumn(label: Text('Tessera')),
+                  const DataColumn(label: Text('Nome')),
+                  const DataColumn(label: Text('Email')),
+                  const DataColumn(label: Text('Telefono')),
+                  const DataColumn(label: Text('Cod. Fiscale')),
+                  if (mixedStatuses) const DataColumn(label: Text('Stato')),
+                  const DataColumn(label: Text('Firma')),
+                  const DataColumn(label: Text('Data')),
+                  const DataColumn(label: Text('Azioni')),
+                ],
+                rows: members.map((member) {
+                  final rowHasApprovedActions =
+                      approvedSection ||
+                      (mixedStatuses && member.stato == 'approved');
+                  final actionCellWidth = rowHasApprovedActions ? 132.0 : 172.0;
+
+                  return DataRow(
+                    cells: <DataCell>[
+                      DataCell(
+                        SizedBox(
+                          width: 104,
+                          child: Text(
+                            member.membershipNumberLabel,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                );
-              }).toList(),
+                      DataCell(
+                        SizedBox(width: 180, child: Text(member.fullName)),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 220,
+                          child: Text(
+                            member.email,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(width: 120, child: Text(member.telefono)),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 140,
+                          child: Text(
+                            member.codiceFiscale,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      if (mixedStatuses)
+                        DataCell(_CounterChip(count: 1, label: member.stato)),
+                      DataCell(
+                        SizedBox(
+                          width: 132,
+                          child: _SignaturePreview(
+                            url: member.firmaUrl,
+                            width: 120,
+                            height: 56,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(width: 90, child: Text(member.createdAtLabel)),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: actionCellWidth,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: _buildActionButtons(
+                              member,
+                              approvedSection: approvedSection,
+                              mixedStatuses: mixedStatuses,
+                              compact: true,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
           ),
         );
@@ -1654,7 +1767,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               icon: Icons.picture_as_pdf_outlined,
             ),
             _buildCompactActionIcon(
-              tooltip: 'Elimina socio',
+              tooltip: 'Archivia socio',
               onPressed: () => _deleteMember(member),
               icon: Icons.delete_outline,
             ),
@@ -1672,7 +1785,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             icon: Icons.picture_as_pdf_outlined,
           ),
           _buildCompactActionIcon(
-            tooltip: 'Elimina socio',
+            tooltip: 'Archivia socio',
             onPressed: () => _deleteMember(member),
             icon: Icons.delete_outline,
           ),
@@ -1708,7 +1821,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           OutlinedButton.icon(
             onPressed: () => _deleteMember(member),
             icon: const Icon(Icons.delete_outline),
-            label: const Text('Elimina'),
+            label: const Text('Archivia'),
           ),
         ],
       );
@@ -1726,7 +1839,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         OutlinedButton.icon(
           onPressed: () => _deleteMember(member),
           icon: const Icon(Icons.delete_outline),
-          label: const Text('Elimina'),
+          label: const Text('Archivia'),
         ),
         FilledButton.icon(
           onPressed: () => _changeStatus(member, 'approved'),
@@ -1739,73 +1852,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
           label: const Text('Rifiuta'),
         ),
       ],
-    );
-  }
-
-  Widget _buildMemberCard(
-    MemberModel member, {
-    required bool approvedSection,
-    bool mixedStatuses = false,
-  }) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
-        color: Colors.white,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      member.fullName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(member.email),
-                    const SizedBox(height: 2),
-                    Text(member.telefono),
-                    const SizedBox(height: 2),
-                    Text(member.codiceFiscale),
-                    const SizedBox(height: 6),
-                    Text('Richiesta: ${member.createdAtLabel}'),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                children: <Widget>[
-                  _SignaturePreview(
-                    url: member.firmaUrl,
-                    width: 120,
-                    height: 56,
-                  ),
-                  const SizedBox(height: 8),
-                  _CounterChip(count: 1, label: member.stato),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildActionButtons(
-            member,
-            approvedSection: approvedSection,
-            mixedStatuses: mixedStatuses,
-          ),
-        ],
-      ),
     );
   }
 

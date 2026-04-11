@@ -48,6 +48,7 @@ class PdfService {
           pw.SizedBox(height: 18),
           _infoRow('Nome', member.nome),
           _infoRow('Cognome', member.cognome),
+          _infoRow('Numero tessera', member.membershipNumberLabel),
           _infoRow('Email', member.email),
           _infoRow('Telefono', member.telefono),
           _infoRow('Codice fiscale', member.codiceFiscale),

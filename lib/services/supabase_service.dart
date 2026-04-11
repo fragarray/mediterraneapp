@@ -175,6 +175,23 @@ class SupabaseService {
     return _client.storage.from('firme').getPublicUrl(fileName);
   }
 
+  Future<String?> getNextMembershipNumberPreview() async {
+    if (!_configured) {
+      return null;
+    }
+
+    try {
+      final response = await _client.rpc('peek_next_membership_number');
+      if (response is String && response.trim().isNotEmpty) {
+        return response.trim();
+      }
+      return null;
+    } catch (error, stackTrace) {
+      _logError('getNextMembershipNumberPreview', error, stackTrace);
+      return null;
+    }
+  }
+
   Future<String?> getThemeSeedColorHex() async {
     if (!_configured) {
       return null;
@@ -245,6 +262,7 @@ class SupabaseService {
         .map(
           (rows) => rows
               .map((row) => MemberModel.fromMap(Map<String, dynamic>.from(row)))
+              .where((member) => member.isActive)
               .toList(),
         );
   }
@@ -286,7 +304,7 @@ class SupabaseService {
 
   Future<void> deleteMember(MemberModel member) async {
     if (!_configured) {
-      throw StateError('Configura Supabase per eliminare i soci.');
+      throw StateError('Configura Supabase per archiviare i soci.');
     }
 
     final memberId = member.id;
@@ -294,17 +312,15 @@ class SupabaseService {
       throw StateError('Il socio selezionato non ha un ID valido.');
     }
 
-    final storagePath = _extractStoragePath(member.firmaUrl, 'firme');
-    if (storagePath != null) {
-      try {
-        await _client.storage.from('firme').remove(<String>[storagePath]);
-      } catch (error, stackTrace) {
-        _logError('deleteMemberStorage', error, stackTrace);
-      }
-    }
-
     try {
-      await _client.from('soci').delete().eq('id', memberId);
+      await _client
+          .from('soci')
+          .update(<String, dynamic>{
+            'is_active': false,
+            'deleted_at': DateTime.now().toUtc().toIso8601String(),
+            'stato': 'deleted',
+          })
+          .eq('id', memberId);
     } catch (error, stackTrace) {
       _logError('deleteMember', error, stackTrace);
       rethrow;
@@ -331,28 +347,5 @@ class SupabaseService {
 
   Future<List<MemberModel>> getApprovedMembers() async {
     return getMembersByStatus('approved');
-  }
-
-  String? _extractStoragePath(String publicUrl, String bucket) {
-    if (publicUrl.isEmpty) {
-      return null;
-    }
-
-    final uri = Uri.tryParse(publicUrl);
-    if (uri == null) {
-      return null;
-    }
-
-    final publicIndex = uri.pathSegments.indexOf('public');
-    if (publicIndex == -1 || publicIndex + 2 > uri.pathSegments.length) {
-      return null;
-    }
-
-    final bucketName = uri.pathSegments[publicIndex + 1];
-    if (bucketName != bucket) {
-      return null;
-    }
-
-    return uri.pathSegments.sublist(publicIndex + 2).join('/');
   }
 }

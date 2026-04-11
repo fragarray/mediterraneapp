@@ -20,6 +20,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final _emailController = TextEditingController();
   final _telefonoController = TextEditingController();
   final _codiceFiscaleController = TextEditingController();
+  final _membershipNumberController = TextEditingController(text: 'APP----');
   final SignatureController _signatureController = SignatureController(
     penStrokeWidth: 2.5,
     penColor: Colors.black,
@@ -28,6 +29,13 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
   bool _privacyAccepted = false;
   bool _isSubmitting = false;
+  bool _isLoadingMembershipNumber = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMembershipNumberPreview();
+  }
 
   @override
   void dispose() {
@@ -36,8 +44,38 @@ class _RegistrationPageState extends State<RegistrationPage> {
     _emailController.dispose();
     _telefonoController.dispose();
     _codiceFiscaleController.dispose();
+    _membershipNumberController.dispose();
     _signatureController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadMembershipNumberPreview() async {
+    if (!widget.supabaseConfigured) {
+      _membershipNumberController.text = 'APP----';
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoadingMembershipNumber = true;
+      });
+    }
+
+    try {
+      final preview = await SupabaseService.instance
+          .getNextMembershipNumberPreview();
+      _membershipNumberController.text = preview ?? 'APP----';
+    } catch (error, stackTrace) {
+      debugPrint('[RegistrationPage] preview membership number error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _membershipNumberController.text = 'APP----';
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingMembershipNumber = false;
+        });
+      }
+    }
   }
 
   Future<void> _submitRegistration() async {
@@ -81,6 +119,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
         privacyAccepted: _privacyAccepted,
       );
 
+      final previewMembershipNumber = _membershipNumberController.text.trim();
+
       await SupabaseService.instance.submitRegistration(
         member: member,
         signatureBytes: signatureBytes,
@@ -93,6 +133,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       _telefonoController.clear();
       _codiceFiscaleController.clear();
       _signatureController.clear();
+      await _loadMembershipNumberPreview();
 
       if (mounted) {
         setState(() {
@@ -100,7 +141,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
         });
       }
 
-      _showMessage('Richiesta inviata correttamente');
+      _showMessage(
+        previewMembershipNumber.isEmpty || previewMembershipNumber == 'APP----'
+            ? 'Richiesta inviata correttamente'
+            : 'Richiesta inviata correttamente · Tessera $previewMembershipNumber',
+      );
     } catch (error, stackTrace) {
       debugPrint('[RegistrationPage] submitRegistration error: $error');
       debugPrintStack(stackTrace: stackTrace);
@@ -179,10 +224,17 @@ class _RegistrationPageState extends State<RegistrationPage> {
   }
 
   String _formatError(Object error) {
-    return error
+    final message = error
         .toString()
         .replaceFirst('Exception: ', '')
         .replaceFirst('StateError: ', '');
+
+    if (message.toLowerCase().contains('row-level security') &&
+        message.contains('"soci"')) {
+      return 'Supabase sta bloccando l\'inserimento nella tabella soci. Aggiorna la policy RLS della tabella `soci` come indicato.';
+    }
+
+    return message;
   }
 
   @override
@@ -272,7 +324,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
               title: 'Privacy GDPR',
               subtitle: 'Accettazione obbligatoria prima dell\'invio.',
             ),
-                  ],
+          ],
         ),
       ),
     );
@@ -372,6 +424,23 @@ class _RegistrationPageState extends State<RegistrationPage> {
                             labelText: 'Codice Fiscale',
                           ),
                           validator: _validateCodiceFiscale,
+                        ),
+                      ),
+                      SizedBox(
+                        width: fieldWidth,
+                        child: TextFormField(
+                          controller: _membershipNumberController,
+                          readOnly: true,
+                          enableInteractiveSelection: false,
+                          decoration: InputDecoration(
+                            labelText: 'Numero tessera',
+                            prefixIcon: const Icon(
+                              Icons.confirmation_number_outlined,
+                            ),
+                            helperText: _isLoadingMembershipNumber
+                                ? 'Assegnazione in corso...'
+                                : 'Generato automaticamente dal sistema',
+                          ),
                         ),
                       ),
                     ],
