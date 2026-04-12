@@ -1,10 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../app_theme.dart';
+import '../models/legacy_membership_request_model.dart';
 import '../models/member_model.dart';
 import '../services/excel_service.dart';
 import '../services/pdf_service.dart';
@@ -35,24 +37,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final _capFilterController = TextEditingController();
   final _emailFilterController = TextEditingController();
   final _telefonoFilterController = TextEditingController();
+  final _membershipStartController = TextEditingController();
   final ScrollController _pendingTableScrollController = ScrollController();
   final ScrollController _approvedTableScrollController = ScrollController();
   final ScrollController _searchTableScrollController = ScrollController();
   late Stream<List<MemberModel>> _pendingMembersStream;
   late Stream<List<MemberModel>> _approvedMembersStream;
   late Stream<List<MemberModel>> _allMembersStream;
+  late Stream<List<LegacyMembershipRequestModel>> _pendingLegacyRequestsStream;
 
   static const Map<String, double> _defaultColumnWidths = <String, double>{
-    'membership': 104,
-    'name': 170,
-    'birth': 190,
-    'residence': 230,
-    'email': 220,
-    'phone': 120,
-    'status': 110,
-    'signature': 132,
-    'date': 90,
-    'actions': 172,
+    'membership': 86,
+    'name': 130,
+    'birth': 140,
+    'residence': 160,
+    'email': 165,
+    'phone': 98,
+    'status': 84,
+    'date': 80,
+    'actions': 140,
   };
   final Map<String, double> _columnWidths = Map<String, double>.from(
     _defaultColumnWidths,
@@ -62,6 +65,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
   bool _isExporting = false;
   bool _showPassword = false;
   bool _showSearchPanel = false;
+  bool _isLoadingMembershipStart = false;
+  bool _isSavingMembershipStart = false;
+  bool _membershipStartLoaded = false;
+  bool _isLoadingNextMembershipPreview = false;
+  int? _nextMembershipPreview;
+  String _sortColumnKey = 'date';
+  bool _sortAscending = false;
+  String? _highlightedColumnKey;
+  String? _selectedMemberId;
   _AdminView _selectedView = _AdminView.dashboard;
   DateTimeRange? _registrationDateRange;
   String _selectedStatusFilter = 'all';
@@ -85,12 +97,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _pendingMembersStream = SupabaseService.instance.watchPendingMembers();
     _approvedMembersStream = SupabaseService.instance.watchApprovedMembers();
     _allMembersStream = SupabaseService.instance.watchAllMembers();
+    _pendingLegacyRequestsStream = SupabaseService.instance
+        .watchPendingLegacyMembershipRequests();
   }
 
   @override
   void initState() {
     super.initState();
     _refreshMemberStreams();
+    if (widget.supabaseConfigured) {
+      _loadMembershipStartNumber();
+      _loadNextMembershipPreview();
+    }
     for (final controller in _filterControllers) {
       controller.addListener(_onSearchChanged);
     }
@@ -100,6 +118,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _membershipStartController.dispose();
     _pendingTableScrollController.dispose();
     _approvedTableScrollController.dispose();
     _searchTableScrollController.dispose();
@@ -127,6 +146,50 @@ class _AdminDashboardState extends State<AdminDashboard> {
     });
   }
 
+  bool _hasActiveSearchFilters() {
+    if (_searchController.text.trim().isNotEmpty) {
+      return true;
+    }
+    if (_nomeFilterController.text.trim().isNotEmpty) {
+      return true;
+    }
+    if (_cognomeFilterController.text.trim().isNotEmpty) {
+      return true;
+    }
+    if (_luogoNascitaFilterController.text.trim().isNotEmpty) {
+      return true;
+    }
+    if (_dataNascitaFilterController.text.trim().isNotEmpty) {
+      return true;
+    }
+    if (_residenzaFilterController.text.trim().isNotEmpty) {
+      return true;
+    }
+    if (_comuneFilterController.text.trim().isNotEmpty) {
+      return true;
+    }
+    if (_capFilterController.text.trim().isNotEmpty) {
+      return true;
+    }
+    if (_emailFilterController.text.trim().isNotEmpty) {
+      return true;
+    }
+    if (_telefonoFilterController.text.trim().isNotEmpty) {
+      return true;
+    }
+    if (_selectedStatusFilter != 'all') {
+      return true;
+    }
+    if (_selectedPrivacyFilter != 'all') {
+      return true;
+    }
+    if (_registrationDateRange != null) {
+      return true;
+    }
+
+    return false;
+  }
+
   double _columnWidth(String key) {
     return _columnWidths[key] ?? _defaultColumnWidths[key] ?? 120;
   }
@@ -134,16 +197,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
   double _minColumnWidth(String key) {
     switch (key) {
       case 'membership':
-        return 84;
+        return 72;
       case 'name':
       case 'birth':
       case 'residence':
       case 'email':
-        return 120;
+        return 92;
+      case 'phone':
+        return 84;
+      case 'status':
+      case 'date':
+        return 72;
       case 'actions':
-        return 132;
+        return 120;
       default:
-        return 90;
+        return 72;
     }
   }
 
@@ -178,6 +246,36 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _columnWidths
         ..clear()
         ..addAll(_defaultColumnWidths);
+    });
+  }
+
+  void _sortByColumn(String columnKey, bool ascending) {
+    setState(() {
+      _sortColumnKey = columnKey;
+      _sortAscending = ascending;
+    });
+  }
+
+  void _toggleSortColumn(String columnKey) {
+    setState(() {
+      if (_sortColumnKey == columnKey) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortColumnKey = columnKey;
+        _sortAscending = true;
+      }
+      _highlightedColumnKey = columnKey;
+    });
+  }
+
+  void _clearTableHighlights() {
+    if (_selectedMemberId == null && _highlightedColumnKey == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedMemberId = null;
+      _highlightedColumnKey = null;
     });
   }
 
@@ -409,6 +507,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       debugPrint(
         '[AdminDashboard] signIn success currentUser=${SupabaseService.instance.currentUser?.email}',
       );
+      await _loadMembershipStartNumber(forceRefresh: true);
+      await _loadNextMembershipPreview(forceRefresh: true);
       _showMessage('Accesso effettuato con successo');
     } catch (error, stackTrace) {
       debugPrint('[AdminDashboard] signIn error: $error');
@@ -428,6 +528,158 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _showMessage('Sessione terminata');
   }
 
+  Future<void> _loadMembershipStartNumber({bool forceRefresh = false}) async {
+    if (!widget.supabaseConfigured) {
+      return;
+    }
+
+    if (_membershipStartLoaded && !forceRefresh) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoadingMembershipStart = true;
+      });
+    }
+
+    try {
+      final startNumber = await SupabaseService.instance
+          .getMembershipStartNumber();
+      _membershipStartController.text = startNumber?.toString() ?? '';
+      _membershipStartLoaded = true;
+    } catch (error, stackTrace) {
+      debugPrint('[AdminDashboard] loadMembershipStartNumber error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingMembershipStart = false;
+        });
+      }
+    }
+  }
+
+  Future<bool> _saveMembershipStartNumber() async {
+    final rawValue = _membershipStartController.text.trim();
+    final startNumber = int.tryParse(rawValue);
+
+    if (startNumber == null || startNumber <= 0) {
+      _showMessage(
+        'Inserisci un numero iniziale valido maggiore di zero.',
+        isError: true,
+      );
+      return false;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isSavingMembershipStart = true;
+      });
+    }
+
+    try {
+      await SupabaseService.instance.saveMembershipStartNumber(startNumber);
+      await _loadNextMembershipPreview(forceRefresh: true);
+      _showMessage('Numero iniziale tesseramento salvato: $startNumber');
+      return true;
+    } catch (error, stackTrace) {
+      debugPrint('[AdminDashboard] saveMembershipStartNumber error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showMessage(_formatError(error), isError: true);
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingMembershipStart = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadNextMembershipPreview({bool forceRefresh = false}) async {
+    if (!widget.supabaseConfigured) {
+      return;
+    }
+
+    if (_isLoadingNextMembershipPreview && !forceRefresh) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoadingNextMembershipPreview = true;
+      });
+    }
+
+    try {
+      final preview = await SupabaseService.instance
+          .getNextMembershipNumberPreview();
+      if (mounted) {
+        setState(() {
+          _nextMembershipPreview = preview;
+        });
+      }
+    } catch (error, stackTrace) {
+      debugPrint('[AdminDashboard] loadNextMembershipPreview error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingNextMembershipPreview = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _approveLegacyRequest(LegacyMembershipRequestModel request) async {
+    final requestId = request.id;
+    if (requestId == null || requestId.isEmpty) {
+      _showMessage('Richiesta legacy non valida.', isError: true);
+      return;
+    }
+
+    try {
+      final approvedNumber = await SupabaseService.instance
+          .approveLegacyMembershipRequest(requestId: requestId);
+      if (mounted) {
+        setState(_refreshMemberStreams);
+      }
+      await _loadNextMembershipPreview(forceRefresh: true);
+      _showMessage(
+        approvedNumber == null
+            ? 'Richiesta legacy approvata.'
+            : 'Richiesta legacy approvata. Tessera confermata: $approvedNumber',
+      );
+    } catch (error, stackTrace) {
+      debugPrint('[AdminDashboard] approveLegacyRequest error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showMessage(_formatError(error), isError: true);
+    }
+  }
+
+  Future<void> _rejectLegacyRequest(LegacyMembershipRequestModel request) async {
+    final requestId = request.id;
+    if (requestId == null || requestId.isEmpty) {
+      _showMessage('Richiesta legacy non valida.', isError: true);
+      return;
+    }
+
+    try {
+      await SupabaseService.instance.rejectLegacyMembershipRequest(
+        requestId: requestId,
+      );
+      if (mounted) {
+        setState(_refreshMemberStreams);
+      }
+      _showMessage('Richiesta legacy rifiutata.');
+    } catch (error, stackTrace) {
+      debugPrint('[AdminDashboard] rejectLegacyRequest error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showMessage(_formatError(error), isError: true);
+    }
+  }
+
   Future<void> _changeStatus(MemberModel member, String status) async {
     final memberId = member.id;
     if (memberId == null || memberId.isEmpty) {
@@ -439,16 +691,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
 
     try {
-      await SupabaseService.instance.updateMemberStatus(
-        memberId: memberId,
-        status: status,
-      );
+      String? assignedMembershipNumber;
+
+      if (status == 'approved') {
+        assignedMembershipNumber = await SupabaseService.instance
+            .approveMemberAndAssignMembershipNumber(memberId: memberId);
+      } else {
+        await SupabaseService.instance.updateMemberStatus(
+          memberId: memberId,
+          status: status,
+        );
+      }
+
       if (mounted) {
         setState(_refreshMemberStreams);
       }
+      await _loadNextMembershipPreview(forceRefresh: true);
       _showMessage(
         status == 'approved'
-            ? 'Socio approvato correttamente'
+            ? assignedMembershipNumber == null
+                  ? 'Socio approvato correttamente'
+                  : 'Socio approvato. Numero tessera assegnato: $assignedMembershipNumber'
             : 'Socio rifiutato correttamente',
       );
     } catch (error, stackTrace) {
@@ -779,15 +1042,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
       },
     );
 
-    nomeController.dispose();
-    cognomeController.dispose();
-    luogoNascitaController.dispose();
-    dataNascitaController.dispose();
-    residenzaController.dispose();
-    comuneController.dispose();
-    capController.dispose();
-    emailController.dispose();
-    telefonoController.dispose();
+    // Delay disposal so dialog transition/rebuilds cannot touch disposed controllers.
+    Future<void>.delayed(const Duration(milliseconds: 300), () {
+      nomeController.dispose();
+      cognomeController.dispose();
+      luogoNascitaController.dispose();
+      dataNascitaController.dispose();
+      residenzaController.dispose();
+      comuneController.dispose();
+      capController.dispose();
+      emailController.dispose();
+      telefonoController.dispose();
+    });
 
     if (updatedMember == null) {
       return;
@@ -1029,6 +1295,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
               label: const Text('Ricerca'),
             ),
           if (isAuthenticated) _buildThemeMenuButton(),
+          if (isAuthenticated)
+            IconButton(
+              tooltip: 'Impostazioni amministratore',
+              onPressed: _openAdminSettingsDialog,
+              icon: Icon(
+                Icons.settings_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
           TextButton.icon(
             onPressed: () => Navigator.pushNamed(context, '/'),
             icon: const Icon(Icons.how_to_reg_outlined),
@@ -1061,6 +1336,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
               ),
             );
+          }
+
+          if (!_membershipStartLoaded && !_isLoadingMembershipStart) {
+            Future<void>.microtask(_loadMembershipStartNumber);
+          }
+          if (_nextMembershipPreview == null && !_isLoadingNextMembershipPreview) {
+            Future<void>.microtask(_loadNextMembershipPreview);
           }
 
           return _buildDashboardContent(
@@ -1211,51 +1493,154 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildThemeMenuButton() {
-    return ValueListenableBuilder<Color>(
-      valueListenable: AppThemeController.seedColor,
-      builder: (context, currentColor, _) {
-        return PopupMenuButton<Color>(
-          tooltip: 'Colore applicazione',
-          icon: ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: <Color>[
-                Color(0xFF2E7D32),
-                Color(0xFF1565C0),
-                Color(0xFF6A1B9A),
-                Color(0xFFEF6C00),
-              ],
-            ).createShader(bounds),
-            child: const Icon(Icons.palette_outlined, color: Colors.white),
-          ),
-          onSelected: _saveThemeColor,
-          itemBuilder: (context) {
-            return AppThemeController.options.map((option) {
-              final isSelected = currentColor == option.color;
-              return PopupMenuItem<Color>(
-                value: option.color,
-                child: Row(
+  String _colorToHex8(Color color) {
+    return '#${color.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()}';
+  }
+
+  Future<void> _openThemeColorDialog() async {
+    var selectedColor = AppThemeController.seedColor.value;
+
+    final pickedColor = await showDialog<Color>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Scegli il colore'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: option.color,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected
-                              ? Colors.black87
-                              : Colors.grey.shade300,
-                          width: isSelected ? 2.5 : 1,
-                        ),
+                    ColorPicker(
+                      pickerColor: selectedColor,
+                      onColorChanged: (color) {
+                        setDialogState(() {
+                          selectedColor = color;
+                        });
+                      },
+                      enableAlpha: true,
+                      displayThumbColor: true,
+                      paletteType: PaletteType.hueWheel,
+                      pickerAreaBorderRadius: const BorderRadius.all(
+                        Radius.circular(12),
                       ),
+                      hexInputBar: true,
+                      labelTypes: const <ColorLabelType>[
+                        ColorLabelType.hex,
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Text(option.label),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Valore corrente: ${_colorToHex8(selectedColor)}',
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
                   ],
                 ),
-              );
-            }).toList();
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Annulla'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(selectedColor),
+                  child: const Text('Applica'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (pickedColor == null) {
+      return;
+    }
+
+    await _saveThemeColor(pickedColor);
+  }
+
+  Widget _buildThemeMenuButton() {
+    return IconButton(
+      tooltip: 'Selettore colore',
+      onPressed: _openThemeColorDialog,
+      icon: ShaderMask(
+        shaderCallback: (Rect bounds) {
+          return const SweepGradient(
+            colors: <Color>[
+              Color(0xFFFF3B30),
+              Color(0xFFFF9500),
+              Color(0xFFFFCC00),
+              Color(0xFF34C759),
+              Color(0xFF00C7BE),
+              Color(0xFF007AFF),
+              Color(0xFFAF52DE),
+              Color(0xFFFF2D55),
+              Color(0xFFFF3B30),
+            ],
+          ).createShader(bounds);
+        },
+        blendMode: BlendMode.srcIn,
+        child: const Icon(Icons.palette_outlined),
+      ),
+    );
+  }
+
+  Future<void> _openAdminSettingsDialog() async {
+    await _loadMembershipStartNumber(forceRefresh: true);
+    if (!mounted) {
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Impostazioni amministratore'),
+              content: SizedBox(
+                width: 360,
+                child: TextField(
+                  controller: _membershipStartController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Numero iniziale tesseramento',
+                    hintText: 'es. 1101',
+                  ),
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Chiudi'),
+                ),
+                FilledButton.icon(
+                  onPressed: _isSavingMembershipStart
+                      ? null
+                      : () async {
+                          final saved = await _saveMembershipStartNumber();
+                          if (!mounted) {
+                            return;
+                          }
+                          if (saved) {
+                            Navigator.of(dialogContext).pop();
+                          } else {
+                            setDialogState(() {});
+                          }
+                        },
+                  icon: _isSavingMembershipStart
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: const Text('Salva'),
+                ),
+              ],
+            );
           },
         );
       },
@@ -1278,6 +1663,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
           countLabel: 'pending',
         ),
         const SizedBox(height: 16),
+        _buildLegacyRequestsSection(),
+        const SizedBox(height: 16),
         _buildMembersSection(
           title: 'Ultimi associati',
           description: 'Ultimi 30 soci confermati registrati più di recente.',
@@ -1285,7 +1672,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           emptyMessage: 'Nessun socio confermato trovato.',
           approvedSection: true,
           transformMembers: _latestApprovedMembers,
-          countLabel: 'associati',
+          showCountChip: false,
         ),
       ],
     );
@@ -1295,7 +1682,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return StreamBuilder<List<MemberModel>>(
       stream: _approvedMembersStream,
       builder: (context, snapshot) {
-        final activeApprovedMembers = snapshot.data ?? const <MemberModel>[];
+        final predictedLastMembership = _nextMembershipPreview == null
+            ? null
+            : math.max(0, _nextMembershipPreview! - 1);
 
         return SizedBox(
           width: double.infinity,
@@ -1309,19 +1698,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 alignment: WrapAlignment.spaceBetween,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: <Widget>[
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(
+                      const Text(
                         'Soci attivi totali',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Conteggio dei soci approvati e attivi. Le richieste pending non vengono conteggiate.',
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Monitoraggio rapido del tesseramento e dell\'ultimo numero previsto.',
                       ),
                     ],
                   ),
@@ -1338,13 +1727,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          '${activeApprovedMembers.length}',
+                          _isLoadingNextMembershipPreview
+                              ? '...'
+                              : (predictedLastMembership?.toString() ?? '-'),
                           style: const TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const Text('attivi'),
                       ],
                     ),
                   ),
@@ -1715,6 +2105,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               emptyMessage: 'Nessun socio trovato con i filtri correnti.',
               approvedSection: false,
               applySearchFilters: true,
+              initialUnfilteredLimit: 30,
               mixedStatuses: true,
               countLabel: 'risultati',
               headerActions: FilledButton.icon(
@@ -1757,6 +2148,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     bool applySearchFilters = false,
     bool mixedStatuses = false,
     String? countLabel,
+    bool showCountChip = true,
+    int? initialUnfilteredLimit,
     Widget? headerActions,
     List<MemberModel> Function(List<MemberModel> members)? transformMembers,
   }) {
@@ -1773,9 +2166,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
               final transformedMembers = transformMembers != null
                   ? transformMembers(rawMembers)
                   : rawMembers;
-              final members = applySearchFilters
+                final filteredMembers = applySearchFilters
                   ? _filterMembers(transformedMembers)
                   : transformedMembers;
+                final shouldApplyInitialLimit =
+                  applySearchFilters &&
+                  initialUnfilteredLimit != null &&
+                  !_hasActiveSearchFilters();
+                final members = shouldApplyInitialLimit
+                  ? filteredMembers.take(initialUnfilteredLimit).toList()
+                  : filteredMembers;
 
               return LayoutBuilder(
                 builder: (context, constraints) {
@@ -1811,14 +2211,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: <Widget>[
                               ?headerActions,
-                              _CounterChip(
-                                count: members.length,
-                                label:
-                                    countLabel ??
-                                    (approvedSection
-                                        ? 'confermati'
-                                        : 'pending'),
-                              ),
+                              if (showCountChip)
+                                _CounterChip(
+                                  count: members.length,
+                                  label:
+                                      countLabel ??
+                                      (approvedSection
+                                          ? 'confermati'
+                                          : 'pending'),
+                                ),
                             ],
                           ),
                         ],
@@ -1874,6 +2275,118 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  Widget _buildLegacyRequestsSection() {
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        elevation: 0,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: StreamBuilder<List<LegacyMembershipRequestModel>>(
+            stream: _pendingLegacyRequestsStream,
+            builder: (context, snapshot) {
+              final requests = snapshot.data ??
+                  const <LegacyMembershipRequestModel>[];
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: <Widget>[
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Richieste vecchie tessere',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Coda separata: nessun salvataggio in soci fino all\'approvazione admin.',
+                          ),
+                        ],
+                      ),
+                      _CounterChip(count: requests.length, label: 'legacy pending'),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                    const Center(child: CircularProgressIndicator())
+                  else if (requests.isEmpty)
+                    _buildEmptyState('Nessuna richiesta legacy in pending.')
+                  else
+                    Column(
+                      children: requests.map((request) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAF7),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: <Widget>[
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 720),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'Tessera ${request.numeroTessera} · ${request.fullName}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${request.email} · ${request.telefono} · richiesta ${request.createdAtLabel}',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: <Widget>[
+                                  FilledButton.icon(
+                                    onPressed: () => _approveLegacyRequest(request),
+                                    icon: const Icon(Icons.check_circle_outline),
+                                    label: const Text('Approva'),
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed: () => _rejectLegacyRequest(request),
+                                    icon: const Icon(Icons.close_outlined),
+                                    label: const Text('Rifiuta'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMembersTable(
     List<MemberModel> members, {
     required bool approvedSection,
@@ -1882,6 +2395,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final theme = Theme.of(context);
+        final gridBorderColor = Colors.blueGrey.shade100;
+        final outerBorderColor = Colors.blueGrey.shade200;
+        final headerBackground = const Color(0xFFF2F6FA);
+        final evenRowBackground = Colors.white;
+        final oddRowBackground = const Color(0xFFFAFCFF);
+        const hoveredRowBackground = Color(0xFFE9F2FF);
+        const selectedRowBackground = Color(0xFFD7E9FF);
+        const sortedColumnBackground = Color(0xFFEEF5FF);
+
         final visibleColumnKeys = <String>[
           'membership',
           'name',
@@ -1890,7 +2413,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
           'email',
           'phone',
           if (mixedStatuses) 'status',
-          'signature',
           'date',
           'actions',
         ];
@@ -1902,130 +2424,320 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ((visibleColumnKeys.length - 1) * 24.0) +
             24.0;
         final tableWidth = math.max(constraints.maxWidth, minimumTableWidth);
-        final signaturePreviewWidth = math.max(
-          72.0,
-          _columnWidth('signature') - 12,
-        );
 
-        return Scrollbar(
-          controller: scrollController,
-          thumbVisibility: true,
-          trackVisibility: true,
-          interactive: true,
-          notificationPredicate: (notification) =>
-              notification.metrics.axis == Axis.horizontal,
-          child: SingleChildScrollView(
+        String membershipLabelForRow(MemberModel member, int rowIndex) {
+          if (!approvedSection && !mixedStatuses) {
+            final currentValue = member.numeroTessera.trim();
+            final isLegacyPlaceholder = RegExp(
+              r'^APP[\w-]*$',
+              caseSensitive: false,
+            ).hasMatch(currentValue);
+
+            if (currentValue.isEmpty || isLegacyPlaceholder) {
+              if (_nextMembershipPreview != null) {
+                return (_nextMembershipPreview! + rowIndex).toString();
+              }
+              return 'Da assegnare';
+            }
+          }
+
+          return member.membershipNumberLabel;
+        }
+
+        int compareByKey(MemberModel a, MemberModel b, String key) {
+          int compareString(String first, String second) =>
+              first.toLowerCase().compareTo(second.toLowerCase());
+
+          int parseMembership(MemberModel member) {
+            final parsed = int.tryParse(member.numeroTessera.trim());
+            if (parsed != null) {
+              return parsed;
+            }
+            return -1;
+          }
+
+          switch (key) {
+            case 'membership':
+              return parseMembership(a).compareTo(parseMembership(b));
+            case 'name':
+              return compareString(a.fullName, b.fullName);
+            case 'birth':
+              return compareString(a.birthPlaceAndDateLabel, b.birthPlaceAndDateLabel);
+            case 'residence':
+              return compareString(a.residenceLabel, b.residenceLabel);
+            case 'email':
+              return compareString(a.email, b.email);
+            case 'phone':
+              return compareString(a.telefono, b.telefono);
+            case 'status':
+              return compareString(a.stato, b.stato);
+            case 'date':
+              return (a.createdAt ?? DateTime(1900)).compareTo(
+                b.createdAt ?? DateTime(1900),
+              );
+            default:
+              return 0;
+          }
+        }
+
+        final sortedMembers = members.toList()
+          ..sort((first, second) {
+            final result = compareByKey(first, second, _sortColumnKey);
+            return _sortAscending ? result : -result;
+          });
+
+        DataColumn buildSortableColumn(String label, String columnKey) {
+          return DataColumn(
+            label: _buildResizableHeader(
+              label,
+              columnKey,
+              isSorted: _highlightedColumnKey == columnKey,
+              onSortTap: () => _toggleSortColumn(columnKey),
+            ),
+          );
+        }
+
+        Color resolveRowColor(Set<WidgetState> states, int index) {
+          if (states.contains(WidgetState.selected)) {
+            return selectedRowBackground;
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return hoveredRowBackground;
+          }
+          return index.isEven ? evenRowBackground : oddRowBackground;
+        }
+
+        bool isSortedColumn(String columnKey) =>
+          _highlightedColumnKey == columnKey;
+
+        Widget wrapCellHighlight({
+          required String columnKey,
+          required Widget child,
+        }) {
+          if (!isSortedColumn(columnKey)) {
+            return child;
+          }
+
+          return Container(
+            color: sortedColumnBackground,
+            child: child,
+          );
+        }
+
+        return TapRegion(
+          onTapOutside: (_) => _clearTableHighlights(),
+          child: Scrollbar(
             controller: scrollController,
-            scrollDirection: Axis.horizontal,
-            primary: false,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: tableWidth),
-              child: DataTable(
-                horizontalMargin: 12,
-                columnSpacing: 24,
-                dataRowMinHeight: 76,
-                dataRowMaxHeight: 92,
-                columns: <DataColumn>[
-                  DataColumn(
-                    label: _buildResizableHeader('Tessera', 'membership'),
-                  ),
-                  DataColumn(label: _buildResizableHeader('Nome', 'name')),
-                  DataColumn(label: _buildResizableHeader('Nascita', 'birth')),
-                  DataColumn(
-                    label: _buildResizableHeader('Residenza', 'residence'),
-                  ),
-                  DataColumn(label: _buildResizableHeader('Email', 'email')),
-                  DataColumn(label: _buildResizableHeader('Telefono', 'phone')),
-                  if (mixedStatuses)
-                    DataColumn(label: _buildResizableHeader('Stato', 'status')),
-                  DataColumn(
-                    label: _buildResizableHeader('Firma', 'signature'),
-                  ),
-                  DataColumn(label: _buildResizableHeader('Data', 'date')),
-                  DataColumn(label: _buildResizableHeader('Azioni', 'actions')),
-                ],
-                rows: members.map((member) {
-                  return DataRow(
-                    cells: <DataCell>[
-                      DataCell(
-                        _buildTableTextCell(
-                          member.membershipNumberLabel,
-                          columnKey: 'membership',
-                          maxLines: 1,
+            thumbVisibility: true,
+            trackVisibility: true,
+            interactive: true,
+            notificationPredicate: (notification) =>
+                notification.metrics.axis == Axis.horizontal,
+            child: SingleChildScrollView(
+              controller: scrollController,
+              scrollDirection: Axis.horizontal,
+              primary: false,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: tableWidth),
+                child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: outerBorderColor),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: DataTableTheme(
+                    data: DataTableThemeData(
+                      headingRowColor: WidgetStatePropertyAll<Color>(
+                        headerBackground,
+                      ),
+                      headingTextStyle: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                        color: const Color(0xFF1B2A3A),
+                      ),
+                      dividerThickness: 1,
+                    ),
+                    child: DataTable(
+                      showCheckboxColumn: false,
+                      horizontalMargin: 10,
+                      columnSpacing: 12,
+                      headingRowHeight: 52,
+                      dataRowMinHeight: 56,
+                      dataRowMaxHeight: 64,
+                      border: TableBorder(
+                        top: BorderSide(color: outerBorderColor),
+                        left: BorderSide(color: outerBorderColor),
+                        right: BorderSide(color: outerBorderColor),
+                        bottom: BorderSide(color: outerBorderColor),
+                        horizontalInside: BorderSide(color: gridBorderColor),
+                        verticalInside: BorderSide(color: gridBorderColor),
+                      ),
+                      columns: <DataColumn>[
+                        buildSortableColumn('Tessera', 'membership'),
+                        buildSortableColumn('Nome', 'name'),
+                        buildSortableColumn('Nascita', 'birth'),
+                        buildSortableColumn('Residenza', 'residence'),
+                        buildSortableColumn('Email', 'email'),
+                        buildSortableColumn('Telefono', 'phone'),
+                        if (mixedStatuses)
+                          buildSortableColumn('Stato', 'status'),
+                        buildSortableColumn('Data', 'date'),
+                        DataColumn(
+                          label: _buildResizableHeader(
+                            'Azioni',
+                            'actions',
+                            isSorted: false,
+                          ),
                         ),
-                      ),
-                      DataCell(
-                        _buildTableTextCell(member.fullName, columnKey: 'name'),
-                      ),
-                      DataCell(
-                        _buildTableTextCell(
-                          member.birthPlaceAndDateLabel,
-                          columnKey: 'birth',
-                        ),
-                      ),
-                      DataCell(
-                        _buildTableTextCell(
-                          member.residenceLabel,
-                          columnKey: 'residence',
-                        ),
-                      ),
-                      DataCell(
-                        _buildTableTextCell(member.email, columnKey: 'email'),
-                      ),
-                      DataCell(
-                        _buildTableTextCell(
-                          member.telefono,
-                          columnKey: 'phone',
-                          maxLines: 1,
-                        ),
-                      ),
-                      if (mixedStatuses)
-                        DataCell(
-                          SizedBox(
-                            width: _columnWidth('status'),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: _CounterChip(
-                                count: 1,
-                                label: member.stato,
+                      ],
+                      rows: List<DataRow>.generate(sortedMembers.length, (
+                        index,
+                      ) {
+                        final member = sortedMembers[index];
+
+                        return DataRow.byIndex(
+                          index: index,
+                          selected:
+                              member.id != null && _selectedMemberId == member.id,
+                          onSelectChanged: (_) {
+                            final memberId = member.id;
+                            if (memberId == null) {
+                              return;
+                            }
+                            setState(() {
+                              _selectedMemberId =
+                                  _selectedMemberId == memberId
+                                  ? null
+                                  : memberId;
+                            });
+                          },
+                          color: WidgetStateProperty.resolveWith<Color>(
+                            (states) => resolveRowColor(states, index),
+                          ),
+                          cells: <DataCell>[
+                            DataCell(
+                              wrapCellHighlight(
+                                columnKey: 'membership',
+                                child: _buildTableTextCell(
+                                  membershipLabelForRow(member, index),
+                                  columnKey: 'membership',
+                                  maxLines: 1,
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      DataCell(
-                        SizedBox(
-                          width: _columnWidth('signature'),
-                          child: _SignaturePreview(
-                            url: member.firmaUrl,
-                            width: signaturePreviewWidth,
-                            height: 56,
-                          ),
-                        ),
-                      ),
-                      DataCell(
-                        _buildTableTextCell(
-                          member.createdAtLabel,
-                          columnKey: 'date',
-                          maxLines: 1,
-                        ),
-                      ),
-                      DataCell(
-                        SizedBox(
-                          width: _columnWidth('actions'),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: _buildActionButtons(
-                              member,
-                              approvedSection: approvedSection,
-                              mixedStatuses: mixedStatuses,
-                              compact: true,
+                            DataCell(
+                              wrapCellHighlight(
+                                columnKey: 'name',
+                                child: _buildTableTextCell(
+                                  member.fullName,
+                                  columnKey: 'name',
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
+                            DataCell(
+                              wrapCellHighlight(
+                                columnKey: 'birth',
+                                child: _buildTableTextCell(
+                                  member.birthPlaceAndDateLabel,
+                                  columnKey: 'birth',
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              wrapCellHighlight(
+                                columnKey: 'residence',
+                                child: _buildTableTextCell(
+                                  member.residenceLabel,
+                                  columnKey: 'residence',
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              wrapCellHighlight(
+                                columnKey: 'email',
+                                child: _buildTableTextCell(
+                                  member.email,
+                                  columnKey: 'email',
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              wrapCellHighlight(
+                                columnKey: 'phone',
+                                child: _buildTableTextCell(
+                                  member.telefono,
+                                  columnKey: 'phone',
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ),
+                            if (mixedStatuses)
+                              DataCell(
+                                wrapCellHighlight(
+                                  columnKey: 'status',
+                                  child: SizedBox(
+                                    width: _columnWidth('status'),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Tooltip(
+                                        message: member.stato,
+                                        child: Icon(
+                                          Icons.circle,
+                                          size: 12,
+                                          color: switch (
+                                            member.stato.trim().toLowerCase()
+                                          ) {
+                                            'approved' => Colors.green.shade700,
+                                            'deleted' => Colors.red.shade700,
+                                            'rejected' => Colors.black,
+                                            _ => Colors.blueGrey.shade500,
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            DataCell(
+                              wrapCellHighlight(
+                                columnKey: 'date',
+                                child: _buildTableTextCell(
+                                  member.createdAtLabel,
+                                  columnKey: 'date',
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              SizedBox(
+                                width: _columnWidth('actions'),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: _buildActionButtons(
+                                    member,
+                                    approvedSection: approvedSection,
+                                    mixedStatuses: mixedStatuses,
+                                    compact: true,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                    ),
+                  ),
+                ),
+                ),
               ),
             ),
           ),
@@ -2034,23 +2746,44 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildResizableHeader(String label, String columnKey) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
+  Widget _buildResizableHeader(
+    String label,
+    String columnKey, {
+    required bool isSorted,
+    VoidCallback? onSortTap,
+  }) {
     return SizedBox(
       width: _columnWidth(columnKey),
       child: Row(
         children: <Widget>[
           Expanded(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+            child: InkWell(
+              onTap: onSortTap,
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                decoration: isSorted
+                    ? BoxDecoration(
+                        color: const Color(0xFFDCEBFF),
+                        borderRadius: BorderRadius.circular(4),
+                      )
+                    : null,
+                child: Text(
+                  label.toUpperCase(),
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    letterSpacing: 0.35,
+                    color: isSorted ? const Color(0xFF0D3A73) : null,
+                  ),
+                ),
+              ),
             ),
           ),
           Tooltip(
             message:
-                'Trascina per ridimensionare · doppio click per ripristinare',
+                'Trascina il bordo destro per ridimensionare · doppio click per ripristinare',
             child: MouseRegion(
               cursor: SystemMouseCursors.resizeLeftRight,
               child: GestureDetector(
@@ -2058,14 +2791,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 onHorizontalDragUpdate: (details) =>
                     _resizeColumn(columnKey, details.delta.dx),
                 onDoubleTap: () => _resetColumnWidth(columnKey),
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Icon(
-                    Icons.drag_indicator,
-                    size: 16,
-                    color: primaryColor,
-                  ),
-                ),
+                child: const SizedBox(width: 6, height: 24),
               ),
             ),
           ),
@@ -2077,11 +2803,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildTableTextCell(
     String value, {
     required String columnKey,
-    int maxLines = 2,
+    int maxLines = 1,
   }) {
     return SizedBox(
       width: _columnWidth(columnKey),
-      child: Text(value, maxLines: maxLines, overflow: TextOverflow.ellipsis),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Text(
+          value,
+          maxLines: maxLines,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13.2, height: 1.24),
+        ),
+      ),
     );
   }
 

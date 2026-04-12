@@ -2,13 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:signature/signature.dart';
 
+import '../models/legacy_membership_request_model.dart';
 import '../models/member_model.dart';
 import '../services/supabase_service.dart';
 
 class RegistrationPage extends StatefulWidget {
-  const RegistrationPage({super.key, required this.supabaseConfigured});
+  const RegistrationPage({
+    super.key,
+    required this.supabaseConfigured,
+    this.fixedMembershipNumber,
+  });
 
   final bool supabaseConfigured;
+  final String? fixedMembershipNumber;
+
+  bool get isLegacyFlow => fixedMembershipNumber != null;
 
   @override
   State<RegistrationPage> createState() => _RegistrationPageState();
@@ -20,12 +28,12 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final _cognomeController = TextEditingController();
   final _luogoNascitaController = TextEditingController();
   final _dataNascitaController = TextEditingController();
+  final _dataRegistrazioneTesseraController = TextEditingController();
   final _residenzaController = TextEditingController();
   final _comuneController = TextEditingController();
   final _capController = TextEditingController();
   final _telefonoController = TextEditingController();
   final _emailController = TextEditingController();
-  final _membershipNumberController = TextEditingController(text: 'APP----');
   final SignatureController _signatureController = SignatureController(
     penStrokeWidth: 2.5,
     penColor: Colors.black,
@@ -34,13 +42,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
   bool _privacyAccepted = false;
   bool _isSubmitting = false;
-  bool _isLoadingMembershipNumber = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMembershipNumberPreview();
-  }
 
   @override
   void dispose() {
@@ -48,43 +49,14 @@ class _RegistrationPageState extends State<RegistrationPage> {
     _cognomeController.dispose();
     _luogoNascitaController.dispose();
     _dataNascitaController.dispose();
+    _dataRegistrazioneTesseraController.dispose();
     _residenzaController.dispose();
     _comuneController.dispose();
     _capController.dispose();
     _telefonoController.dispose();
     _emailController.dispose();
-    _membershipNumberController.dispose();
     _signatureController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadMembershipNumberPreview() async {
-    if (!widget.supabaseConfigured) {
-      _membershipNumberController.text = 'APP----';
-      return;
-    }
-
-    if (mounted) {
-      setState(() {
-        _isLoadingMembershipNumber = true;
-      });
-    }
-
-    try {
-      final preview = await SupabaseService.instance
-          .getNextMembershipNumberPreview();
-      _membershipNumberController.text = preview ?? 'APP----';
-    } catch (error, stackTrace) {
-      debugPrint('[RegistrationPage] preview membership number error: $error');
-      debugPrintStack(stackTrace: stackTrace);
-      _membershipNumberController.text = 'APP----';
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingMembershipNumber = false;
-        });
-      }
-    }
   }
 
   DateTime? _parseBirthDate(String? value) {
@@ -124,6 +96,20 @@ class _RegistrationPageState extends State<RegistrationPage> {
     return parsedDate;
   }
 
+  DateTime? _parseLegacyMembershipRegistrationDate(String? value) {
+    final parsedDate = _parseBirthDate(value);
+    if (parsedDate == null) {
+      return null;
+    }
+
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (parsedDate.isAfter(today)) {
+      return null;
+    }
+
+    return parsedDate;
+  }
+
   Future<void> _submitRegistration() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -133,6 +119,21 @@ class _RegistrationPageState extends State<RegistrationPage> {
     if (birthDate == null) {
       _showMessage('Inserisci una data di nascita valida.', isError: true);
       return;
+    }
+
+    DateTime? legacyRegistrationDate;
+    if (widget.isLegacyFlow) {
+      legacyRegistrationDate = _parseLegacyMembershipRegistrationDate(
+        _dataRegistrazioneTesseraController.text,
+      );
+
+      if (legacyRegistrationDate == null) {
+        _showMessage(
+          'Inserisci una data valida per la registrazione della vecchia tessera.',
+          isError: true,
+        );
+        return;
+      }
     }
 
     if (!_privacyAccepted) {
@@ -175,25 +176,46 @@ class _RegistrationPageState extends State<RegistrationPage> {
         privacyAccepted: _privacyAccepted,
       );
 
-      final previewMembershipNumber = _membershipNumberController.text.trim();
+      if (widget.isLegacyFlow) {
+        final legacyRequest = LegacyMembershipRequestModel(
+          dataRegistrazioneTessera: legacyRegistrationDate,
+          numeroTessera: widget.fixedMembershipNumber!,
+          nome: member.nome,
+          cognome: member.cognome,
+          luogoNascita: member.luogoNascita,
+          dataNascita: member.dataNascita,
+          residenza: member.residenza,
+          comune: member.comune,
+          cap: member.cap,
+          email: member.email,
+          telefono: member.telefono,
+          firmaUrl: '',
+          privacyAccepted: member.privacyAccepted,
+        );
 
-      await SupabaseService.instance.submitRegistration(
-        member: member,
-        signatureBytes: signatureBytes,
-      );
+        await SupabaseService.instance.submitLegacyMembershipRequest(
+          request: legacyRequest,
+          signatureBytes: signatureBytes,
+        );
+      } else {
+        await SupabaseService.instance.submitRegistration(
+          member: member,
+          signatureBytes: signatureBytes,
+        );
+      }
 
       _formKey.currentState!.reset();
       _nomeController.clear();
       _cognomeController.clear();
       _luogoNascitaController.clear();
       _dataNascitaController.clear();
+      _dataRegistrazioneTesseraController.clear();
       _residenzaController.clear();
       _comuneController.clear();
       _capController.clear();
       _telefonoController.clear();
       _emailController.clear();
       _signatureController.clear();
-      await _loadMembershipNumberPreview();
 
       if (mounted) {
         setState(() {
@@ -202,9 +224,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
       }
 
       _showMessage(
-        previewMembershipNumber.isEmpty || previewMembershipNumber == 'APP----'
-            ? 'Richiesta inviata correttamente'
-            : 'Richiesta inviata correttamente · Tessera $previewMembershipNumber',
+        widget.isLegacyFlow
+            ? 'Richiesta inviata in pending per aggiornamento vecchia tessera ${widget.fixedMembershipNumber}. Sarà validata dall\'admin prima del salvataggio definitivo.'
+            : 'Richiesta inviata correttamente. Il numero tessera verrà assegnato in fase di approvazione admin.',
       );
     } catch (error, stackTrace) {
       debugPrint('[RegistrationPage] submitRegistration error: $error');
@@ -233,6 +255,20 @@ class _RegistrationPageState extends State<RegistrationPage> {
     }
 
     final parsedDate = _parseBirthDate(rawValue);
+    if (parsedDate == null) {
+      return 'Usa il formato gg/mm/aaaa';
+    }
+
+    return null;
+  }
+
+  String? _validateLegacyMembershipRegistrationDate(String? value) {
+    final rawValue = (value ?? '').trim();
+    if (rawValue.isEmpty) {
+      return 'Data registrazione vecchia tessera obbligatoria';
+    }
+
+    final parsedDate = _parseLegacyMembershipRegistrationDate(rawValue);
     if (parsedDate == null) {
       return 'Usa il formato gg/mm/aaaa';
     }
@@ -317,8 +353,17 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tesseramento Mediterranea'),
+        title: Text(
+          widget.isLegacyFlow
+              ? 'Conferma vecchia tessera'
+              : 'Tesseramento Mediterranea',
+        ),
         actions: <Widget>[
+          TextButton.icon(
+            onPressed: () => Navigator.pushNamed(context, '/'),
+            icon: const Icon(Icons.home_outlined),
+            label: const Text('Home'),
+          ),
           TextButton.icon(
             onPressed: () => Navigator.pushNamed(context, '/admin'),
             icon: const Icon(Icons.admin_panel_settings_outlined),
@@ -383,23 +428,34 @@ class _RegistrationPageState extends State<RegistrationPage> {
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const <Widget>[
+          children: <Widget>[
             Text(
-              'Registrazione socio',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
+              widget.isLegacyFlow
+                  ? 'Aggiornamento vecchia tessera'
+                  : 'Registrazione socio',
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
-              'Compila tutti i dati anagrafici, accetta la privacy e firma digitalmente per inviare la richiesta di tesseramento.',
+              widget.isLegacyFlow
+                  ? 'Stai confermando una tessera cartacea gia esistente: ${widget.fixedMembershipNumber}. La richiesta verrà inviata in una coda pending e l\'admin dovrà approvarla prima del salvataggio nel database soci.'
+                  : 'Compila tutti i dati anagrafici, accetta la privacy e firma digitalmente per inviare la richiesta di tesseramento.',
             ),
-            SizedBox(height: 24),
-            _InfoTile(
+            const SizedBox(height: 24),
+            const _InfoTile(
               icon: Icons.badge_outlined,
               title: 'Dati completi',
               subtitle:
                   'Nome, nascita, residenza, contatti e firma vengono salvati nel profilo socio.',
             ),
-            _InfoTile(
+            Text(
+              widget.isLegacyFlow
+                  ? 'Il numero tessera rimane fisso e viene verificato dall\'admin.'
+                  : 'Il numero tessera viene assegnato dall\'admin in approvazione.',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            const _InfoTile(
               icon: Icons.verified_user_outlined,
               title: 'Privacy GDPR',
               subtitle: 'Accettazione obbligatoria prima dell\'invio.',
@@ -568,20 +624,44 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       SizedBox(
                         width: fieldWidth,
                         child: TextFormField(
-                          controller: _membershipNumberController,
+                          initialValue: widget.isLegacyFlow
+                              ? widget.fixedMembershipNumber
+                              : 'Assegnato dopo approvazione',
                           readOnly: true,
-                          enableInteractiveSelection: false,
+                          enabled: false,
                           decoration: InputDecoration(
                             labelText: 'Numero tessera',
                             prefixIcon: const Icon(
                               Icons.confirmation_number_outlined,
                             ),
-                            helperText: _isLoadingMembershipNumber
-                                ? 'Assegnazione in corso...'
-                                : 'Generato automaticamente dal sistema',
+                            helperText: widget.isLegacyFlow
+                                ? 'Numero tessera storico richiesto dall\'utente'
+                                : 'Viene generato dall\'admin al momento dell\'approvazione',
                           ),
                         ),
                       ),
+                      if (widget.isLegacyFlow)
+                        SizedBox(
+                          width: fieldWidth,
+                          child: TextFormField(
+                            controller: _dataRegistrazioneTesseraController,
+                            keyboardType: TextInputType.datetime,
+                            textInputAction: TextInputAction.next,
+                            inputFormatters: <TextInputFormatter>[
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(8),
+                              _DateTextInputFormatter(),
+                            ],
+                            decoration: const InputDecoration(
+                              labelText:
+                                  'Data registrazione vecchia tessera',
+                              hintText: '__/__/____',
+                              prefixIcon: Icon(Icons.history_toggle_off_outlined),
+                            ),
+                            validator:
+                                _validateLegacyMembershipRegistrationDate,
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 24),

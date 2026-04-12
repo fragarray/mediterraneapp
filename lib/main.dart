@@ -8,7 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_theme.dart';
+import 'screens/already_member_page.dart';
 import 'screens/admin_dashboard.dart';
+import 'screens/home_landing_page.dart';
 import 'screens/registration_page.dart';
 import 'services/supabase_service.dart';
 
@@ -174,6 +176,19 @@ class MyApp extends StatelessWidget {
           initialRoute: '/',
           onGenerateRoute: (settings) {
             switch (settings.name) {
+              case '/registration':
+                final fixedMembershipNumber = settings.arguments as String?;
+                return MaterialPageRoute<void>(
+                  builder: (_) => RegistrationPage(
+                    supabaseConfigured: supabaseConfigured,
+                    fixedMembershipNumber: fixedMembershipNumber,
+                  ),
+                );
+              case '/already-member':
+                return MaterialPageRoute<void>(
+                  builder: (_) =>
+                      AlreadyMemberPage(supabaseConfigured: supabaseConfigured),
+                );
               case '/admin':
                 return MaterialPageRoute<void>(
                   builder: (_) =>
@@ -182,8 +197,7 @@ class MyApp extends StatelessWidget {
               case '/':
               default:
                 return MaterialPageRoute<void>(
-                  builder: (_) =>
-                      RegistrationPage(supabaseConfigured: supabaseConfigured),
+                  builder: (_) => const HomeLandingPage(),
                 );
             }
           },

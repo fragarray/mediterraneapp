@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/legacy_membership_request_model.dart';
 import '../models/member_model.dart';
 
 class SupabaseService {
@@ -8,6 +9,8 @@ class SupabaseService {
 
   static final SupabaseService instance = SupabaseService._();
   static const String _themeSettingKey = 'theme_seed_color';
+  static const String _membershipStartSettingKey =
+      'membership_start_number';
 
   static bool _configured = false;
 
@@ -175,20 +178,279 @@ class SupabaseService {
     return _client.storage.from('firme').getPublicUrl(fileName);
   }
 
-  Future<String?> getNextMembershipNumberPreview() async {
+  Future<String?> approveMemberAndAssignMembershipNumber({
+    required String memberId,
+  }) async {
+    if (!_configured) {
+      throw StateError('Configura Supabase per approvare i soci.');
+    }
+
+    try {
+      final response = await _client.rpc(
+        'approve_member_with_membership_number',
+        params: <String, dynamic>{'p_member_id': memberId},
+      );
+
+      if (response is int) {
+        return response.toString();
+      }
+
+      if (response is num) {
+        return response.toInt().toString();
+      }
+
+      if (response is String) {
+        final membershipNumber = response.trim();
+        return membershipNumber.isEmpty ? null : membershipNumber;
+      }
+
+      return null;
+    } catch (error, stackTrace) {
+      _logError('approveMemberAndAssignMembershipNumber', error, stackTrace);
+      throw Exception(
+        'Approvazione non completata. Verifica la funzione Supabase approve_member_with_membership_number.',
+      );
+    }
+  }
+
+  Future<int?> getNextMembershipNumberPreview() async {
     if (!_configured) {
       return null;
     }
 
     try {
       final response = await _client.rpc('peek_next_membership_number');
-      if (response is String && response.trim().isNotEmpty) {
-        return response.trim();
+      if (response is int) {
+        return response;
+      }
+      if (response is num) {
+        return response.toInt();
+      }
+      if (response is String) {
+        return int.tryParse(response.trim());
       }
       return null;
     } catch (error, stackTrace) {
       _logError('getNextMembershipNumberPreview', error, stackTrace);
       return null;
+    }
+  }
+
+  Future<bool> membershipNumberExists(String membershipNumber) async {
+    if (!_configured) {
+      return false;
+    }
+
+    final normalized = membershipNumber.trim();
+    if (normalized.isEmpty) {
+      return false;
+    }
+
+    try {
+      final response = await _client
+          .from('soci')
+          .select('id')
+          .eq('numero_tessera', normalized)
+          .eq('is_active', true)
+          .limit(1);
+
+      return (response as List).isNotEmpty;
+    } catch (error, stackTrace) {
+      _logError('membershipNumberExists', error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<bool> canRequestLegacyMembershipNumber(int membershipNumber) async {
+    if (!_configured) {
+      return false;
+    }
+
+    final startNumber = await getMembershipStartNumber();
+    if (startNumber == null || startNumber <= 1) {
+      return false;
+    }
+
+    if (membershipNumber >= startNumber) {
+      return false;
+    }
+
+    final exists = await membershipNumberExists(membershipNumber.toString());
+    if (exists) {
+      return false;
+    }
+
+    final pendingResponse = await _client
+        .from('legacy_membership_requests')
+        .select('id')
+        .eq('numero_tessera', membershipNumber.toString())
+        .eq('stato', 'pending')
+        .limit(1);
+
+    return (pendingResponse as List).isEmpty;
+  }
+
+  Future<void> submitLegacyMembershipRequest({
+    required LegacyMembershipRequestModel request,
+    required Uint8List signatureBytes,
+  }) async {
+    if (!_configured) {
+      throw StateError('Configura Supabase prima di inviare le richieste.');
+    }
+
+    try {
+      final signatureUrl = await uploadSignature(
+        bytes: signatureBytes,
+        email: request.email,
+      );
+
+      final payload = LegacyMembershipRequestModel(
+        id: request.id,
+        createdAt: request.createdAt,
+        dataRegistrazioneTessera: request.dataRegistrazioneTessera,
+        numeroTessera: request.numeroTessera,
+        nome: request.nome,
+        cognome: request.cognome,
+        luogoNascita: request.luogoNascita,
+        dataNascita: request.dataNascita,
+        residenza: request.residenza,
+        comune: request.comune,
+        cap: request.cap,
+        email: request.email,
+        telefono: request.telefono,
+        firmaUrl: signatureUrl,
+        stato: 'pending',
+        privacyAccepted: request.privacyAccepted,
+      );
+
+      await _client
+          .from('legacy_membership_requests')
+          .insert(payload.toInsertMap());
+    } catch (error, stackTrace) {
+      _logError('submitLegacyMembershipRequest', error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Stream<List<LegacyMembershipRequestModel>> watchPendingLegacyMembershipRequests() {
+    if (!_configured) {
+      return Stream<List<LegacyMembershipRequestModel>>.value(
+        const <LegacyMembershipRequestModel>[],
+      );
+    }
+
+    return _client
+        .from('legacy_membership_requests')
+        .stream(primaryKey: <String>['id'])
+        .order('created_at', ascending: false)
+        .map(
+          (rows) => rows
+              .map(
+                (row) => LegacyMembershipRequestModel.fromMap(
+                  Map<String, dynamic>.from(row),
+                ),
+              )
+              .where((request) => request.stato == 'pending')
+              .toList(),
+        );
+  }
+
+  Future<String?> approveLegacyMembershipRequest({required String requestId}) async {
+    if (!_configured) {
+      throw StateError('Configura Supabase per approvare le richieste legacy.');
+    }
+
+    try {
+      final response = await _client.rpc(
+        'approve_legacy_membership_request',
+        params: <String, dynamic>{'p_request_id': requestId},
+      );
+
+      if (response is String) {
+        final value = response.trim();
+        return value.isEmpty ? null : value;
+      }
+
+      if (response is int) {
+        return response.toString();
+      }
+
+      if (response is num) {
+        return response.toInt().toString();
+      }
+
+      return null;
+    } catch (error, stackTrace) {
+      _logError('approveLegacyMembershipRequest', error, stackTrace);
+      throw Exception(
+        'Approvazione richiesta legacy non completata. Verifica la funzione Supabase approve_legacy_membership_request.',
+      );
+    }
+  }
+
+  Future<void> rejectLegacyMembershipRequest({required String requestId}) async {
+    if (!_configured) {
+      throw StateError('Configura Supabase per rifiutare le richieste legacy.');
+    }
+
+    try {
+      await _client
+          .from('legacy_membership_requests')
+          .update(<String, dynamic>{
+            'stato': 'rejected',
+            'reviewed_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', requestId);
+    } catch (error, stackTrace) {
+      _logError('rejectLegacyMembershipRequest', error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<int?> getMembershipStartNumber() async {
+    if (!_configured) {
+      return null;
+    }
+
+    try {
+      final response = await _client
+          .from('app_settings')
+          .select('value')
+          .eq('key', _membershipStartSettingKey)
+          .maybeSingle();
+
+      final rawValue = response?['value']?.toString().trim();
+      if (rawValue == null || rawValue.isEmpty) {
+        return null;
+      }
+
+      return int.tryParse(rawValue);
+    } catch (error, stackTrace) {
+      _logError('getMembershipStartNumber', error, stackTrace);
+      return null;
+    }
+  }
+
+  Future<void> saveMembershipStartNumber(int startNumber) async {
+    if (!_configured) {
+      throw StateError(
+        'Configura Supabase per salvare il numero iniziale tessere.',
+      );
+    }
+
+    if (startNumber <= 0) {
+      throw StateError('Il numero iniziale deve essere maggiore di zero.');
+    }
+
+    try {
+      await _client.from('app_settings').upsert(<String, dynamic>{
+        'key': _membershipStartSettingKey,
+        'value': startNumber.toString(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'key');
+    } catch (error, stackTrace) {
+      _logError('saveMembershipStartNumber', error, stackTrace);
+      rethrow;
     }
   }
 
