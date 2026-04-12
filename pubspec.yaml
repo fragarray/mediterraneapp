@@ -19,6 +19,11 @@ dependencies:
   intl: ^0.20.2
   pdf: ^3.11.3
   flutter_colorpicker: ^1.1.0
+  carousel_slider: ^5.1.1
+  file_selector: ^1.0.3
+  url_launcher: ^6.3.2
+  flutter_svg: ^2.2.1
+  image: ^4.5.4
 
 dev_dependencies:
   flutter_test:

@@ -1,7 +1,11 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,7 +16,7 @@ import '../services/excel_service.dart';
 import '../services/pdf_service.dart';
 import '../services/supabase_service.dart';
 
-enum _AdminView { dashboard, search }
+enum _AdminView { dashboard, search, carousel }
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key, required this.supabaseConfigured});
@@ -38,6 +42,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final _emailFilterController = TextEditingController();
   final _telefonoFilterController = TextEditingController();
   final _membershipStartController = TextEditingController();
+  final _instagramUrlController = TextEditingController();
   final ScrollController _pendingTableScrollController = ScrollController();
   final ScrollController _approvedTableScrollController = ScrollController();
   final ScrollController _searchTableScrollController = ScrollController();
@@ -67,9 +72,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
   bool _showSearchPanel = false;
   bool _isLoadingMembershipStart = false;
   bool _isSavingMembershipStart = false;
+  bool _isLoadingLandingMedia = false;
+  bool _isSavingLandingMedia = false;
+  bool _isUploadingCarouselImages = false;
   bool _membershipStartLoaded = false;
   bool _isLoadingNextMembershipPreview = false;
   int? _nextMembershipPreview;
+  double _carouselPreviewSpeedSeconds = 4;
+  double _carouselPreviewHeight = 230;
+  double _carouselVisibleItems = 2;
+  List<String> _carouselImageUrls = <String>[];
+  List<String> _persistedCarouselImageUrls = <String>[];
   String _sortColumnKey = 'date';
   bool _sortAscending = false;
   String? _highlightedColumnKey;
@@ -108,6 +121,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (widget.supabaseConfigured) {
       _loadMembershipStartNumber();
       _loadNextMembershipPreview();
+      _loadLandingMediaSettings();
     }
     for (final controller in _filterControllers) {
       controller.addListener(_onSearchChanged);
@@ -119,6 +133,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _emailController.dispose();
     _passwordController.dispose();
     _membershipStartController.dispose();
+    _instagramUrlController.dispose();
     _pendingTableScrollController.dispose();
     _approvedTableScrollController.dispose();
     _searchTableScrollController.dispose();
@@ -246,13 +261,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _columnWidths
         ..clear()
         ..addAll(_defaultColumnWidths);
-    });
-  }
-
-  void _sortByColumn(String columnKey, bool ascending) {
-    setState(() {
-      _sortColumnKey = columnKey;
-      _sortAscending = ascending;
     });
   }
 
@@ -509,6 +517,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       );
       await _loadMembershipStartNumber(forceRefresh: true);
       await _loadNextMembershipPreview(forceRefresh: true);
+      await _loadLandingMediaSettings(forceRefresh: true);
       _showMessage('Accesso effettuato con successo');
     } catch (error, stackTrace) {
       debugPrint('[AdminDashboard] signIn error: $error');
@@ -630,6 +639,262 @@ class _AdminDashboardState extends State<AdminDashboard> {
         });
       }
     }
+  }
+
+  Future<void> _loadLandingMediaSettings({bool forceRefresh = false}) async {
+    if (!widget.supabaseConfigured) {
+      return;
+    }
+
+    if (_isLoadingLandingMedia && !forceRefresh) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoadingLandingMedia = true;
+      });
+    }
+
+    try {
+      final settings = await SupabaseService.instance
+          .getLandingCarouselSettings();
+      final instagramUrl = await SupabaseService.instance
+          .getInstagramProfileUrl();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _carouselImageUrls = settings.imageUrls;
+        _persistedCarouselImageUrls = List<String>.from(settings.imageUrls);
+        _carouselPreviewSpeedSeconds = settings.autoplaySeconds;
+        _carouselPreviewHeight = settings.widgetHeight;
+        _carouselVisibleItems = settings.visibleItems;
+        _instagramUrlController.text = instagramUrl ?? '';
+      });
+    } catch (error, stackTrace) {
+      debugPrint('[AdminDashboard] loadLandingMediaSettings error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showMessage(_formatError(error), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingLandingMedia = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _saveLandingMediaSettings() async {
+    if (!widget.supabaseConfigured) {
+      _showMessage('Configura Supabase per salvare il carosello.', isError: true);
+      return;
+    }
+
+    final rawInstagram = _instagramUrlController.text.trim();
+    if (rawInstagram.isNotEmpty && Uri.tryParse(rawInstagram) == null) {
+      _showMessage('Inserisci un link Instagram valido.', isError: true);
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isSavingLandingMedia = true;
+      });
+    }
+
+    try {
+      final removedUrls = _persistedCarouselImageUrls
+          .where((url) => !_carouselImageUrls.contains(url))
+          .toList();
+
+      for (final removedUrl in removedUrls) {
+        await SupabaseService.instance.deleteCarouselImageByPublicUrl(removedUrl);
+      }
+
+      await SupabaseService.instance.saveInstagramProfileUrl(rawInstagram);
+      await SupabaseService.instance.saveLandingCarouselSettings(
+        LandingCarouselSettings(
+          imageUrls: _carouselImageUrls,
+          autoplaySeconds: _carouselPreviewSpeedSeconds,
+          widgetHeight: _carouselPreviewHeight,
+          visibleItems: _carouselVisibleItems,
+        ),
+      );
+      _persistedCarouselImageUrls = List<String>.from(_carouselImageUrls);
+      _showMessage('Carosello home e Instagram salvati.');
+    } catch (error, stackTrace) {
+      debugPrint('[AdminDashboard] saveLandingMediaSettings error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showMessage(_formatError(error), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingLandingMedia = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _removeCarouselImageAt(int index) async {
+    if (index < 0 || index >= _carouselImageUrls.length) {
+      return;
+    }
+
+    final urlToDelete = _carouselImageUrls[index];
+
+    try {
+      await SupabaseService.instance.deleteCarouselImageByPublicUrl(urlToDelete);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _carouselImageUrls = List<String>.from(_carouselImageUrls)
+          ..removeAt(index);
+        _persistedCarouselImageUrls = List<String>.from(_persistedCarouselImageUrls)
+          ..remove(urlToDelete);
+      });
+      _showMessage('Slide eliminata dal carosello e dallo storage.');
+    } catch (error, stackTrace) {
+      debugPrint('[AdminDashboard] removeCarouselImageAt error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showMessage(_formatError(error), isError: true);
+    }
+  }
+
+  Future<void> _pickAndUploadCarouselImages() async {
+    if (!widget.supabaseConfigured) {
+      _showMessage('Configura Supabase per caricare immagini.', isError: true);
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isUploadingCarouselImages = true;
+      });
+    }
+
+    try {
+      const imageTypeGroup = XTypeGroup(
+        label: 'Immagini',
+        extensions: <String>[
+          'jpg',
+          'jpeg',
+          'png',
+          'webp',
+          'gif',
+          'bmp',
+        ],
+      );
+
+      final files = await openFiles(acceptedTypeGroups: <XTypeGroup>[imageTypeGroup]);
+      if (files.isEmpty) {
+        return;
+      }
+
+      final uploadedUrls = <String>[];
+      for (final file in files) {
+        final bytes = await file.readAsBytes();
+        if (bytes.isEmpty) {
+          continue;
+        }
+
+        final processed = _optimizeCarouselImage(
+          bytes: bytes,
+          originalFileName: file.name,
+        );
+
+        final uploadedUrl = await SupabaseService.instance.uploadCarouselImage(
+          bytes: processed.bytes,
+          fileName: processed.fileName,
+        );
+        uploadedUrls.add(uploadedUrl);
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _carouselImageUrls = uploadedUrls;
+      });
+      _showMessage('Immagini carosello caricate: ${uploadedUrls.length}');
+    } catch (error, stackTrace) {
+      debugPrint('[AdminDashboard] pickAndUploadCarouselImages error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showMessage(_formatError(error), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingCarouselImages = false;
+        });
+      }
+    }
+  }
+
+  _OptimizedCarouselImage _optimizeCarouselImage({
+    required Uint8List bytes,
+    required String originalFileName,
+  }) {
+    final lowerName = originalFileName.toLowerCase();
+    final isGif = lowerName.endsWith('.gif');
+
+    // Keep GIFs untouched to avoid breaking animation frames.
+    if (isGif) {
+      return _OptimizedCarouselImage(bytes: bytes, fileName: originalFileName);
+    }
+
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) {
+      return _OptimizedCarouselImage(bytes: bytes, fileName: originalFileName);
+    }
+
+    const maxDimension = 1920;
+    final width = decoded.width;
+    final height = decoded.height;
+
+    img.Image working = decoded;
+    final needsResize = width > maxDimension || height > maxDimension;
+    if (needsResize) {
+      if (width >= height) {
+        working = img.copyResize(
+          decoded,
+          width: maxDimension,
+          interpolation: img.Interpolation.average,
+        );
+      } else {
+        working = img.copyResize(
+          decoded,
+          height: maxDimension,
+          interpolation: img.Interpolation.average,
+        );
+      }
+    }
+
+    final isPng = lowerName.endsWith('.png');
+    if (isPng) {
+      final encoded = Uint8List.fromList(img.encodePng(working, level: 6));
+      final finalName = _replaceFileExtension(originalFileName, 'png');
+      return _OptimizedCarouselImage(bytes: encoded, fileName: finalName);
+    }
+
+    final encoded = Uint8List.fromList(img.encodeJpg(working, quality: 82));
+    final finalName = _replaceFileExtension(originalFileName, 'jpg');
+    return _OptimizedCarouselImage(bytes: encoded, fileName: finalName);
+  }
+
+  String _replaceFileExtension(String fileName, String extension) {
+    final normalizedExtension = extension.startsWith('.')
+        ? extension.substring(1)
+        : extension;
+    final dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex <= 0) {
+      return '$fileName.$normalizedExtension';
+    }
+    return '${fileName.substring(0, dotIndex)}.$normalizedExtension';
   }
 
   Future<void> _approveLegacyRequest(LegacyMembershipRequestModel request) async {
@@ -1268,31 +1533,43 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ? 'Dashboard Admin'
         : _selectedView == _AdminView.dashboard
         ? 'Area Admin · Home'
-        : 'Area Admin · Ricerca';
+        : _selectedView == _AdminView.search
+        ? 'Area Admin · Ricerca'
+        : 'Area Admin · Carosello';
 
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
         actions: <Widget>[
           if (isAuthenticated)
-            TextButton.icon(
+            IconButton(
+              tooltip: 'Home admin',
               onPressed: () {
                 setState(() {
                   _selectedView = _AdminView.dashboard;
                 });
               },
               icon: const Icon(Icons.home_outlined),
-              label: const Text('Home'),
             ),
           if (isAuthenticated)
-            TextButton.icon(
+            IconButton(
+              tooltip: 'Ricerca soci',
               onPressed: () {
                 setState(() {
                   _selectedView = _AdminView.search;
                 });
               },
               icon: const Icon(Icons.search_outlined),
-              label: const Text('Ricerca'),
+            ),
+          if (isAuthenticated)
+            IconButton(
+              tooltip: 'Gestione carosello',
+              onPressed: () {
+                setState(() {
+                  _selectedView = _AdminView.carousel;
+                });
+              },
+              icon: const Icon(Icons.view_carousel_outlined),
             ),
           if (isAuthenticated) _buildThemeMenuButton(),
           if (isAuthenticated)
@@ -1304,16 +1581,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
-          TextButton.icon(
+          IconButton(
+            tooltip: 'Vai alla pagina registrazione',
             onPressed: () => Navigator.pushNamed(context, '/'),
             icon: const Icon(Icons.how_to_reg_outlined),
-            label: const Text('Registrazione'),
           ),
           if (isAuthenticated)
-            TextButton.icon(
+            IconButton(
+              tooltip: 'Esci',
               onPressed: _signOut,
               icon: const Icon(Icons.logout_outlined),
-              label: const Text('Esci'),
             ),
           const SizedBox(width: 12),
         ],
@@ -1370,7 +1647,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 key: ValueKey<_AdminView>(_selectedView),
                 child: _selectedView == _AdminView.dashboard
                     ? _buildHomePage()
-                    : _buildSearchPage(isDesktop: isDesktop),
+                    : _selectedView == _AdminView.search
+                    ? _buildSearchPage(isDesktop: isDesktop)
+                    : _buildCarouselPage(),
               ),
             ),
           ),
@@ -1621,7 +1900,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ? null
                       : () async {
                           final saved = await _saveMembershipStartNumber();
-                          if (!mounted) {
+                          if (!dialogContext.mounted) {
                             return;
                           }
                           if (saved) {
@@ -1674,6 +1953,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
           transformMembers: _latestApprovedMembers,
           showCountChip: false,
         ),
+      ],
+    );
+  }
+
+  Widget _buildCarouselPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _buildLandingMediaSettingsCard(),
       ],
     );
   }
@@ -1744,6 +2032,268 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildLandingMediaSettingsCard() {
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        elevation: 0,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(
+                'Home pubblica: carosello e Instagram',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Carica immagini per il carosello della home, imposta velocita e dimensione, e salva il link Instagram.',
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _instagramUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'Link profilo Instagram',
+                  hintText: 'https://www.instagram.com/tuo_profilo/',
+                  prefixIcon: Icon(Icons.camera_alt_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: <Widget>[
+                  FilledButton.icon(
+                    onPressed: _isUploadingCarouselImages
+                        ? null
+                        : _pickAndUploadCarouselImages,
+                    icon: _isUploadingCarouselImages
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.add_photo_alternate_outlined),
+                    label: const Text('Seleziona immagini'),
+                  ),
+                  TextButton.icon(
+                    onPressed: _isLoadingLandingMedia
+                        ? null
+                        : () => _loadLandingMediaSettings(forceRefresh: true),
+                    icon: const Icon(Icons.refresh_outlined),
+                    label: const Text('Ricarica'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              if (_carouselImageUrls.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F8F6),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: const Text(
+                    'Nessuna immagine selezionata.',
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              else
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: CarouselSlider.builder(
+                    itemCount: _carouselImageUrls.length,
+                    itemBuilder: (context, index, realIndex) {
+                      return SizedBox.expand(
+                        child: Image.network(
+                          _carouselImageUrls[index],
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey.shade200,
+                              alignment: Alignment.center,
+                              child: const Text('Immagine non disponibile'),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                    options: CarouselOptions(
+                      height: _carouselPreviewHeight,
+                      initialPage: 0,
+                      viewportFraction: _carouselImageUrls.length > 1
+                          ? (1 / _carouselVisibleItems).clamp(0.28, 1).toDouble()
+                          : 1,
+                      padEnds: true,
+                      autoPlay: _carouselImageUrls.length > 1,
+                      autoPlayInterval: Duration(
+                        milliseconds: (_carouselPreviewSpeedSeconds * 1000)
+                            .round(),
+                      ),
+                      autoPlayAnimationDuration: const Duration(
+                        milliseconds: 650,
+                      ),
+                      enlargeCenterPage: _carouselImageUrls.length > 1,
+                      enlargeFactor: _carouselImageUrls.length > 1 ? 0.34 : 0,
+                      enlargeStrategy: CenterPageEnlargeStrategy.zoom,
+                    ),
+                  ),
+                ),
+              if (_carouselImageUrls.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 12),
+                const Text(
+                  'Ordina immagini (drag-and-drop) o elimina singole slide',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: math.min(
+                    300,
+                    (_carouselImageUrls.length * 66 + 10).toDouble(),
+                  ),
+                  child: ReorderableListView.builder(
+                    itemCount: _carouselImageUrls.length,
+                    buildDefaultDragHandles: false,
+                    onReorder: (oldIndex, newIndex) {
+                      setState(() {
+                        final items = List<String>.from(_carouselImageUrls);
+                        if (newIndex > oldIndex) {
+                          newIndex -= 1;
+                        }
+                        final moved = items.removeAt(oldIndex);
+                        items.insert(newIndex, moved);
+                        _carouselImageUrls = items;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      final imageUrl = _carouselImageUrls[index];
+                      return Card(
+                        key: ValueKey<String>('carousel-$index-$imageUrl'),
+                        margin: const EdgeInsets.symmetric(vertical: 3),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 2,
+                          ),
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.network(
+                              imageUrl,
+                              width: 44,
+                              height: 44,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 44,
+                                  height: 44,
+                                  color: Colors.grey.shade300,
+                                  alignment: Alignment.center,
+                                  child: const Icon(Icons.broken_image_outlined),
+                                );
+                              },
+                            ),
+                          ),
+                          title: Text(
+                            'Slide ${index + 1}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text(
+                            imageUrl,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: Wrap(
+                            spacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: <Widget>[
+                              IconButton(
+                                tooltip: 'Elimina slide',
+                                onPressed: () => _removeCarouselImageAt(index),
+                                icon: const Icon(Icons.delete_outline),
+                              ),
+                              ReorderableDragStartListener(
+                                index: index,
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 6),
+                                  child: Icon(Icons.drag_indicator_outlined),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              Text(
+                'Velocita scorrimento: ${_carouselPreviewSpeedSeconds.toStringAsFixed(1)} s',
+              ),
+              Slider(
+                value: _carouselPreviewSpeedSeconds,
+                min: 1,
+                max: 10,
+                divisions: 18,
+                label: '${_carouselPreviewSpeedSeconds.toStringAsFixed(1)} s',
+                onChanged: (value) {
+                  setState(() {
+                    _carouselPreviewSpeedSeconds = value;
+                  });
+                },
+              ),
+              Text(
+                'Altezza widget: ${_carouselPreviewHeight.toStringAsFixed(0)} px',
+              ),
+              Slider(
+                value: _carouselPreviewHeight,
+                min: 140,
+                max: 520,
+                divisions: 38,
+                label: '${_carouselPreviewHeight.toStringAsFixed(0)} px',
+                onChanged: (value) {
+                  setState(() {
+                    _carouselPreviewHeight = value;
+                  });
+                },
+              ),
+              Text(
+                'Immagini visibili: ${_carouselVisibleItems.toStringAsFixed(0)}',
+              ),
+              Slider(
+                value: _carouselVisibleItems,
+                min: 1,
+                max: 5,
+                divisions: 4,
+                label: _carouselVisibleItems.toStringAsFixed(0),
+                onChanged: (value) {
+                  setState(() {
+                    _carouselVisibleItems = value.roundToDouble();
+                  });
+                },
+              ),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: _isSavingLandingMedia ? null : _saveLandingMediaSettings,
+                icon: _isSavingLandingMedia
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: const Text('Salva configurazione home'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -2992,6 +3542,13 @@ class _CounterChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _OptimizedCarouselImage {
+  const _OptimizedCarouselImage({required this.bytes, required this.fileName});
+
+  final Uint8List bytes;
+  final String fileName;
 }
 
 class _SignaturePreview extends StatelessWidget {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -11,6 +13,10 @@ class SupabaseService {
   static const String _themeSettingKey = 'theme_seed_color';
   static const String _membershipStartSettingKey =
       'membership_start_number';
+  static const String _instagramUrlSettingKey = 'instagram_profile_url';
+  static const String _landingCarouselSettingKey = 'landing_carousel_config';
+
+  static const String _carouselStorageBucket = 'firme';
 
   static bool _configured = false;
 
@@ -494,6 +500,201 @@ class SupabaseService {
     }
   }
 
+  Future<String?> getInstagramProfileUrl() async {
+    if (!_configured) {
+      return null;
+    }
+
+    try {
+      final response = await _client
+          .from('app_settings')
+          .select('value')
+          .eq('key', _instagramUrlSettingKey)
+          .maybeSingle();
+
+      final value = response?['value']?.toString().trim();
+      if (value == null || value.isEmpty) {
+        return null;
+      }
+
+      return value;
+    } catch (error, stackTrace) {
+      _logError('getInstagramProfileUrl', error, stackTrace);
+      return null;
+    }
+  }
+
+  Future<void> saveInstagramProfileUrl(String? url) async {
+    if (!_configured) {
+      throw StateError('Configura Supabase per salvare il link Instagram.');
+    }
+
+    final normalized = url?.trim() ?? '';
+
+    try {
+      await _client.from('app_settings').upsert(<String, dynamic>{
+        'key': _instagramUrlSettingKey,
+        'value': normalized,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'key');
+    } catch (error, stackTrace) {
+      _logError('saveInstagramProfileUrl', error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<LandingCarouselSettings> getLandingCarouselSettings() async {
+    if (!_configured) {
+      return const LandingCarouselSettings();
+    }
+
+    try {
+      final response = await _client
+          .from('app_settings')
+          .select('value')
+          .eq('key', _landingCarouselSettingKey)
+          .maybeSingle();
+
+      final rawValue = response?['value']?.toString().trim();
+      if (rawValue == null || rawValue.isEmpty) {
+        return const LandingCarouselSettings();
+      }
+
+      final decoded = jsonDecode(rawValue);
+      if (decoded is! Map<String, dynamic>) {
+        return const LandingCarouselSettings();
+      }
+
+      return LandingCarouselSettings.fromJson(decoded);
+    } catch (error, stackTrace) {
+      _logError('getLandingCarouselSettings', error, stackTrace);
+      return const LandingCarouselSettings();
+    }
+  }
+
+  Future<void> saveLandingCarouselSettings(
+    LandingCarouselSettings settings,
+  ) async {
+    if (!_configured) {
+      throw StateError('Configura Supabase per salvare il carosello.');
+    }
+
+    final serialized = jsonEncode(settings.toJson());
+
+    try {
+      await _client.from('app_settings').upsert(<String, dynamic>{
+        'key': _landingCarouselSettingKey,
+        'value': serialized,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'key');
+    } catch (error, stackTrace) {
+      _logError('saveLandingCarouselSettings', error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<String> uploadCarouselImage({
+    required Uint8List bytes,
+    required String fileName,
+    String? contentType,
+  }) async {
+    if (!_configured) {
+      throw StateError('Configura Supabase prima di caricare immagini.');
+    }
+
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final safeName = fileName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9._-]'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
+    final path = 'landing/$timestamp-$safeName';
+
+    final inferredType = contentType ?? _inferImageContentType(fileName);
+
+    try {
+      await _client.storage.from(_carouselStorageBucket).uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(contentType: inferredType, upsert: true),
+      );
+    } on StorageException catch (error, stackTrace) {
+      _logError('uploadCarouselImage(StorageException)', error, stackTrace);
+      throw Exception(
+        'Upload carosello fallito sul bucket "$_carouselStorageBucket". Verifica policy storage.objects di upload e lettura pubblica. Dettaglio: ${error.message}',
+      );
+    } catch (error, stackTrace) {
+      _logError('uploadCarouselImage', error, stackTrace);
+      rethrow;
+    }
+
+    return _client.storage.from(_carouselStorageBucket).getPublicUrl(path);
+  }
+
+  Future<void> deleteCarouselImageByPublicUrl(String publicUrl) async {
+    if (!_configured) {
+      throw StateError('Configura Supabase prima di rimuovere immagini.');
+    }
+
+    final objectPath = _extractStorageObjectPathFromPublicUrl(publicUrl);
+    if (objectPath == null || objectPath.isEmpty) {
+      return;
+    }
+
+    try {
+      await _client.storage.from(_carouselStorageBucket).remove(<String>[
+        objectPath,
+      ]);
+    } on StorageException catch (error, stackTrace) {
+      _logError('deleteCarouselImageByPublicUrl(StorageException)', error, stackTrace);
+      throw Exception(
+        'Eliminazione immagine carosello fallita: ${error.message}',
+      );
+    } catch (error, stackTrace) {
+      _logError('deleteCarouselImageByPublicUrl', error, stackTrace);
+      rethrow;
+    }
+  }
+
+  String? _extractStorageObjectPathFromPublicUrl(String publicUrl) {
+    final uri = Uri.tryParse(publicUrl.trim());
+    if (uri == null) {
+      return null;
+    }
+
+    final segments = uri.pathSegments;
+    final bucketIndex = segments.indexOf(_carouselStorageBucket);
+    if (bucketIndex < 0 || bucketIndex >= segments.length - 1) {
+      return null;
+    }
+
+    final objectSegments = segments.sublist(bucketIndex + 1);
+    if (objectSegments.isEmpty) {
+      return null;
+    }
+
+    return objectSegments.map(Uri.decodeComponent).join('/');
+  }
+
+  String _inferImageContentType(String fileName) {
+    final normalized = fileName.toLowerCase();
+    if (normalized.endsWith('.png')) {
+      return 'image/png';
+    }
+    if (normalized.endsWith('.gif')) {
+      return 'image/gif';
+    }
+    if (normalized.endsWith('.webp')) {
+      return 'image/webp';
+    }
+    if (normalized.endsWith('.bmp')) {
+      return 'image/bmp';
+    }
+    if (normalized.endsWith('.svg')) {
+      return 'image/svg+xml';
+    }
+    return 'image/jpeg';
+  }
+
   Stream<List<MemberModel>> watchMembersByStatus(String status) {
     if (!_configured) {
       return Stream<List<MemberModel>>.value(const <MemberModel>[]);
@@ -609,5 +810,69 @@ class SupabaseService {
 
   Future<List<MemberModel>> getApprovedMembers() async {
     return getMembersByStatus('approved');
+  }
+}
+
+class LandingCarouselSettings {
+  const LandingCarouselSettings({
+    this.imageUrls = const <String>[],
+    this.autoplaySeconds = 4,
+    this.widgetHeight = 230,
+    this.visibleItems = 2,
+  });
+
+  final List<String> imageUrls;
+  final double autoplaySeconds;
+  final double widgetHeight;
+  final double visibleItems;
+
+  factory LandingCarouselSettings.fromJson(Map<String, dynamic> json) {
+    final rawImages = json['image_urls'];
+    final parsedImages = rawImages is List
+        ? rawImages
+              .map((item) => item?.toString().trim() ?? '')
+              .where((item) => item.isNotEmpty)
+              .toList()
+        : const <String>[];
+
+    final rawSeconds = json['autoplay_seconds'];
+    final rawHeight = json['widget_height'];
+    final rawVisibleItems = json['visible_items'];
+
+    return LandingCarouselSettings(
+      imageUrls: parsedImages,
+      autoplaySeconds: (rawSeconds is num ? rawSeconds.toDouble() : 4)
+          .clamp(1, 12)
+          .toDouble(),
+      widgetHeight: (rawHeight is num ? rawHeight.toDouble() : 230)
+          .clamp(140, 520)
+          .toDouble(),
+        visibleItems: (rawVisibleItems is num ? rawVisibleItems.toDouble() : 2)
+          .clamp(1, 4)
+          .toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'image_urls': imageUrls,
+      'autoplay_seconds': autoplaySeconds,
+      'widget_height': widgetHeight,
+      'visible_items': visibleItems,
+    };
+  }
+
+  LandingCarouselSettings copyWith({
+    List<String>? imageUrls,
+    double? autoplaySeconds,
+    double? widgetHeight,
+    double? visibleItems,
+  }) {
+    return LandingCarouselSettings(
+      imageUrls: imageUrls ?? this.imageUrls,
+      autoplaySeconds: autoplaySeconds ?? this.autoplaySeconds,
+      widgetHeight: widgetHeight ?? this.widgetHeight,
+      visibleItems: visibleItems ?? this.visibleItems,
+    );
   }
 }
