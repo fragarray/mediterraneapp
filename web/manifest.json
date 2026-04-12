@@ -6,7 +6,7 @@
     "background_color": "#000000",
     "theme_color": "#000000",
     "description": "Web app per il tesseramento dell'associazione Mediterranea.",
-    "orientation": "portrait-primary",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

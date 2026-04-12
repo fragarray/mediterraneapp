@@ -1529,6 +1529,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   Widget build(BuildContext context) {
     final isAuthenticated = SupabaseService.instance.isAuthenticated;
+    final topBarIconColor = Theme.of(context).colorScheme.primary;
     final title = !isAuthenticated
         ? 'Dashboard Admin'
         : _selectedView == _AdminView.dashboard
@@ -1540,6 +1541,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
+        iconTheme: IconThemeData(color: topBarIconColor),
+        actionsIconTheme: IconThemeData(color: topBarIconColor),
         actions: <Widget>[
           if (isAuthenticated)
             IconButton(
@@ -1576,10 +1579,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             IconButton(
               tooltip: 'Impostazioni amministratore',
               onPressed: _openAdminSettingsDialog,
-              icon: Icon(
-                Icons.settings_outlined,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+              icon: const Icon(Icons.settings_outlined),
             ),
           IconButton(
             tooltip: 'Vai alla pagina registrazione',
@@ -1844,25 +1844,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return IconButton(
       tooltip: 'Selettore colore',
       onPressed: _openThemeColorDialog,
-      icon: ShaderMask(
-        shaderCallback: (Rect bounds) {
-          return const SweepGradient(
-            colors: <Color>[
-              Color(0xFFFF3B30),
-              Color(0xFFFF9500),
-              Color(0xFFFFCC00),
-              Color(0xFF34C759),
-              Color(0xFF00C7BE),
-              Color(0xFF007AFF),
-              Color(0xFFAF52DE),
-              Color(0xFFFF2D55),
-              Color(0xFFFF3B30),
-            ],
-          ).createShader(bounds);
-        },
-        blendMode: BlendMode.srcIn,
-        child: const Icon(Icons.palette_outlined),
-      ),
+      icon: const Icon(Icons.palette_outlined),
     );
   }
 
@@ -2054,15 +2036,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 'Carica immagini per il carosello della home, imposta velocita e dimensione, e salva il link Instagram.',
               ),
               const SizedBox(height: 14),
-              TextField(
-                controller: _instagramUrlController,
-                decoration: const InputDecoration(
-                  labelText: 'Link profilo Instagram',
-                  hintText: 'https://www.instagram.com/tuo_profilo/',
-                  prefixIcon: Icon(Icons.camera_alt_outlined),
-                ),
-              ),
-              const SizedBox(height: 12),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -2089,7 +2062,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               if (_carouselImageUrls.isEmpty)
                 Container(
                   width: double.infinity,
@@ -2108,6 +2081,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: CarouselSlider.builder(
+                    key: ValueKey<String>(
+                      '${_carouselImageUrls.length}-${_carouselPreviewSpeedSeconds.toStringAsFixed(1)}-${_carouselPreviewHeight.toStringAsFixed(0)}-${_carouselVisibleItems.toStringAsFixed(0)}',
+                    ),
                     itemCount: _carouselImageUrls.length,
                     itemBuilder: (context, index, realIndex) {
                       return SizedBox.expand(
@@ -2145,13 +2121,194 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ),
                   ),
                 ),
-              if (_carouselImageUrls.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 12),
-                const Text(
-                  'Ordina immagini (drag-and-drop) o elimina singole slide',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+              const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final controlWidth = constraints.maxWidth >= 980
+                      ? (constraints.maxWidth - 24) / 3
+                      : constraints.maxWidth;
+
+                  return Wrap(
+                    spacing: 12,
+                    runSpacing: 4,
+                    children: <Widget>[
+                      SizedBox(
+                        width: controlWidth,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text.rich(
+                              TextSpan(
+                                text: 'Velocita: ',
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                children: <InlineSpan>[
+                                  TextSpan(
+                                    text: '${_carouselPreviewSpeedSeconds.toStringAsFixed(1)} s',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3,
+                                overlayShape: SliderComponentShape.noOverlay,
+                                thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 7,
+                                ),
+                              ),
+                              child: Slider(
+                                value: _carouselPreviewSpeedSeconds,
+                                min: 1,
+                                max: 10,
+                                divisions: 18,
+                                label: '${_carouselPreviewSpeedSeconds.toStringAsFixed(1)} s',
+                                onChanged: (value) {
+                                  setState(() {
+                                    _carouselPreviewSpeedSeconds = value;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        width: controlWidth,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text.rich(
+                              TextSpan(
+                                text: 'Altezza: ',
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                children: <InlineSpan>[
+                                  TextSpan(
+                                    text: '${_carouselPreviewHeight.toStringAsFixed(0)} px',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3,
+                                overlayShape: SliderComponentShape.noOverlay,
+                                thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 7,
+                                ),
+                              ),
+                              child: Slider(
+                                value: _carouselPreviewHeight,
+                                min: 140,
+                                max: 520,
+                                divisions: 38,
+                                label: '${_carouselPreviewHeight.toStringAsFixed(0)} px',
+                                onChanged: (value) {
+                                  setState(() {
+                                    _carouselPreviewHeight = value;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        width: controlWidth,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text.rich(
+                              TextSpan(
+                                text: 'Immagini visibili: ',
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                children: <InlineSpan>[
+                                  TextSpan(
+                                    text: _carouselVisibleItems.toStringAsFixed(0),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3,
+                                overlayShape: SliderComponentShape.noOverlay,
+                                thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 7,
+                                ),
+                              ),
+                              child: Slider(
+                                value: _carouselVisibleItems,
+                                min: 1,
+                                max: 4,
+                                divisions: 3,
+                                label: _carouselVisibleItems.toStringAsFixed(0),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _carouselVisibleItems = value.roundToDouble();
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 6),
+              FilledButton.icon(
+                onPressed: _isSavingLandingMedia ? null : _saveLandingMediaSettings,
+                icon: _isSavingLandingMedia
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: const Text('Salva configurazione home'),
+              ),
+              const SizedBox(height: 20),
+              const Divider(height: 1),
+              const SizedBox(height: 14),
+              const Text(
+                'Link Instagram',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _instagramUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'Link profilo Instagram',
+                  hintText: 'https://www.instagram.com/tuo_profilo/',
+                  prefixIcon: Icon(Icons.camera_alt_outlined),
                 ),
-                const SizedBox(height: 8),
+              ),
+              const SizedBox(height: 20),
+              const Divider(height: 1),
+              const SizedBox(height: 14),
+              const Text(
+                'Lista file carosello',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Ordina immagini (drag-and-drop) o elimina singole slide',
+              ),
+              const SizedBox(height: 8),
+              if (_carouselImageUrls.isNotEmpty)
                 SizedBox(
                   height: math.min(
                     300,
@@ -2230,66 +2387,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       );
                     },
                   ),
+                )
+              else
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F8F6),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: const Text(
+                    'Nessun file in lista.',
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ],
-              const SizedBox(height: 16),
-              Text(
-                'Velocita scorrimento: ${_carouselPreviewSpeedSeconds.toStringAsFixed(1)} s',
-              ),
-              Slider(
-                value: _carouselPreviewSpeedSeconds,
-                min: 1,
-                max: 10,
-                divisions: 18,
-                label: '${_carouselPreviewSpeedSeconds.toStringAsFixed(1)} s',
-                onChanged: (value) {
-                  setState(() {
-                    _carouselPreviewSpeedSeconds = value;
-                  });
-                },
-              ),
-              Text(
-                'Altezza widget: ${_carouselPreviewHeight.toStringAsFixed(0)} px',
-              ),
-              Slider(
-                value: _carouselPreviewHeight,
-                min: 140,
-                max: 520,
-                divisions: 38,
-                label: '${_carouselPreviewHeight.toStringAsFixed(0)} px',
-                onChanged: (value) {
-                  setState(() {
-                    _carouselPreviewHeight = value;
-                  });
-                },
-              ),
-              Text(
-                'Immagini visibili: ${_carouselVisibleItems.toStringAsFixed(0)}',
-              ),
-              Slider(
-                value: _carouselVisibleItems,
-                min: 1,
-                max: 5,
-                divisions: 4,
-                label: _carouselVisibleItems.toStringAsFixed(0),
-                onChanged: (value) {
-                  setState(() {
-                    _carouselVisibleItems = value.roundToDouble();
-                  });
-                },
-              ),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                onPressed: _isSavingLandingMedia ? null : _saveLandingMediaSettings,
-                icon: _isSavingLandingMedia
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save_outlined),
-                label: const Text('Salva configurazione home'),
-              ),
             ],
           ),
         ),
