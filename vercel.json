@@ -1,5 +1,5 @@
 {
   "installCommand": "git clone https://github.com/flutter/flutter.git --depth 1 -b stable _flutter && _flutter/bin/flutter precache",
-  "buildCommand": "_flutter/bin/flutter build web --release",
-  "outputDirectory": "build/web"
+  "buildCommand": "_flutter/bin/flutter build web --release --base-href /app/ && rm -rf build/site && mkdir -p build/site/app && cp -r sito/. build/site/ && cp -r build/web/. build/site/app/ && cp logopiccolo.png build/site/logopiccolo.png",
+  "outputDirectory": "build/site"
 }
