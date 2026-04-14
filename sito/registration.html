@@ -450,8 +450,8 @@
 
                 <div class="field-half form-group">
                   <label for="cap">CAP</label>
-                  <input type="text" id="cap" name="cap" inputmode="numeric" maxlength="5" required>
-                  <span class="error-msg">Il CAP deve avere 5 cifre</span>
+                  <input type="text" id="cap" name="cap" inputmode="numeric" required>
+                  <span class="error-msg">Inserisci un CAP valido</span>
                 </div>
 
                 <div class="field-half form-group">
@@ -649,7 +649,7 @@
 
     function validateCap(id) {
       const val = document.getElementById(id).value.trim();
-      const ok = /^\d{5}$/.test(val);
+      const ok = /^\d+$/.test(val);
       setError(id, !ok);
       return ok;
     }
