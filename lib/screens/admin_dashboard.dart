@@ -8,6 +8,7 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app_theme.dart';
 import '../models/legacy_membership_request_model.dart';
@@ -689,7 +690,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _saveLandingMediaSettings() async {
     if (!widget.supabaseConfigured) {
-      _showMessage('Configura Supabase per salvare il carosello.', isError: true);
+      _showMessage(
+        'Configura Supabase per salvare il carosello.',
+        isError: true,
+      );
       return;
     }
 
@@ -711,7 +715,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .toList();
 
       for (final removedUrl in removedUrls) {
-        await SupabaseService.instance.deleteCarouselImageByPublicUrl(removedUrl);
+        await SupabaseService.instance.deleteCarouselImageByPublicUrl(
+          removedUrl,
+        );
       }
 
       await SupabaseService.instance.saveInstagramProfileUrl(rawInstagram);
@@ -746,7 +752,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final urlToDelete = _carouselImageUrls[index];
 
     try {
-      await SupabaseService.instance.deleteCarouselImageByPublicUrl(urlToDelete);
+      await SupabaseService.instance.deleteCarouselImageByPublicUrl(
+        urlToDelete,
+      );
       if (!mounted) {
         return;
       }
@@ -754,8 +762,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
       setState(() {
         _carouselImageUrls = List<String>.from(_carouselImageUrls)
           ..removeAt(index);
-        _persistedCarouselImageUrls = List<String>.from(_persistedCarouselImageUrls)
-          ..remove(urlToDelete);
+        _persistedCarouselImageUrls = List<String>.from(
+          _persistedCarouselImageUrls,
+        )..remove(urlToDelete);
       });
       _showMessage('Slide eliminata dal carosello e dallo storage.');
     } catch (error, stackTrace) {
@@ -780,17 +789,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
     try {
       const imageTypeGroup = XTypeGroup(
         label: 'Immagini',
-        extensions: <String>[
-          'jpg',
-          'jpeg',
-          'png',
-          'webp',
-          'gif',
-          'bmp',
-        ],
+        extensions: <String>['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'],
       );
 
-      final files = await openFiles(acceptedTypeGroups: <XTypeGroup>[imageTypeGroup]);
+      final files = await openFiles(
+        acceptedTypeGroups: <XTypeGroup>[imageTypeGroup],
+      );
       if (files.isEmpty) {
         return;
       }
@@ -897,7 +901,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return '${fileName.substring(0, dotIndex)}.$normalizedExtension';
   }
 
-  Future<void> _approveLegacyRequest(LegacyMembershipRequestModel request) async {
+  Future<void> _approveLegacyRequest(
+    LegacyMembershipRequestModel request,
+  ) async {
     final requestId = request.id;
     if (requestId == null || requestId.isEmpty) {
       _showMessage('Richiesta legacy non valida.', isError: true);
@@ -923,7 +929,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
-  Future<void> _rejectLegacyRequest(LegacyMembershipRequestModel request) async {
+  Future<void> _rejectLegacyRequest(
+    LegacyMembershipRequestModel request,
+  ) async {
     final requestId = request.id;
     if (requestId == null || requestId.isEmpty) {
       _showMessage('Richiesta legacy non valida.', isError: true);
@@ -1582,8 +1590,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
               icon: const Icon(Icons.settings_outlined),
             ),
           IconButton(
-            tooltip: 'Vai alla pagina registrazione',
-            onPressed: () => Navigator.pushNamed(context, '/'),
+            tooltip: 'Vai alla pagina principale',
+            onPressed: () async {
+              final uri = Uri.parse('/index.html');
+              await launchUrl(uri, mode: LaunchMode.platformDefault);
+            },
             icon: const Icon(Icons.how_to_reg_outlined),
           ),
           if (isAuthenticated)
@@ -1618,7 +1629,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
           if (!_membershipStartLoaded && !_isLoadingMembershipStart) {
             Future<void>.microtask(_loadMembershipStartNumber);
           }
-          if (_nextMembershipPreview == null && !_isLoadingNextMembershipPreview) {
+          if (_nextMembershipPreview == null &&
+              !_isLoadingNextMembershipPreview) {
             Future<void>.microtask(_loadNextMembershipPreview);
           }
 
@@ -1805,9 +1817,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         Radius.circular(12),
                       ),
                       hexInputBar: true,
-                      labelTypes: const <ColorLabelType>[
-                        ColorLabelType.hex,
-                      ],
+                      labelTypes: const <ColorLabelType>[ColorLabelType.hex],
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -1823,7 +1833,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   child: const Text('Annulla'),
                 ),
                 FilledButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(selectedColor),
+                  onPressed: () =>
+                      Navigator.of(dialogContext).pop(selectedColor),
                   child: const Text('Applica'),
                 ),
               ],
@@ -1942,9 +1953,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildCarouselPage() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        _buildLandingMediaSettingsCard(),
-      ],
+      children: <Widget>[_buildLandingMediaSettingsCard()],
     );
   }
 
@@ -2104,7 +2113,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       height: _carouselPreviewHeight,
                       initialPage: 0,
                       viewportFraction: _carouselImageUrls.length > 1
-                          ? (1 / _carouselVisibleItems).clamp(0.28, 1).toDouble()
+                          ? (1 / _carouselVisibleItems)
+                                .clamp(0.28, 1)
+                                .toDouble()
                           : 1,
                       padEnds: true,
                       autoPlay: _carouselImageUrls.length > 1,
@@ -2140,13 +2151,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             Text.rich(
                               TextSpan(
                                 text: 'Velocita: ',
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
                                 children: <InlineSpan>[
                                   TextSpan(
-                                    text: '${_carouselPreviewSpeedSeconds.toStringAsFixed(1)} s',
+                                    text:
+                                        '${_carouselPreviewSpeedSeconds.toStringAsFixed(1)} s',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
                                     ),
                                   ),
                                 ],
@@ -2165,7 +2181,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 min: 1,
                                 max: 10,
                                 divisions: 18,
-                                label: '${_carouselPreviewSpeedSeconds.toStringAsFixed(1)} s',
+                                label:
+                                    '${_carouselPreviewSpeedSeconds.toStringAsFixed(1)} s',
                                 onChanged: (value) {
                                   setState(() {
                                     _carouselPreviewSpeedSeconds = value;
@@ -2184,13 +2201,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             Text.rich(
                               TextSpan(
                                 text: 'Altezza: ',
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
                                 children: <InlineSpan>[
                                   TextSpan(
-                                    text: '${_carouselPreviewHeight.toStringAsFixed(0)} px',
+                                    text:
+                                        '${_carouselPreviewHeight.toStringAsFixed(0)} px',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
                                     ),
                                   ),
                                 ],
@@ -2209,7 +2231,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 min: 140,
                                 max: 520,
                                 divisions: 38,
-                                label: '${_carouselPreviewHeight.toStringAsFixed(0)} px',
+                                label:
+                                    '${_carouselPreviewHeight.toStringAsFixed(0)} px',
                                 onChanged: (value) {
                                   setState(() {
                                     _carouselPreviewHeight = value;
@@ -2228,13 +2251,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             Text.rich(
                               TextSpan(
                                 text: 'Immagini visibili: ',
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
                                 children: <InlineSpan>[
                                   TextSpan(
-                                    text: _carouselVisibleItems.toStringAsFixed(0),
+                                    text: _carouselVisibleItems.toStringAsFixed(
+                                      0,
+                                    ),
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
                                     ),
                                   ),
                                 ],
@@ -2256,7 +2285,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 label: _carouselVisibleItems.toStringAsFixed(0),
                                 onChanged: (value) {
                                   setState(() {
-                                    _carouselVisibleItems = value.roundToDouble();
+                                    _carouselVisibleItems = value
+                                        .roundToDouble();
                                   });
                                 },
                               ),
@@ -2270,7 +2300,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
               const SizedBox(height: 6),
               FilledButton.icon(
-                onPressed: _isSavingLandingMedia ? null : _saveLandingMediaSettings,
+                onPressed: _isSavingLandingMedia
+                    ? null
+                    : _saveLandingMediaSettings,
                 icon: _isSavingLandingMedia
                     ? const SizedBox(
                         width: 16,
@@ -2351,7 +2383,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   height: 44,
                                   color: Colors.grey.shade300,
                                   alignment: Alignment.center,
-                                  child: const Icon(Icons.broken_image_outlined),
+                                  child: const Icon(
+                                    Icons.broken_image_outlined,
+                                  ),
                                 );
                               },
                             ),
@@ -2828,14 +2862,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
               final transformedMembers = transformMembers != null
                   ? transformMembers(rawMembers)
                   : rawMembers;
-                final filteredMembers = applySearchFilters
+              final filteredMembers = applySearchFilters
                   ? _filterMembers(transformedMembers)
                   : transformedMembers;
-                final shouldApplyInitialLimit =
+              final shouldApplyInitialLimit =
                   applySearchFilters &&
                   initialUnfilteredLimit != null &&
                   !_hasActiveSearchFilters();
-                final members = shouldApplyInitialLimit
+              final members = shouldApplyInitialLimit
                   ? filteredMembers.take(initialUnfilteredLimit).toList()
                   : filteredMembers;
 
@@ -2947,8 +2981,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
           child: StreamBuilder<List<LegacyMembershipRequestModel>>(
             stream: _pendingLegacyRequestsStream,
             builder: (context, snapshot) {
-              final requests = snapshot.data ??
-                  const <LegacyMembershipRequestModel>[];
+              final requests =
+                  snapshot.data ?? const <LegacyMembershipRequestModel>[];
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2975,7 +3009,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           ),
                         ],
                       ),
-                      _CounterChip(count: requests.length, label: 'legacy pending'),
+                      _CounterChip(
+                        count: requests.length,
+                        label: 'legacy pending',
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -3001,7 +3038,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: <Widget>[
                               ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 720),
+                                constraints: const BoxConstraints(
+                                  maxWidth: 720,
+                                ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[
@@ -3024,12 +3063,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 runSpacing: 8,
                                 children: <Widget>[
                                   FilledButton.icon(
-                                    onPressed: () => _approveLegacyRequest(request),
-                                    icon: const Icon(Icons.check_circle_outline),
+                                    onPressed: () =>
+                                        _approveLegacyRequest(request),
+                                    icon: const Icon(
+                                      Icons.check_circle_outline,
+                                    ),
                                     label: const Text('Approva'),
                                   ),
                                   OutlinedButton.icon(
-                                    onPressed: () => _rejectLegacyRequest(request),
+                                    onPressed: () =>
+                                        _rejectLegacyRequest(request),
                                     icon: const Icon(Icons.close_outlined),
                                     label: const Text('Rifiuta'),
                                   ),
@@ -3124,7 +3167,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             case 'name':
               return compareString(a.fullName, b.fullName);
             case 'birth':
-              return compareString(a.birthPlaceAndDateLabel, b.birthPlaceAndDateLabel);
+              return compareString(
+                a.birthPlaceAndDateLabel,
+                b.birthPlaceAndDateLabel,
+              );
             case 'residence':
               return compareString(a.residenceLabel, b.residenceLabel);
             case 'email':
@@ -3170,7 +3216,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         }
 
         bool isSortedColumn(String columnKey) =>
-          _highlightedColumnKey == columnKey;
+            _highlightedColumnKey == columnKey;
 
         Widget wrapCellHighlight({
           required String columnKey,
@@ -3180,10 +3226,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             return child;
           }
 
-          return Container(
-            color: sortedColumnBackground,
-            child: child,
-          );
+          return Container(color: sortedColumnBackground, child: child);
         }
 
         return TapRegion(
@@ -3202,203 +3245,205 @@ class _AdminDashboardState extends State<AdminDashboard> {
               child: ConstrainedBox(
                 constraints: BoxConstraints(minWidth: tableWidth),
                 child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: outerBorderColor),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: DataTableTheme(
-                    data: DataTableThemeData(
-                      headingRowColor: WidgetStatePropertyAll<Color>(
-                        headerBackground,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: outerBorderColor),
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                      headingTextStyle: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                        color: const Color(0xFF1B2A3A),
-                      ),
-                      dividerThickness: 1,
-                    ),
-                    child: DataTable(
-                      showCheckboxColumn: false,
-                      horizontalMargin: 10,
-                      columnSpacing: 12,
-                      headingRowHeight: 52,
-                      dataRowMinHeight: 56,
-                      dataRowMaxHeight: 64,
-                      border: TableBorder(
-                        top: BorderSide(color: outerBorderColor),
-                        left: BorderSide(color: outerBorderColor),
-                        right: BorderSide(color: outerBorderColor),
-                        bottom: BorderSide(color: outerBorderColor),
-                        horizontalInside: BorderSide(color: gridBorderColor),
-                        verticalInside: BorderSide(color: gridBorderColor),
-                      ),
-                      columns: <DataColumn>[
-                        buildSortableColumn('Tessera', 'membership'),
-                        buildSortableColumn('Nome', 'name'),
-                        buildSortableColumn('Nascita', 'birth'),
-                        buildSortableColumn('Residenza', 'residence'),
-                        buildSortableColumn('Email', 'email'),
-                        buildSortableColumn('Telefono', 'phone'),
-                        if (mixedStatuses)
-                          buildSortableColumn('Stato', 'status'),
-                        buildSortableColumn('Data', 'date'),
-                        DataColumn(
-                          label: _buildResizableHeader(
-                            'Azioni',
-                            'actions',
-                            isSorted: false,
-                          ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: DataTableTheme(
+                      data: DataTableThemeData(
+                        headingRowColor: WidgetStatePropertyAll<Color>(
+                          headerBackground,
                         ),
-                      ],
-                      rows: List<DataRow>.generate(sortedMembers.length, (
-                        index,
-                      ) {
-                        final member = sortedMembers[index];
-
-                        return DataRow.byIndex(
-                          index: index,
-                          selected:
-                              member.id != null && _selectedMemberId == member.id,
-                          onSelectChanged: (_) {
-                            final memberId = member.id;
-                            if (memberId == null) {
-                              return;
-                            }
-                            setState(() {
-                              _selectedMemberId =
-                                  _selectedMemberId == memberId
-                                  ? null
-                                  : memberId;
-                            });
-                          },
-                          color: WidgetStateProperty.resolveWith<Color>(
-                            (states) => resolveRowColor(states, index),
+                        headingTextStyle: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                          color: const Color(0xFF1B2A3A),
+                        ),
+                        dividerThickness: 1,
+                      ),
+                      child: DataTable(
+                        showCheckboxColumn: false,
+                        horizontalMargin: 10,
+                        columnSpacing: 12,
+                        headingRowHeight: 52,
+                        dataRowMinHeight: 56,
+                        dataRowMaxHeight: 64,
+                        border: TableBorder(
+                          top: BorderSide(color: outerBorderColor),
+                          left: BorderSide(color: outerBorderColor),
+                          right: BorderSide(color: outerBorderColor),
+                          bottom: BorderSide(color: outerBorderColor),
+                          horizontalInside: BorderSide(color: gridBorderColor),
+                          verticalInside: BorderSide(color: gridBorderColor),
+                        ),
+                        columns: <DataColumn>[
+                          buildSortableColumn('Tessera', 'membership'),
+                          buildSortableColumn('Nome', 'name'),
+                          buildSortableColumn('Nascita', 'birth'),
+                          buildSortableColumn('Residenza', 'residence'),
+                          buildSortableColumn('Email', 'email'),
+                          buildSortableColumn('Telefono', 'phone'),
+                          if (mixedStatuses)
+                            buildSortableColumn('Stato', 'status'),
+                          buildSortableColumn('Data', 'date'),
+                          DataColumn(
+                            label: _buildResizableHeader(
+                              'Azioni',
+                              'actions',
+                              isSorted: false,
+                            ),
                           ),
-                          cells: <DataCell>[
-                            DataCell(
-                              wrapCellHighlight(
-                                columnKey: 'membership',
-                                child: _buildTableTextCell(
-                                  membershipLabelForRow(member, index),
-                                  columnKey: 'membership',
-                                  maxLines: 1,
-                                ),
-                              ),
+                        ],
+                        rows: List<DataRow>.generate(sortedMembers.length, (
+                          index,
+                        ) {
+                          final member = sortedMembers[index];
+
+                          return DataRow.byIndex(
+                            index: index,
+                            selected:
+                                member.id != null &&
+                                _selectedMemberId == member.id,
+                            onSelectChanged: (_) {
+                              final memberId = member.id;
+                              if (memberId == null) {
+                                return;
+                              }
+                              setState(() {
+                                _selectedMemberId =
+                                    _selectedMemberId == memberId
+                                    ? null
+                                    : memberId;
+                              });
+                            },
+                            color: WidgetStateProperty.resolveWith<Color>(
+                              (states) => resolveRowColor(states, index),
                             ),
-                            DataCell(
-                              wrapCellHighlight(
-                                columnKey: 'name',
-                                child: _buildTableTextCell(
-                                  member.fullName,
-                                  columnKey: 'name',
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              wrapCellHighlight(
-                                columnKey: 'birth',
-                                child: _buildTableTextCell(
-                                  member.birthPlaceAndDateLabel,
-                                  columnKey: 'birth',
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              wrapCellHighlight(
-                                columnKey: 'residence',
-                                child: _buildTableTextCell(
-                                  member.residenceLabel,
-                                  columnKey: 'residence',
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              wrapCellHighlight(
-                                columnKey: 'email',
-                                child: _buildTableTextCell(
-                                  member.email,
-                                  columnKey: 'email',
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              wrapCellHighlight(
-                                columnKey: 'phone',
-                                child: _buildTableTextCell(
-                                  member.telefono,
-                                  columnKey: 'phone',
-                                  maxLines: 1,
-                                ),
-                              ),
-                            ),
-                            if (mixedStatuses)
+                            cells: <DataCell>[
                               DataCell(
                                 wrapCellHighlight(
-                                  columnKey: 'status',
-                                  child: SizedBox(
-                                    width: _columnWidth('status'),
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Tooltip(
-                                        message: member.stato,
-                                        child: Icon(
-                                          Icons.circle,
-                                          size: 12,
-                                          color: switch (
-                                            member.stato.trim().toLowerCase()
-                                          ) {
-                                            'approved' => Colors.green.shade700,
-                                            'deleted' => Colors.red.shade700,
-                                            'rejected' => Colors.black,
-                                            _ => Colors.blueGrey.shade500,
-                                          },
+                                  columnKey: 'membership',
+                                  child: _buildTableTextCell(
+                                    membershipLabelForRow(member, index),
+                                    columnKey: 'membership',
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                wrapCellHighlight(
+                                  columnKey: 'name',
+                                  child: _buildTableTextCell(
+                                    member.fullName,
+                                    columnKey: 'name',
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                wrapCellHighlight(
+                                  columnKey: 'birth',
+                                  child: _buildTableTextCell(
+                                    member.birthPlaceAndDateLabel,
+                                    columnKey: 'birth',
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                wrapCellHighlight(
+                                  columnKey: 'residence',
+                                  child: _buildTableTextCell(
+                                    member.residenceLabel,
+                                    columnKey: 'residence',
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                wrapCellHighlight(
+                                  columnKey: 'email',
+                                  child: _buildTableTextCell(
+                                    member.email,
+                                    columnKey: 'email',
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                wrapCellHighlight(
+                                  columnKey: 'phone',
+                                  child: _buildTableTextCell(
+                                    member.telefono,
+                                    columnKey: 'phone',
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ),
+                              if (mixedStatuses)
+                                DataCell(
+                                  wrapCellHighlight(
+                                    columnKey: 'status',
+                                    child: SizedBox(
+                                      width: _columnWidth('status'),
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Tooltip(
+                                          message: member.stato,
+                                          child: Icon(
+                                            Icons.circle,
+                                            size: 12,
+                                            color: switch (member.stato
+                                                .trim()
+                                                .toLowerCase()) {
+                                              'approved' =>
+                                                Colors.green.shade700,
+                                              'deleted' => Colors.red.shade700,
+                                              'rejected' => Colors.black,
+                                              _ => Colors.blueGrey.shade500,
+                                            },
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            DataCell(
-                              wrapCellHighlight(
-                                columnKey: 'date',
-                                child: _buildTableTextCell(
-                                  member.createdAtLabel,
+                              DataCell(
+                                wrapCellHighlight(
                                   columnKey: 'date',
-                                  maxLines: 1,
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              SizedBox(
-                                width: _columnWidth('actions'),
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: _buildActionButtons(
-                                    member,
-                                    approvedSection: approvedSection,
-                                    mixedStatuses: mixedStatuses,
-                                    compact: true,
+                                  child: _buildTableTextCell(
+                                    member.createdAtLabel,
+                                    columnKey: 'date',
+                                    maxLines: 1,
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        );
-                      }),
+                              DataCell(
+                                SizedBox(
+                                  width: _columnWidth('actions'),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: _buildActionButtons(
+                                      member,
+                                      approvedSection: approvedSection,
+                                      mixedStatuses: mixedStatuses,
+                                      compact: true,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                      ),
                     ),
                   ),
-                ),
                 ),
               ),
             ),
