@@ -11,8 +11,7 @@ class SupabaseService {
 
   static final SupabaseService instance = SupabaseService._();
   static const String _themeSettingKey = 'theme_seed_color';
-  static const String _membershipStartSettingKey =
-      'membership_start_number';
+  static const String _membershipStartSettingKey = 'membership_start_number';
   static const String _instagramUrlSettingKey = 'instagram_profile_url';
   static const String _landingCarouselSettingKey = 'landing_carousel_config';
 
@@ -192,27 +191,60 @@ class SupabaseService {
     }
 
     try {
+      final maxBeforeApproval = await _getMaxAssignedMembershipNumber();
+
       final response = await _client.rpc(
         'approve_member_with_membership_number',
         params: <String, dynamic>{'p_member_id': memberId},
       );
 
+      Future<String?> maybeFixReusedNumber(String? assignedRaw) async {
+        final assigned = int.tryParse((assignedRaw ?? '').trim());
+        if (assigned == null || maxBeforeApproval == null) {
+          return assignedRaw;
+        }
+
+        // If returned number is <= previous historical max, it has been reused.
+        if (assigned <= maxBeforeApproval) {
+          final corrected = (maxBeforeApproval + 1).toString();
+          await _client
+              .from('soci')
+              .update(<String, dynamic>{
+                'numero_tessera': corrected,
+                'stato': 'approved',
+              })
+              .eq('id', memberId);
+          return corrected;
+        }
+
+        return assignedRaw;
+      }
+
       if (response is int) {
-        return response.toString();
+        return maybeFixReusedNumber(response.toString());
       }
 
       if (response is num) {
-        return response.toInt().toString();
+        return maybeFixReusedNumber(response.toInt().toString());
       }
 
       if (response is String) {
         final membershipNumber = response.trim();
-        return membershipNumber.isEmpty ? null : membershipNumber;
+        if (membershipNumber.isEmpty) {
+          return null;
+        }
+        return maybeFixReusedNumber(membershipNumber);
       }
 
       return null;
     } catch (error, stackTrace) {
       _logError('approveMemberAndAssignMembershipNumber', error, stackTrace);
+      if (error is PostgrestException) {
+        final message = error.message.trim();
+        if (message.isNotEmpty) {
+          throw Exception(message);
+        }
+      }
       throw Exception(
         'Approvazione non completata. Verifica la funzione Supabase approve_member_with_membership_number.',
       );
@@ -225,6 +257,11 @@ class SupabaseService {
     }
 
     try {
+      final maxAssigned = await _getMaxAssignedMembershipNumber();
+      if (maxAssigned != null) {
+        return maxAssigned + 1;
+      }
+
       final response = await _client.rpc('peek_next_membership_number');
       if (response is int) {
         return response;
@@ -257,7 +294,6 @@ class SupabaseService {
           .from('soci')
           .select('id')
           .eq('numero_tessera', normalized)
-          .eq('is_active', true)
           .limit(1);
 
       return (response as List).isNotEmpty;
@@ -338,7 +374,8 @@ class SupabaseService {
     }
   }
 
-  Stream<List<LegacyMembershipRequestModel>> watchPendingLegacyMembershipRequests() {
+  Stream<List<LegacyMembershipRequestModel>>
+  watchPendingLegacyMembershipRequests() {
     if (!_configured) {
       return Stream<List<LegacyMembershipRequestModel>>.value(
         const <LegacyMembershipRequestModel>[],
@@ -361,7 +398,9 @@ class SupabaseService {
         );
   }
 
-  Future<String?> approveLegacyMembershipRequest({required String requestId}) async {
+  Future<String?> approveLegacyMembershipRequest({
+    required String requestId,
+  }) async {
     if (!_configured) {
       throw StateError('Configura Supabase per approvare le richieste legacy.');
     }
@@ -394,7 +433,9 @@ class SupabaseService {
     }
   }
 
-  Future<void> rejectLegacyMembershipRequest({required String requestId}) async {
+  Future<void> rejectLegacyMembershipRequest({
+    required String requestId,
+  }) async {
     if (!_configured) {
       throw StateError('Configura Supabase per rifiutare le richieste legacy.');
     }
@@ -612,11 +653,13 @@ class SupabaseService {
     final inferredType = contentType ?? _inferImageContentType(fileName);
 
     try {
-      await _client.storage.from(_carouselStorageBucket).uploadBinary(
-        path,
-        bytes,
-        fileOptions: FileOptions(contentType: inferredType, upsert: true),
-      );
+      await _client.storage
+          .from(_carouselStorageBucket)
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(contentType: inferredType, upsert: true),
+          );
     } on StorageException catch (error, stackTrace) {
       _logError('uploadCarouselImage(StorageException)', error, stackTrace);
       throw Exception(
@@ -645,7 +688,11 @@ class SupabaseService {
         objectPath,
       ]);
     } on StorageException catch (error, stackTrace) {
-      _logError('deleteCarouselImageByPublicUrl(StorageException)', error, stackTrace);
+      _logError(
+        'deleteCarouselImageByPublicUrl(StorageException)',
+        error,
+        stackTrace,
+      );
       throw Exception(
         'Eliminazione immagine carosello fallita: ${error.message}',
       );
@@ -725,9 +772,42 @@ class SupabaseService {
         .map(
           (rows) => rows
               .map((row) => MemberModel.fromMap(Map<String, dynamic>.from(row)))
-              .where((member) => member.isActive)
               .toList(),
         );
+  }
+
+  Future<int?> _getMaxAssignedMembershipNumber() async {
+    if (!_configured) {
+      return null;
+    }
+
+    try {
+      final response = await _client
+          .from('soci')
+          .select('numero_tessera')
+          .not('numero_tessera', 'is', null);
+
+      final rows = response as List<dynamic>;
+      int? maxValue;
+
+      for (final row in rows) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final raw = map['numero_tessera']?.toString().trim() ?? '';
+        final parsed = int.tryParse(raw);
+        if (parsed == null) {
+          continue;
+        }
+
+        if (maxValue == null || parsed > maxValue) {
+          maxValue = parsed;
+        }
+      }
+
+      return maxValue;
+    } catch (error, stackTrace) {
+      _logError('_getMaxAssignedMembershipNumber', error, stackTrace);
+      return null;
+    }
   }
 
   Future<void> updateMemberStatus({
@@ -847,7 +927,7 @@ class LandingCarouselSettings {
       widgetHeight: (rawHeight is num ? rawHeight.toDouble() : 230)
           .clamp(140, 520)
           .toDouble(),
-        visibleItems: (rawVisibleItems is num ? rawVisibleItems.toDouble() : 2)
+      visibleItems: (rawVisibleItems is num ? rawVisibleItems.toDouble() : 2)
           .clamp(1, 4)
           .toDouble(),
     );

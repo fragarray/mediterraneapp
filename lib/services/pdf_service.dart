@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/member_model.dart';
@@ -14,7 +15,11 @@ class PdfService {
   static final PdfService instance = PdfService._();
 
   Future<void> exportMemberForm(MemberModel member) async {
-    final document = pw.Document();
+    final baseFont = await PdfGoogleFonts.notoSansRegular();
+    final boldFont = await PdfGoogleFonts.notoSansBold();
+    final document = pw.Document(
+      theme: pw.ThemeData.withFont(base: baseFont, bold: boldFont),
+    );
     final logoBytes = await _loadAssetBytes('logopiccolo.png');
     final signatureBytes = await _loadSignatureBytes(member.firmaUrl);
     final generatedAt = DateFormat(

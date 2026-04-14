@@ -2567,6 +2567,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                         value: 'rejected',
                                         child: Text('Rifiutati'),
                                       ),
+                                      DropdownMenuItem(
+                                        value: 'deleted',
+                                        child: Text('Archiviati'),
+                                      ),
                                     ],
                                     onChanged: (value) {
                                       if (value == null) {
@@ -3131,19 +3135,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
         final tableWidth = math.max(constraints.maxWidth, minimumTableWidth);
 
         String membershipLabelForRow(MemberModel member, int rowIndex) {
-          if (!approvedSection && !mixedStatuses) {
-            final currentValue = member.numeroTessera.trim();
-            final isLegacyPlaceholder = RegExp(
-              r'^APP[\w-]*$',
-              caseSensitive: false,
-            ).hasMatch(currentValue);
+          final currentValue = member.numeroTessera.trim();
+          final parsedMembership = int.tryParse(currentValue);
+          final isPending = member.stato.toLowerCase() == 'pending';
+          final isLegacyPlaceholder = RegExp(
+            r'^AP+[\w$-]*$',
+            caseSensitive: false,
+          ).hasMatch(currentValue);
+          final hasUnassignedPlaceholder =
+              currentValue.isEmpty ||
+              parsedMembership == null ||
+              isLegacyPlaceholder;
 
-            if (currentValue.isEmpty || isLegacyPlaceholder) {
-              if (_nextMembershipPreview != null) {
-                return (_nextMembershipPreview! + rowIndex).toString();
-              }
-              return 'Da assegnare';
+          if (isPending && hasUnassignedPlaceholder) {
+            if (!mixedStatuses && _nextMembershipPreview != null) {
+              return (_nextMembershipPreview! + rowIndex).toString();
             }
+            return 'Da assegnare';
           }
 
           return member.membershipNumberLabel;
@@ -3549,8 +3557,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
     bool mixedStatuses = false,
     bool compact = false,
   }) {
+    final normalizedStatus = member.stato.trim().toLowerCase();
+    final isApproved = normalizedStatus == 'approved';
+    final isPending = normalizedStatus == 'pending';
+    final isDeleted = normalizedStatus == 'deleted';
+
     final showApprovedActions =
-        approvedSection || (mixedStatuses && member.stato == 'approved');
+        approvedSection || (mixedStatuses && isApproved);
 
     if (compact) {
       if (showApprovedActions) {
@@ -3572,6 +3585,34 @@ class _AdminDashboardState extends State<AdminDashboard> {
               tooltip: 'Archivia socio',
               onPressed: () => _deleteMember(member),
               icon: Icons.delete_outline,
+            ),
+          ],
+        );
+      }
+
+      if (isDeleted) {
+        return Wrap(
+          spacing: 2,
+          runSpacing: 2,
+          children: <Widget>[
+            _buildCompactActionIcon(
+              tooltip: 'Genera PDF',
+              onPressed: () => _exportMemberPdf(member),
+              icon: Icons.picture_as_pdf_outlined,
+            ),
+          ],
+        );
+      }
+
+      if (!isPending) {
+        return Wrap(
+          spacing: 2,
+          runSpacing: 2,
+          children: <Widget>[
+            _buildCompactActionIcon(
+              tooltip: 'Genera PDF',
+              onPressed: () => _exportMemberPdf(member),
+              icon: Icons.picture_as_pdf_outlined,
             ),
           ],
         );
@@ -3624,6 +3665,34 @@ class _AdminDashboardState extends State<AdminDashboard> {
             onPressed: () => _deleteMember(member),
             icon: const Icon(Icons.delete_outline),
             label: const Text('Archivia'),
+          ),
+        ],
+      );
+    }
+
+    if (isDeleted) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: <Widget>[
+          OutlinedButton.icon(
+            onPressed: () => _exportMemberPdf(member),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: const Text('PDF'),
+          ),
+        ],
+      );
+    }
+
+    if (!isPending) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: <Widget>[
+          OutlinedButton.icon(
+            onPressed: () => _exportMemberPdf(member),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: const Text('PDF'),
           ),
         ],
       );
