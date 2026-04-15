@@ -202,6 +202,19 @@
 
     .gap-18 { margin-top: 18px; }
 
+    .admin-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 32px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color .15s;
+    }
+    .admin-link:hover { color: var(--seed); }
+
     /* ---- Lightbox ---- */
     .lightbox {
       display: none;
@@ -226,7 +239,7 @@
   <!-- AppBar -->
   <header class="appbar">
     <span class="appbar-title">Mediterranea </span>
-    <a href="/app/#/admin" class="appbar-action" title="Area admin">
+    <a href="admin.html" class="appbar-action" title="Area admin">
       <span class="material-icons-outlined">admin_panel_settings</span>
     </a>
   </header>
@@ -266,6 +279,11 @@
       <a href="already_member.html" class="btn-outlined gap-18">
         <span class="material-icons-outlined">badge</span>
         Ho già la tessera!
+      </a>
+
+      <a href="admin.html" class="admin-link">
+        <span class="material-icons-outlined" style="font-size:15px;">admin_panel_settings</span>
+        Area admin
       </a>
 
     </div>

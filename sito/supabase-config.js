@@ -252,3 +252,300 @@ function dateToIso(ddmmyyyy) {
   if (!m) return null;
   return `${m[3]}-${m[2]}-${m[1]}`;
 }
+
+/* ================================================================
+   ADMIN: Autenticazione
+   ================================================================ */
+
+/**
+ * Effettua il login admin tramite email/password.
+ * @param {string} email
+ * @param {string} password
+ * @returns {Promise<{access_token:string, refresh_token:string, user:Object}>}
+ */
+async function signInAdmin(email, password) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_ANON,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    const msg = detail.error_description || detail.msg || detail.message || `Errore login (${res.status})`;
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/**
+ * Effettua il logout admin invalidando il token.
+ * @param {string} accessToken
+ */
+async function signOutAdmin(accessToken) {
+  await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${accessToken}` },
+  }).catch(() => {});
+}
+
+/**
+ * Restituisce gli header HTTP per le chiamate privilegiate admin.
+ * @param {string} accessToken
+ * @returns {Object}
+ */
+function getAdminHeaders(accessToken) {
+  return {
+    'apikey': SUPABASE_ANON,
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+/* ================================================================
+   ADMIN: Lettura soci
+   ================================================================ */
+
+/**
+ * Recupera i soci con stato=pending.
+ * @param {string} accessToken
+ * @returns {Promise<Array>}
+ */
+async function fetchPendingMembers(accessToken) {
+  const url = `${SUPABASE_URL}/rest/v1/soci?stato=eq.pending&order=created_at.desc`;
+  const res = await fetch(url, { headers: getAdminHeaders(accessToken) });
+  if (!res.ok) throw new Error(`fetchPendingMembers (${res.status})`);
+  return res.json();
+}
+
+/**
+ * Recupera i soci approvati, limitati agli ultimi N.
+ * @param {string} accessToken
+ * @param {number} [limit=30]
+ * @returns {Promise<Array>}
+ */
+async function fetchApprovedMembers(accessToken, limit = 30) {
+  const url = `${SUPABASE_URL}/rest/v1/soci?stato=eq.approved&order=created_at.desc&limit=${limit}`;
+  const res = await fetch(url, { headers: getAdminHeaders(accessToken) });
+  if (!res.ok) throw new Error(`fetchApprovedMembers (${res.status})`);
+  return res.json();
+}
+
+/**
+ * Recupera TUTTI i soci (usato dalla pagina di ricerca).
+ * @param {string} accessToken
+ * @returns {Promise<Array>}
+ */
+async function fetchAllMembers(accessToken) {
+  const url = `${SUPABASE_URL}/rest/v1/soci?order=created_at.desc`;
+  const res = await fetch(url, { headers: getAdminHeaders(accessToken) });
+  if (!res.ok) throw new Error(`fetchAllMembers (${res.status})`);
+  return res.json();
+}
+
+/**
+ * Recupera le richieste legacy con stato=pending.
+ * @param {string} accessToken
+ * @returns {Promise<Array>}
+ */
+async function fetchPendingLegacyRequests(accessToken) {
+  const url = `${SUPABASE_URL}/rest/v1/legacy_membership_requests?stato=eq.pending&order=created_at.desc`;
+  const res = await fetch(url, { headers: getAdminHeaders(accessToken) });
+  if (!res.ok) throw new Error(`fetchPendingLegacyRequests (${res.status})`);
+  return res.json();
+}
+
+/* ================================================================
+   ADMIN: Azioni sui soci
+   ================================================================ */
+
+/**
+ * Approva un socio e assegna il numero tessera via RPC.
+ * @param {string} memberId
+ * @param {string} accessToken
+ * @returns {Promise<string>} numero tessera assegnato
+ */
+async function approveMember(memberId, accessToken) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/approve_member_with_membership_number`, {
+    method: 'POST',
+    headers: getAdminHeaders(accessToken),
+    body: JSON.stringify({ p_member_id: memberId }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Approvazione fallita (${res.status}). ${detail}`);
+  }
+  const result = await res.json();
+  if (typeof result === 'number' || typeof result === 'string') return String(result);
+  return result?.toString() ?? '';
+}
+
+/**
+ * Archivia (soft-delete) un socio.
+ * @param {string} memberId
+ * @param {string} accessToken
+ */
+async function deleteMemberSoft(memberId, accessToken) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/soci?id=eq.${encodeURIComponent(memberId)}`, {
+    method: 'PATCH',
+    headers: { ...getAdminHeaders(accessToken), 'Prefer': 'return=minimal' },
+    body: JSON.stringify({
+      is_active: false,
+      stato: 'deleted',
+      deleted_at: new Date().toISOString(),
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Archiviazione fallita (${res.status}). ${detail}`);
+  }
+}
+
+/**
+ * Modifica i campi anagrafici di un socio.
+ * @param {string} memberId
+ * @param {Object} fields – sottoinsieme di campi da aggiornare
+ * @param {string} accessToken
+ */
+async function updateMember(memberId, fields, accessToken) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/soci?id=eq.${encodeURIComponent(memberId)}`, {
+    method: 'PATCH',
+    headers: { ...getAdminHeaders(accessToken), 'Prefer': 'return=minimal' },
+    body: JSON.stringify(fields),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Aggiornamento socio fallito (${res.status}). ${detail}`);
+  }
+}
+
+/* ================================================================
+   ADMIN: Azioni sulle richieste legacy
+   ================================================================ */
+
+/**
+ * Approva una richiesta legacy e la converte in un record soci via RPC.
+ * @param {string} requestId
+ * @param {string} accessToken
+ * @returns {Promise<string>} numero tessera assegnato
+ */
+async function approveLegacyRequest(requestId, accessToken) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/approve_legacy_membership_request`, {
+    method: 'POST',
+    headers: getAdminHeaders(accessToken),
+    body: JSON.stringify({ p_request_id: requestId }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Approvazione legacy fallita (${res.status}). ${detail}`);
+  }
+  const result = await res.json();
+  if (typeof result === 'number' || typeof result === 'string') return String(result);
+  return result?.toString() ?? '';
+}
+
+/**
+ * Rifiuta una richiesta legacy.
+ * @param {string} requestId
+ * @param {string} accessToken
+ */
+async function rejectLegacyRequest(requestId, accessToken) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/legacy_membership_requests?id=eq.${encodeURIComponent(requestId)}`,
+    {
+      method: 'PATCH',
+      headers: { ...getAdminHeaders(accessToken), 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        stato: 'rejected',
+        reviewed_at: new Date().toISOString(),
+      }),
+    },
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Rifiuto legacy fallito (${res.status}). ${detail}`);
+  }
+}
+
+/* ================================================================
+   ADMIN: Impostazioni (app_settings)
+   ================================================================ */
+
+/**
+ * Salva (upsert) un valore nelle app_settings.
+ * @param {string} key
+ * @param {string} value
+ * @param {string} accessToken
+ */
+async function saveAppSetting(key, value, accessToken) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_settings`, {
+    method: 'POST',
+    headers: {
+      ...getAdminHeaders(accessToken),
+      'Prefer': 'resolution=merge-duplicates,return=minimal',
+    },
+    body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Salvataggio impostazione fallito (${res.status}). ${detail}`);
+  }
+}
+
+/* ================================================================
+   ADMIN: Upload immagine carosello (Storage)
+   ================================================================ */
+
+/**
+ * Carica un'immagine nel bucket "firme", cartella "landing/".
+ * @param {File} file  – file scelto dall'utente
+ * @param {string} accessToken
+ * @returns {Promise<string>} URL pubblico
+ */
+async function uploadCarouselImage(file, accessToken) {
+  const safeName = file.name
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '_')
+    .replace(/_+/g, '_');
+  const path = `landing/${Date.now()}-${safeName}`;
+
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/firme/${path}`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_ANON,
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': file.type || 'image/jpeg',
+      'x-upsert': 'true',
+    },
+    body: file,
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Upload immagine carosello fallito (${res.status}). ${detail}`);
+  }
+  return `${SUPABASE_URL}/storage/v1/object/public/firme/${path}`;
+}
+
+/**
+ * Elimina un'immagine del carosello dallo storage tramite il suo URL pubblico.
+ * @param {string} publicUrl - URL pubblico dell'immagine
+ * @param {string} accessToken - JWT token
+ */
+async function deleteCarouselImageByPublicUrl(publicUrl, accessToken) {
+  const prefix = `${SUPABASE_URL}/storage/v1/object/public/firme/`;
+  if (!publicUrl.startsWith(prefix)) return;
+  const objectPath = publicUrl.slice(prefix.length);
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/firme/${objectPath}`, {
+    method: 'DELETE',
+    headers: {
+      'apikey': SUPABASE_ANON,
+      'Authorization': `Bearer ${accessToken}`,
+    },
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Eliminazione immagine fallita (${res.status}). ${detail}`);
+  }
+}
