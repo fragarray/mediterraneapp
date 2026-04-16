@@ -787,35 +787,14 @@
   <!-- Snackbar -->
   <div class="snackbar" id="snackbar"></div>
 
-  <!-- Supabase JS SDK per il Realtime -->
+  <!-- Supabase JS SDK (condiviso con supabase-config.js) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <!-- jsPDF per export PDF singolo socio -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script>console.log('[admin] supabase SDK loaded:', typeof window.supabase);</script>
   <script src="supabase-config.js"></script>
   <script src="logo-data.js"></script>
+  <script src="pdf-builder.js"></script>
   <script>
-    console.log('[admin] supabase-config loaded. getAppSetting:', typeof getAppSetting);
-    console.log('[admin] SUPABASE_URL:', typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : 'UNDEFINED');
-    /* ===========================================================
-       Session
-    =========================================================== */
-    const SB_KEY   = 'sb_access_token';
-    const SB_RKEY  = 'sb_refresh_token';
-    const SB_EMAIL = 'sb_user_email';
-
-    function getToken()  { return sessionStorage.getItem(SB_KEY); }
-    function saveSession(data) {
-      sessionStorage.setItem(SB_KEY,   data.access_token);
-      sessionStorage.setItem(SB_RKEY,  data.refresh_token);
-      sessionStorage.setItem(SB_EMAIL, data.user?.email ?? '');
-    }
-    function clearSession() {
-      sessionStorage.removeItem(SB_KEY);
-      sessionStorage.removeItem(SB_RKEY);
-      sessionStorage.removeItem(SB_EMAIL);
-    }
-
     /* ===========================================================
        Snackbar
     =========================================================== */
@@ -874,27 +853,15 @@
     /* ===========================================================
        Realtime
     =========================================================== */
-    let _supaClient = null;
     let _rtChannel  = null;
     let _localActionInProgress = false;
 
     function initRealtime() {
-      if (!window.supabase) return;
-      const accessToken  = getToken();
-      const refreshToken = sessionStorage.getItem(SB_RKEY);
-      _supaClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-      // Authenticate the realtime client so postgres_changes pass RLS
-      if (accessToken && refreshToken) {
-        _supaClient.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-          .then(() => _subscribeRealtime())
-          .catch(() => _subscribeRealtime());
-      } else {
-        _subscribeRealtime();
-      }
+      _subscribeRealtime();
     }
 
     function _subscribeRealtime() {
-      _rtChannel = _supaClient
+      _rtChannel = supabase
         .channel('admin-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'soci' }, () => { if (!_localActionInProgress) loadDashboardData(); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'legacy_membership_requests' }, () => { if (!_localActionInProgress) loadDashboardData(); })
@@ -908,13 +875,13 @@
        Load dashboard data
     =========================================================== */
     async function loadDashboardData() {
-      const token = getToken();
-      if (!token) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
       try {
         const [pending, approved, legacy] = await Promise.all([
-          fetchPendingMembers(token),
-          fetchApprovedMembers(token, 30),
-          fetchPendingLegacyRequests(token),
+          fetchPendingMembers(),
+          fetchApprovedMembers(30),
+          fetchPendingLegacyRequests(),
         ]);
         _pendingMembers  = pending;
         _approvedMembers = approved;
@@ -1123,10 +1090,9 @@
     async function handleApproveMember(memberId, fullName) {
       const ok = await showConfirm('Approva socio', `Approvare ${fullName}? Verrà assegnato il prossimo numero tessera disponibile.`, 'Approva');
       if (!ok) return;
-      const token = getToken();
       _localActionInProgress = true;
       try {
-        const num = await approveMember(memberId, token);
+        const num = await approveMember(memberId);
         showSnackbar(`Tessera n° ${num} assegnata a ${fullName}. ✓`);
         await loadDashboardData();
       } catch (e) {
@@ -1139,10 +1105,9 @@
     async function handleDeleteMember(memberId, fullName) {
       const ok = await showConfirm('Archivia socio', `Archiviare ${fullName}? Il record verrà conservato ma il numero tessera non sarà più riutilizzato.`, 'Archivia');
       if (!ok) return;
-      const token = getToken();
       _localActionInProgress = true;
       try {
-        await deleteMemberSoft(memberId, token);
+        await deleteMemberSoft(memberId);
         showSnackbar(`Socio archiviato.`);
         await loadDashboardData();
       } catch (e) {
@@ -1155,10 +1120,9 @@
     async function handleApproveLegacy(requestId, fullName, tesseraNum) {
       const ok = await showConfirm('Approva richiesta legacy', `Approvare la richiesta di ${fullName} per la tessera n° ${tesseraNum}?`, 'Approva');
       if (!ok) return;
-      const token = getToken();
       _localActionInProgress = true;
       try {
-        const num = await approveLegacyRequest(requestId, token);
+        const num = await approveLegacyRequest(requestId);
         showSnackbar(`Tessera n° ${num} approvata per ${fullName}. ✓`);
         await loadDashboardData();
       } catch (e) {
@@ -1171,10 +1135,9 @@
     async function handleRejectLegacy(requestId, fullName) {
       const ok = await showConfirm('Rifiuta richiesta legacy', `Rifiutare la richiesta di ${fullName}?`, 'Rifiuta');
       if (!ok) return;
-      const token = getToken();
       _localActionInProgress = true;
       try {
-        await rejectLegacyRequest(requestId, token);
+        await rejectLegacyRequest(requestId);
         showSnackbar(`Richiesta rifiutata.`);
         await loadDashboardData();
       } catch (e) {
@@ -1187,170 +1150,15 @@
     async function handleRejectMember(memberId, fullName) {
       const ok = await showConfirm('Rifiuta richiesta', `Rifiutare la richiesta di ${fullName}?`, 'Rifiuta');
       if (!ok) return;
-      const token = getToken();
       _localActionInProgress = true;
       try {
-        await updateMember(memberId, { stato: 'rejected' }, token);
+        await updateMember(memberId, { stato: 'rejected' });
         showSnackbar('Richiesta rifiutata.');
         await loadDashboardData();
       } catch (e) {
         showSnackbar(e.message || 'Rifiuto fallito.', true);
       } finally {
         _localActionInProgress = false;
-      }
-    }
-
-    /* ===========================================================
-       PDF singolo socio (identico all'app Flutter)
-    =========================================================== */
-    async function exportMemberPdf(member) {
-      try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-        const W = doc.internal.pageSize.getWidth();   // 595.28 pt
-        const H = doc.internal.pageSize.getHeight();  // 841.89 pt
-        const marginL = 22, marginT = 18, marginR = 22, marginB = 20;
-        const usable = W - marginL - marginR;
-        let y = marginT;
-
-        // Logo embedded as base64 (loaded from logo-data.js)
-        const logoImg = (typeof LOGO_BASE64 !== 'undefined') ? LOGO_BASE64 : null;
-
-        // Header row: logo + text column
-        const logoW = 92; // 92pt like Flutter
-        const logoH = Math.round(logoW * 199 / 393); // maintain aspect ratio (393x199 px)
-        const logoGap = 14;  // SizedBox(width: 14)
-        const headerTextX = logoImg ? marginL + logoW + logoGap : marginL;
-        if (logoImg) {
-          doc.addImage(logoImg, 'PNG', marginL, y, logoW, logoH);
-        }
-
-        doc.setFontSize(16);
-        doc.setFont(undefined, 'bold');
-        doc.text('JATA APS', headerTextX, y + 14);
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'normal');
-        doc.text('Via Giacomo Leopardi 1/C - 73020 Cutrofiano (LE)', headerTextX, y + 14 + 3 + 11);
-        doc.text('P.IVA / Cod. Fisc. 05190010750', headerTextX, y + 14 + 3 + 11 + 11);
-
-        doc.setFontSize(18);
-        doc.setFont(undefined, 'bold');
-        doc.text('Modulo di adesione socio', headerTextX, y + 14 + 3 + 11 + 11 + 10 + 20);
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'normal');
-        const generatedAt = new Date().toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' });
-        doc.text('Documento generato il ' + generatedAt, headerTextX, y + 14 + 3 + 11 + 11 + 10 + 20 + 4 + 11);
-
-        y += Math.max(logoH, 94) + 12; // 12pt gap after header (SizedBox(height:12))
-
-        // Info cards in Wrap layout (width:255pt each, spacing:10, runSpacing:8)
-        const registrationDate = member.created_at
-          ? new Date(member.created_at).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
-          : '-';
-        const details = [
-          ['Numero tessera', member.numero_tessera || '-'],
-          ['Data registrazione', registrationDate],
-          ['Nome', member.nome || '-'],
-          ['Cognome', member.cognome || '-'],
-          ['Luogo di nascita', member.luogo_nascita || '-'],
-          ['Data di nascita', fmtBirth(member.data_nascita)],
-          ['Residenza', member.residenza || '-'],
-          ['Comune', member.comune || '-'],
-          ['CAP', member.cap || '-'],
-          ['Telefono', member.telefono || '-'],
-          ['Email', member.email || '-'],
-        ];
-
-        const cardW = 255;     // Flutter: SizedBox(width: 255)
-        const cardSpacing = 10; // Flutter: spacing: 10
-        const cardRunSpacing = 8; // Flutter: runSpacing: 8
-        const cardPadH = 8;    // Flutter: horizontal: 8
-        const cardPadV = 6;    // Flutter: vertical: 6
-        const cardRadius = 6;  // Flutter: borderRadius: 6
-        const labelFontSize = 9;
-        const valueFontSize = 9;
-        const cardH = cardPadV + labelFontSize + 2 + valueFontSize + cardPadV;
-
-        // Wrap: place cards left-to-right, break to next row when exceeding usable width
-        let cx = marginL, cy = y;
-        details.forEach(pair => {
-          if (cx + cardW > W - marginR + 1) {
-            cx = marginL;
-            cy += cardH + cardRunSpacing;
-          }
-          doc.setFillColor(240, 240, 240); // PdfColors.grey100
-          doc.roundedRect(cx, cy, cardW, cardH, cardRadius, cardRadius, 'F');
-          doc.setFontSize(labelFontSize);
-          doc.setFont(undefined, 'bold');
-          doc.setTextColor(0);
-          doc.text(pair[0], cx + cardPadH, cy + cardPadV + labelFontSize * 0.75);
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(valueFontSize);
-          doc.text(pair[1] || '-', cx + cardPadH, cy + cardPadV + labelFontSize + 2 + valueFontSize * 0.75);
-          cx += cardW + cardSpacing;
-        });
-
-        y = cy + cardH + 14; // 14pt gap (SizedBox(height:14))
-
-        // Signature row: "Firma del socio" left, signature box right
-        const sigBoxW = 150; // Flutter: width: 150
-        const sigBoxH = 62;  // Flutter: height: 62
-        const sigBoxX = W - marginR - sigBoxW;
-        const sigBoxY = y;
-
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(0);
-        doc.text('Firma del socio', marginL, y + sigBoxH - 4); // align bottom-left
-
-        doc.setDrawColor(158, 158, 158); // grey400
-        doc.roundedRect(sigBoxX, sigBoxY, sigBoxW, sigBoxH, 8, 8);
-
-        // Try to embed signature image
-        if (member.firma_url) {
-          try {
-            const sigRes = await fetch(member.firma_url);
-            if (sigRes.ok) {
-              const sigBlob = await sigRes.blob();
-              const sigData = await new Promise(resolve => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.readAsDataURL(sigBlob);
-              });
-              doc.addImage(sigData, 'PNG', sigBoxX + 6, sigBoxY + 6, sigBoxW - 12, sigBoxH - 12);
-            }
-          } catch (_) {
-            doc.setFontSize(8);
-            doc.setTextColor(112); // grey700
-            doc.text('Firma non disponibile', sigBoxX + sigBoxW / 2, sigBoxY + sigBoxH / 2, { align: 'center' });
-          }
-        } else {
-          doc.setFontSize(8);
-          doc.setTextColor(112);
-          doc.text('Firma non disponibile', sigBoxX + sigBoxW / 2, sigBoxY + sigBoxH / 2, { align: 'center' });
-        }
-
-        // Privacy footer (at very bottom, Spacer pushes it down)
-        const footerY = H - marginB;
-        doc.setDrawColor(189, 189, 189); // grey300
-        doc.line(marginL, footerY - 18, W - marginR, footerY - 18);
-        doc.setFontSize(8);
-        doc.setTextColor(112); // grey700
-        doc.setFont(undefined, 'normal');
-        doc.text(
-          'Acconsento al trattamento dei miei dati personali ai sensi del REg. UE 679/2016 (GDPR), esclusivamente per finalità associative e di comunicazione interna.',
-          W / 2, footerY - 4,
-          { align: 'center', maxWidth: usable }
-        );
-
-        // Save
-        const safeName = (member.cognome || '') + '_' + (member.nome || '');
-        const cleanName = safeName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-        const timestamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '').slice(0, 12);
-        doc.save('modulo_' + (cleanName || 'socio') + '_' + timestamp + '.pdf');
-        showSnackbar('PDF generato.');
-      } catch (e) {
-        showSnackbar('Errore generazione PDF: ' + e.message, true);
       }
     }
 
@@ -1400,7 +1208,7 @@
       btn.disabled = true;
       _localActionInProgress = true;
       try {
-        await updateMember(memberId, fields, getToken());
+        await updateMember(memberId, fields);
         closeEditModal();
         showSnackbar('Socio aggiornato.');
         await loadDashboardData();
@@ -1430,7 +1238,6 @@
     let _carouselUrls = [];
 
     async function loadSettingsValues() {
-      const token = getToken();
       try {
         const [start, instagram, colorHex, carouselRaw] = await Promise.all([
           getAppSetting(SETTING_MEMBERSHIP_START),
@@ -1474,7 +1281,7 @@
       const btn = document.getElementById('saveMembershipStartBtn');
       btn.disabled = true;
       try {
-        await saveAppSetting(SETTING_MEMBERSHIP_START, val, getToken());
+        await saveAppSetting(SETTING_MEMBERSHIP_START, val);
         showSnackbar('Numero iniziale salvato.');
       } catch (e) {
         showSnackbar(e.message || 'Salvataggio fallito.', true);
@@ -1486,7 +1293,7 @@
       const btn = document.getElementById('saveInstagramBtn');
       btn.disabled = true;
       try {
-        await saveAppSetting(SETTING_INSTAGRAM_URL, val, getToken());
+        await saveAppSetting(SETTING_INSTAGRAM_URL, val);
         showSnackbar('Link Instagram salvato.');
       } catch (e) {
         showSnackbar(e.message || 'Salvataggio fallito.', true);
@@ -1557,7 +1364,7 @@
       const btn = document.getElementById('saveColorBtn');
       btn.disabled = true;
       try {
-        await saveAppSetting(SETTING_THEME_COLOR, _selectedColorHex, getToken());
+        await saveAppSetting(SETTING_THEME_COLOR, _selectedColorHex);
         applySeedColor(_selectedColorHex);
         showSnackbar('Colore tema salvato.');
       } catch (e) {
@@ -1592,7 +1399,7 @@
       updateCarouselPreview();
       // Delete from Supabase storage
       try {
-        await deleteCarouselImageByPublicUrl(url, getToken());
+        await deleteCarouselImageByPublicUrl(url);
       } catch (e) {
         console.warn('Eliminazione immagine dallo storage fallita:', e);
       }
@@ -1729,13 +1536,12 @@
     }
 
     async function uploadCarouselFiles(input) {
-      const token = getToken();
       const files = Array.from(input.files);
       if (!files.length) return;
       for (const file of files) {
         try {
           const optimized = await optimizeCarouselImage(file);
-          const url = await uploadCarouselImage(optimized, token);
+          const url = await uploadCarouselImage(optimized);
           _carouselUrls.push(url);
         } catch (e) {
           showSnackbar(`Upload fallito: ${e.message}`, true);
@@ -1754,7 +1560,7 @@
         autoplay_seconds: parseInt(document.getElementById('sliderAutoplay').value, 10),
       };
       try {
-        await saveAppSetting(SETTING_CAROUSEL_CONFIG, JSON.stringify(config), getToken());
+        await saveAppSetting(SETTING_CAROUSEL_CONFIG, JSON.stringify(config));
         showSnackbar('Configurazione carosello salvata.');
       } catch (e) {
         showSnackbar(e.message || 'Salvataggio fallito.', true);
@@ -1779,8 +1585,7 @@
       btn.disabled = true;
       btn.innerHTML = '<span class="material-icons-outlined spin">sync</span> Accesso…';
       try {
-        const data = await signInAdmin(email, password);
-        saveSession(data);
+        await signInAdmin(email, password);
         showAuthenticatedUI();
       } catch (e) {
         showSnackbar(e.message || 'Credenziali non valide.', true);
@@ -1790,11 +1595,12 @@
       }
     });
 
-    function showAuthenticatedUI() {
+    async function showAuthenticatedUI() {
       document.getElementById('loginView').style.display   = 'none';
       document.getElementById('mainView').style.display    = 'block';
       document.getElementById('signOutBtn').style.display  = 'inline-flex';
-      const email = sessionStorage.getItem(SB_EMAIL);
+      const { data: { session } } = await supabase.auth.getSession();
+      const email = session?.user?.email;
       if (email) document.getElementById('appbarUser').textContent = email;
 
       // Fetch initial data + subscribe realtime
@@ -1803,11 +1609,9 @@
     }
 
     async function handleSignOut() {
-      const token = getToken();
-      if (token) await signOutAdmin(token).catch(() => {});
-      clearSession();
+      await signOutAdmin();
       // Stop realtime channel
-      if (_rtChannel && _supaClient) { await _supaClient.removeChannel(_rtChannel).catch(() => {}); }
+      if (_rtChannel) { await supabase.removeChannel(_rtChannel).catch(() => {}); _rtChannel = null; }
       document.getElementById('mainView').style.display   = 'none';
       document.getElementById('loginView').style.display  = 'flex';
       document.getElementById('signOutBtn').style.display = 'none';
@@ -1819,29 +1623,18 @@
        Init
     =========================================================== */
     (async function init() {
-      console.log('[admin] init() START');
       try {
-        console.log('[admin] calling getAppSetting...');
         const colorHex = await getAppSetting(SETTING_THEME_COLOR);
-        console.log('[admin] colorHex:', colorHex);
         applySeedColor(colorHex);
       } catch (err) {
         console.error('[admin] init color error:', err);
       }
-      console.log('[admin] adding body.ready');
       document.body.classList.add('ready');
 
-      const token = getToken();
-      console.log('[admin] token present:', !!token);
-      if (token) {
-        console.log('[admin] calling showAuthenticatedUI');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
         showAuthenticatedUI();
-      } else {
-        console.log('[admin] no token — showing login view');
-        console.log('[admin] loginView display:', document.getElementById('loginView').style.display);
-        console.log('[admin] loginView offsetHeight:', document.getElementById('loginView').offsetHeight);
       }
-      console.log('[admin] init() DONE');
     })();
   </script>
 </body>

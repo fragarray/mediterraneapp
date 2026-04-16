@@ -450,7 +450,17 @@
         <button class="btn-filled" onclick="exportExcel()">
           <span class="material-icons-outlined">table_chart</span> Excel
         </button>
-        <span class="result-count" id="resultCount"></span>
+        <span class="result-count" id="resultCount" style="margin-left:0;"></span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+          <button id="pagePrev" class="btn-outlined" onclick="changePage(-1)" disabled
+            style="padding:6px 12px;min-width:0;" title="Pagina precedente">
+            <span class="material-icons-outlined" style="font-size:18px;">chevron_left</span>
+          </button>
+          <button id="pageNext" class="btn-outlined" onclick="changePage(1)" disabled
+            style="padding:6px 12px;min-width:0;" title="Pagina successiva">
+            <span class="material-icons-outlined" style="font-size:18px;">chevron_right</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -538,23 +548,11 @@
   <!-- jsPDF + autoTable for PDF export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="supabase-config.js"></script>
   <script src="logo-data.js"></script>
+  <script src="pdf-builder.js"></script>
   <script>
-    console.log('[ricerca] scripts loaded. getAppSetting:', typeof getAppSetting);
-    /* ===========================================================
-       Session helpers (shared with admin.html via sessionStorage)
-    =========================================================== */
-    const SB_KEY   = 'sb_access_token';
-    const SB_EMAIL = 'sb_user_email';
-
-    function getToken() { return sessionStorage.getItem(SB_KEY); }
-    function clearSession() {
-      sessionStorage.removeItem(SB_KEY);
-      sessionStorage.removeItem('sb_refresh_token');
-      sessionStorage.removeItem(SB_EMAIL);
-    }
-
     /* ===========================================================
        Snackbar
     =========================================================== */
@@ -594,24 +592,71 @@
     /* ===========================================================
        Data state
     =========================================================== */
-    let _allMembers    = [];
-    let _filtered      = [];
-    let _sortKey       = 'created_at';
-    let _sortAsc       = false;
+    let _filtered     = [];   // risultati della pagina corrente
+    let _sortKey      = 'created_at';
+    let _sortAsc      = false;
+    let _currentPage  = 0;
+    let _totalCount   = 0;
+    const _PAGE_SIZE  = 50;
 
     /* ===========================================================
        Load
     =========================================================== */
     async function loadAllMembers() {
+      _currentPage = 0;
+      await _fetchPage();
+    }
+
+    function _buildFilters() {
+      return {
+        general:      document.getElementById('fGeneral').value.trim(),
+        nome:         document.getElementById('fNome').value.trim(),
+        cognome:      document.getElementById('fCognome').value.trim(),
+        luogoNascita: document.getElementById('fLuogo').value.trim(),
+        dataNascita:  document.getElementById('fDataNascita').value.trim(),
+        residenza:    document.getElementById('fResidenza').value.trim(),
+        comune:       document.getElementById('fComune').value.trim(),
+        cap:          document.getElementById('fCap').value.trim(),
+        email:        document.getElementById('fEmail').value.trim(),
+        telefono:     document.getElementById('fTelefono').value.trim(),
+        stato:        document.getElementById('fStato').value,
+        dateFrom:     document.getElementById('fDateFrom').value,
+        dateTo:       document.getElementById('fDateTo').value,
+      };
+    }
+
+    async function _fetchPage() {
       const wrap = document.getElementById('resultsTableWrap');
       wrap.innerHTML = '<div class="empty-state"><span class="spin" style="font-size:22px;color:var(--seed);" class="material-icons-outlined">sync</span> Caricamento…</div>';
       try {
-        _allMembers = await fetchAllMembers(getToken());
-        applyFilters();
+        const { data, count } = await fetchAllMembers({
+          filters: _buildFilters(),
+          page: _currentPage,
+          pageSize: _PAGE_SIZE,
+        });
+        _filtered   = data;
+        _totalCount = count;
+        data.forEach(m => cacheMember(m));
+        renderTable(_filtered);
+        _renderPagination();
       } catch (e) {
         showSnackbar(e.message || 'Errore caricamento.', true);
         wrap.innerHTML = '<div class="empty-state">Errore nel caricamento dei soci.</div>';
       }
+    }
+
+    function _renderPagination() {
+      const from = _totalCount === 0 ? 0 : _currentPage * _PAGE_SIZE + 1;
+      const to   = Math.min((_currentPage + 1) * _PAGE_SIZE, _totalCount);
+      document.getElementById('resultCount').textContent =
+        _totalCount === 0 ? '0 risultati' : `${from}–${to} di ${_totalCount}`;
+      document.getElementById('pagePrev').disabled = _currentPage === 0;
+      document.getElementById('pageNext').disabled = to >= _totalCount;
+    }
+
+    function changePage(delta) {
+      _currentPage += delta;
+      _fetchPage();
     }
 
     /* ===========================================================
@@ -686,45 +731,8 @@
        Filters
     =========================================================== */
     function applyFilters() {
-      const qGen       = document.getElementById('fGeneral').value.trim().toLowerCase();
-      const qNome      = document.getElementById('fNome').value.trim().toLowerCase();
-      const qCognome   = document.getElementById('fCognome').value.trim().toLowerCase();
-      const qLuogo     = document.getElementById('fLuogo').value.trim().toLowerCase();
-      const qDNasc     = document.getElementById('fDataNascita').value.trim().toLowerCase();
-      const qResidenza = document.getElementById('fResidenza').value.trim().toLowerCase();
-      const qComune    = document.getElementById('fComune').value.trim().toLowerCase();
-      const qCap       = document.getElementById('fCap').value.trim().toLowerCase();
-      const qEmail     = document.getElementById('fEmail').value.trim().toLowerCase();
-      const qTel       = document.getElementById('fTelefono').value.trim().toLowerCase();
-      const qStato     = document.getElementById('fStato').value;
-      const qFrom      = document.getElementById('fDateFrom').value;   // yyyy-MM-dd
-      const qTo        = document.getElementById('fDateTo').value;
-
-      _filtered = _allMembers.filter(m => {
-        if (qStato && m.stato !== qStato) return false;
-        if (qNome    && !String(m.nome    ?? '').toLowerCase().includes(qNome))    return false;
-        if (qCognome && !String(m.cognome ?? '').toLowerCase().includes(qCognome)) return false;
-        if (qLuogo   && !String(m.luogo_nascita ?? '').toLowerCase().includes(qLuogo)) return false;
-        if (qResidenza && !String(m.residenza ?? '').toLowerCase().includes(qResidenza)) return false;
-        if (qComune  && !String(m.comune ?? '').toLowerCase().includes(qComune)) return false;
-        if (qCap     && !String(m.cap ?? '').toLowerCase().includes(qCap)) return false;
-        if (qEmail   && !String(m.email ?? '').toLowerCase().includes(qEmail)) return false;
-        if (qTel     && !String(m.telefono ?? '').toLowerCase().includes(qTel)) return false;
-        if (qDNasc   && !fmtBirth(m.data_nascita).toLowerCase().includes(qDNasc)) return false;
-        if (qFrom && m.created_at && m.created_at.slice(0,10) < qFrom) return false;
-        if (qTo   && m.created_at && m.created_at.slice(0,10) > qTo)   return false;
-        if (qGen) {
-          const all = [
-            m.numero_tessera, m.nome, m.cognome, m.luogo_nascita, fmtBirth(m.data_nascita),
-            m.residenza, m.comune, m.cap, m.email, m.telefono, m.stato, fmtDate(m.created_at),
-          ].join(' ').toLowerCase();
-          if (!all.includes(qGen)) return false;
-        }
-        return true;
-      });
-
-      renderTable(_filtered);
-      document.getElementById('resultCount').textContent = `${_filtered.length} risultati`;
+      _currentPage = 0;
+      _fetchPage();
     }
 
     function toggleAdvanced() {
@@ -838,7 +846,7 @@
       const ok = await showConfirm('Archivia socio', `Archiviare ${fullName}?`, 'Archivia');
       if (!ok) return;
       try {
-        await deleteMemberSoft(memberId, getToken());
+        await deleteMemberSoft(memberId);
         showSnackbar('Socio archiviato.');
         await loadAllMembers();
       } catch (e) {
@@ -850,7 +858,7 @@
       const ok = await showConfirm('Approva socio', `Approvare ${fullName}? Verrà assegnato il prossimo numero tessera disponibile.`, 'Approva');
       if (!ok) return;
       try {
-        const num = await approveMember(memberId, getToken());
+        const num = await approveMember(memberId);
         showSnackbar(`Tessera n° ${num} assegnata a ${fullName}. ✓`);
         await loadAllMembers();
       } catch (e) {
@@ -862,7 +870,7 @@
       const ok = await showConfirm('Rifiuta richiesta', `Rifiutare la richiesta di ${fullName}?`, 'Rifiuta');
       if (!ok) return;
       try {
-        await updateMember(memberId, { stato: 'rejected' }, getToken());
+        await updateMember(memberId, { stato: 'rejected' });
         showSnackbar('Richiesta rifiutata.');
         await loadAllMembers();
       } catch (e) {
@@ -911,7 +919,7 @@
       const btn = document.getElementById('editSaveBtn');
       btn.disabled = true;
       try {
-        await updateMember(memberId, fields, getToken());
+        await updateMember(memberId, fields);
         closeEditModal();
         showSnackbar('Socio aggiornato.');
         await loadAllMembers();
@@ -953,214 +961,72 @@
     }
 
     function exportExcel() {
-      if (!_filtered.length) { showSnackbar('Nessun risultato da esportare.', true); return; }
-      try {
-        const data = buildExportRows(_filtered);
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Soci');
-        XLSX.writeFile(wb, `soci_${new Date().toISOString().slice(0,10)}.xlsx`);
-        showSnackbar(`${_filtered.length} soci esportati in Excel.`);
-      } catch (e) {
-        showSnackbar('Errore generazione Excel: ' + e.message, true);
-      }
+      if (_totalCount === 0) { showSnackbar('Nessun risultato da esportare.', true); return; }
+      showSnackbar('Preparazione Excel…');
+      fetchAllMembers({ filters: _buildFilters(), pageSize: 0 }).then(({ data }) => {
+        try {
+          const rows = buildExportRows(data);
+          const ws = XLSX.utils.json_to_sheet(rows);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, 'Soci');
+          XLSX.writeFile(wb, `soci_${new Date().toISOString().slice(0,10)}.xlsx`);
+          showSnackbar(`${data.length} soci esportati in Excel.`);
+        } catch (e) {
+          showSnackbar('Errore generazione Excel: ' + e.message, true);
+        }
+      }).catch(e => showSnackbar('Errore recupero dati: ' + e.message, true));
     }
 
     /* ===========================================================
        Export PDF (elenco tabellare per tutti i risultati)
     =========================================================== */
     function exportPdf() {
-      if (!_filtered.length) { showSnackbar('Nessun risultato da esportare.', true); return; }
-      try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        doc.setFontSize(14);
-        doc.text('Elenco soci – JATA APS', 14, 14);
-        doc.setFontSize(9);
-        doc.text(`Esportato il ${new Date().toLocaleDateString('it-IT')} – ${_filtered.length} risultati`, 14, 20);
+      if (_totalCount === 0) { showSnackbar('Nessun risultato da esportare.', true); return; }
+      showSnackbar('Preparazione PDF…');
+      fetchAllMembers({ filters: _buildFilters(), pageSize: 0 }).then(({ data }) => {
+        try {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+          doc.setFontSize(14);
+          doc.text('Elenco soci – JATA APS', 14, 14);
+          doc.setFontSize(9);
+          doc.text(`Esportato il ${new Date().toLocaleDateString('it-IT')} – ${data.length} risultati`, 14, 20);
 
-        const head = [['Tessera','Nome','Cognome','Nascita','Comune','Email','Telefono','Stato','Data']];
-        const body = _filtered.map(m => [
-          m.numero_tessera || '–',
-          m.nome || '',
-          m.cognome || '',
-          fmtBirth(m.data_nascita),
-          m.comune || '',
-          m.email || '',
-          m.telefono || '',
-          m.stato || '',
-          fmtDate(m.created_at),
-        ]);
+          const head = [['Tessera','Nome','Cognome','Nascita','Comune','Email','Telefono','Stato','Data']];
+          const body = data.map(m => [
+            m.numero_tessera || '–',
+            m.nome || '',
+            m.cognome || '',
+            fmtBirth(m.data_nascita),
+            m.comune || '',
+            m.email || '',
+            m.telefono || '',
+            m.stato || '',
+            fmtDate(m.created_at),
+          ]);
 
-        doc.autoTable({
-          head, body,
-          startY: 24,
-          styles: { fontSize: 8, cellPadding: 2 },
-          headStyles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold' },
-          alternateRowStyles: { fillColor: [244, 246, 243] },
-          margin: { left: 10, right: 10 },
-        });
+          doc.autoTable({
+            head, body,
+            startY: 24,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [244, 246, 243] },
+            margin: { left: 10, right: 10 },
+          });
 
-        doc.save(`soci_${new Date().toISOString().slice(0,10)}.pdf`);
-        showSnackbar(`${_filtered.length} soci esportati in PDF.`);
-      } catch (e) {
-        showSnackbar('Errore generazione PDF: ' + e.message, true);
-      }
-    }
-
-    /* ===========================================================
-       PDF singolo socio (identico all'app Flutter)
-    =========================================================== */
-    async function exportMemberPdf(member) {
-      try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-        const W = doc.internal.pageSize.getWidth();
-        const H = doc.internal.pageSize.getHeight();
-        const marginL = 22, marginT = 18, marginR = 22, marginB = 20;
-        const usable = W - marginL - marginR;
-        let y = marginT;
-
-        // Logo embedded as base64 (loaded from logo-data.js)
-        const logoImg = (typeof LOGO_BASE64 !== 'undefined') ? LOGO_BASE64 : null;
-
-        // Header row: logo + text column
-        const logoW = 92;
-        const logoH = Math.round(logoW * 199 / 393); // maintain aspect ratio (393x199 px)
-        const logoGap = 14;
-        const headerTextX = logoImg ? marginL + logoW + logoGap : marginL;
-        if (logoImg) {
-          doc.addImage(logoImg, 'PNG', marginL, y, logoW, logoH);
+          doc.save(`soci_${new Date().toISOString().slice(0,10)}.pdf`);
+          showSnackbar(`${data.length} soci esportati in PDF.`);
+        } catch (e) {
+          showSnackbar('Errore generazione PDF: ' + e.message, true);
         }
-
-        doc.setFontSize(16);
-        doc.setFont(undefined, 'bold');
-        doc.text('JATA APS', headerTextX, y + 14);
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'normal');
-        doc.text('Via Giacomo Leopardi 1/C - 73020 Cutrofiano (LE)', headerTextX, y + 14 + 3 + 11);
-        doc.text('P.IVA / Cod. Fisc. 05190010750', headerTextX, y + 14 + 3 + 11 + 11);
-
-        doc.setFontSize(18);
-        doc.setFont(undefined, 'bold');
-        doc.text('Modulo di adesione socio', headerTextX, y + 14 + 3 + 11 + 11 + 10 + 20);
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'normal');
-        const generatedAt = new Date().toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' });
-        doc.text('Documento generato il ' + generatedAt, headerTextX, y + 14 + 3 + 11 + 11 + 10 + 20 + 4 + 11);
-
-        y += Math.max(logoH, 94) + 12;
-
-        // Info cards in Wrap layout
-        const registrationDate = member.created_at
-          ? new Date(member.created_at).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
-          : '-';
-        const details = [
-          ['Numero tessera', member.numero_tessera || '-'],
-          ['Data registrazione', registrationDate],
-          ['Nome', member.nome || '-'],
-          ['Cognome', member.cognome || '-'],
-          ['Luogo di nascita', member.luogo_nascita || '-'],
-          ['Data di nascita', fmtBirth(member.data_nascita)],
-          ['Residenza', member.residenza || '-'],
-          ['Comune', member.comune || '-'],
-          ['CAP', member.cap || '-'],
-          ['Telefono', member.telefono || '-'],
-          ['Email', member.email || '-'],
-        ];
-
-        const cardW = 255, cardSpacing = 10, cardRunSpacing = 8;
-        const cardPadH = 8, cardPadV = 6, cardRadius = 6;
-        const labelFs = 9, valueFs = 9;
-        const cardH = cardPadV + labelFs + 2 + valueFs + cardPadV;
-
-        let cx = marginL, cy = y;
-        details.forEach(pair => {
-          if (cx + cardW > W - marginR + 1) {
-            cx = marginL;
-            cy += cardH + cardRunSpacing;
-          }
-          doc.setFillColor(240, 240, 240);
-          doc.roundedRect(cx, cy, cardW, cardH, cardRadius, cardRadius, 'F');
-          doc.setFontSize(labelFs);
-          doc.setFont(undefined, 'bold');
-          doc.setTextColor(0);
-          doc.text(pair[0], cx + cardPadH, cy + cardPadV + labelFs * 0.75);
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(valueFs);
-          doc.text(pair[1] || '-', cx + cardPadH, cy + cardPadV + labelFs + 2 + valueFs * 0.75);
-          cx += cardW + cardSpacing;
-        });
-
-        y = cy + cardH + 14;
-
-        // Signature row
-        const sigBoxW = 150, sigBoxH = 62;
-        const sigBoxX = W - marginR - sigBoxW;
-        const sigBoxY = y;
-
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(0);
-        doc.text('Firma del socio', marginL, y + sigBoxH - 4);
-
-        doc.setDrawColor(158, 158, 158);
-        doc.roundedRect(sigBoxX, sigBoxY, sigBoxW, sigBoxH, 8, 8);
-
-        if (member.firma_url) {
-          try {
-            const sigRes = await fetch(member.firma_url);
-            if (sigRes.ok) {
-              const sigBlob = await sigRes.blob();
-              const sigData = await new Promise(resolve => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.readAsDataURL(sigBlob);
-              });
-              doc.addImage(sigData, 'PNG', sigBoxX + 6, sigBoxY + 6, sigBoxW - 12, sigBoxH - 12);
-            }
-          } catch (_) {
-            doc.setFontSize(8);
-            doc.setTextColor(112);
-            doc.text('Firma non disponibile', sigBoxX + sigBoxW / 2, sigBoxY + sigBoxH / 2, { align: 'center' });
-          }
-        } else {
-          doc.setFontSize(8);
-          doc.setTextColor(112);
-          doc.text('Firma non disponibile', sigBoxX + sigBoxW / 2, sigBoxY + sigBoxH / 2, { align: 'center' });
-        }
-
-        // Privacy footer
-        const footerY = H - marginB;
-        doc.setDrawColor(189, 189, 189);
-        doc.line(marginL, footerY - 18, W - marginR, footerY - 18);
-        doc.setFontSize(8);
-        doc.setTextColor(112);
-        doc.setFont(undefined, 'normal');
-        doc.text(
-          'Acconsento al trattamento dei miei dati personali ai sensi del REg. UE 679/2016 (GDPR), esclusivamente per finalità associative e di comunicazione interna.',
-          W / 2, footerY - 4,
-          { align: 'center', maxWidth: usable }
-        );
-
-        // Save
-        const safeName = (member.cognome || '') + '_' + (member.nome || '');
-        const cleanName = safeName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-        const timestamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '').slice(0, 12);
-        doc.save('modulo_' + (cleanName || 'socio') + '_' + timestamp + '.pdf');
-        showSnackbar('PDF generato.');
-      } catch (e) {
-        showSnackbar('Errore generazione PDF: ' + e.message, true);
-      }
+      }).catch(e => showSnackbar('Errore recupero dati: ' + e.message, true));
     }
 
     /* ===========================================================
        Sign out
     =========================================================== */
     async function handleSignOut() {
-      const token = getToken();
-      if (token) await signOutAdmin(token).catch(() => {});
-      clearSession();
+      await signOutAdmin();
       window.location.href = 'admin.html';
     }
 
@@ -1168,34 +1034,26 @@
        Init
     =========================================================== */
     (async function init() {
-      console.log('[ricerca] init() START');
       try {
         const colorHex = await getAppSetting(SETTING_THEME_COLOR);
-        console.log('[ricerca] colorHex:', colorHex);
         applySeedColor(colorHex);
       } catch (err) {
         console.error('[ricerca] init color error:', err);
       }
-      console.log('[ricerca] adding body.ready');
       document.body.classList.add('ready');
 
-      const token = getToken();
-      console.log('[ricerca] token present:', !!token);
-      if (!token) {
-        console.log('[ricerca] no token — showing auth gate');
-        console.log('[ricerca] authGate offsetHeight:', document.getElementById('authGate').offsetHeight);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         return;
       }
 
       document.getElementById('authGate').style.display = 'none';
       document.getElementById('pageBody').style.display  = 'block';
       document.getElementById('signOutBtn').style.display = 'inline-flex';
-      const email = sessionStorage.getItem(SB_EMAIL);
+      const email = session.user?.email;
       if (email) document.getElementById('appbarUser').textContent = email;
 
-      console.log('[ricerca] loading all members...');
       await loadAllMembers();
-      console.log('[ricerca] init() DONE');
     })();
   </script>
 </body>

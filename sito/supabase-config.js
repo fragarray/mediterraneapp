@@ -1,15 +1,22 @@
 /*  sito/supabase-config.js
  *  Configurazione Supabase condivisa per le pagine statiche.
- *  Usa le REST API di PostgREST (nessun SDK necessario).
+ *  Usa il client ufficiale @supabase/supabase-js (v2).
+ *  Richiede che supabase.min.js sia caricato prima di questo file.
  */
 
 const SUPABASE_URL  = 'https://bfdxxlwacimbknamxnjn.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmZHh4bHdhY2ltYmtuYW14bmpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NzU5MzEsImV4cCI6MjA5MTQ1MTkzMX0.ZqJfp2WdJBA51A235jZRNPjyz60K_LorALpE_FYRR1E';
 
-const _HEADERS = {
-  'apikey': SUPABASE_ANON,
-  'Authorization': `Bearer ${SUPABASE_ANON}`,
-};
+// Client condiviso — riassegna il globale `supabase` (già dichiarato dall'UMD)
+// da namespace SDK → istanza client.  Usa sessionStorage per far scadere la sessione alla chiusura del tab.
+// eslint-disable-next-line no-global-assign
+supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: {
+    storage: sessionStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+  },
+});
 
 /* ================================================================
    Lettura app_settings
@@ -21,20 +28,22 @@ const _HEADERS = {
  * @returns {Promise<string|null>}
  */
 async function getAppSetting(key) {
-  const url = `${SUPABASE_URL}/rest/v1/app_settings?key=eq.${encodeURIComponent(key)}&select=value&limit=1`;
   try {
-    const res = await fetch(url, { headers: _HEADERS });
-    if (!res.ok) return null;
-    const rows = await res.json();
-    if (!rows.length) return null;
-    return rows[0].value ?? null;
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', key)
+      .limit(1)
+      .maybeSingle();
+    if (error) return null;
+    return data?.value ?? null;
   } catch { return null; }
 }
 
 /* ---------- Chiavi utilizzate dall'app Flutter ---------- */
-const SETTING_THEME_COLOR     = 'theme_seed_color';
-const SETTING_INSTAGRAM_URL   = 'instagram_profile_url';
-const SETTING_CAROUSEL_CONFIG = 'landing_carousel_config';
+const SETTING_THEME_COLOR      = 'theme_seed_color';
+const SETTING_INSTAGRAM_URL    = 'instagram_profile_url';
+const SETTING_CAROUSEL_CONFIG  = 'landing_carousel_config';
 const SETTING_MEMBERSHIP_START = 'membership_start_number';
 
 /* ================================================================
@@ -42,33 +51,30 @@ const SETTING_MEMBERSHIP_START = 'membership_start_number';
    ================================================================ */
 
 /**
- * Controlla se un numero tessera è un numero attivo nella tabella soci.
+ * Controlla se un numero tessera è già presente nella tabella soci.
  */
 async function membershipNumberExists(membershipNumber) {
-  // Cerca in soci QUALSIASI record con quel numero tessera (attivo o no)
-  const url = `${SUPABASE_URL}/rest/v1/soci?numero_tessera=eq.${encodeURIComponent(membershipNumber)}&select=id&limit=1`;
-  try {
-    const res = await fetch(url, { headers: _HEADERS });
-    if (!res.ok) {
-      console.error('membershipNumberExists HTTP', res.status, await res.text().catch(() => ''));
-      throw new Error('Errore nella verifica del numero tessera');
-    }
-    const rows = await res.json();
-    return rows.length > 0;
-  } catch (e) { throw e; }
+  const { data, error } = await supabase
+    .from('soci')
+    .select('id')
+    .eq('numero_tessera', membershipNumber)
+    .limit(1);
+  if (error) throw new Error('Errore nella verifica del numero tessera');
+  return data.length > 0;
 }
 
 /**
  * Controlla se esiste già una richiesta pending per questo numero tessera.
  */
 async function pendingLegacyRequestExists(membershipNumber) {
-  const url = `${SUPABASE_URL}/rest/v1/legacy_membership_requests?numero_tessera=eq.${encodeURIComponent(membershipNumber)}&stato=eq.pending&select=id&limit=1`;
-  try {
-    const res = await fetch(url, { headers: _HEADERS });
-    if (!res.ok) throw new Error('Errore nella verifica richieste pending');
-    const rows = await res.json();
-    return rows.length > 0;
-  } catch (e) { throw e; }
+  const { data, error } = await supabase
+    .from('legacy_membership_requests')
+    .select('id')
+    .eq('numero_tessera', membershipNumber)
+    .eq('stato', 'pending')
+    .limit(1);
+  if (error) throw new Error('Errore nella verifica richieste pending');
+  return data.length > 0;
 }
 
 /**
@@ -107,25 +113,16 @@ async function canRequestLegacyMembershipNumber(membershipNumber) {
  */
 async function uploadSignature(blob, email) {
   const sanitized = email.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
-  const fileName = `${sanitized}_${Date.now()}.png`;
+  const fileName = `${sanitized}_${crypto.randomUUID()}.png`;
 
-  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/firme/${fileName}`;
-  const res = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: {
-      ..._HEADERS,
-      'Content-Type': 'image/png',
-      'x-upsert': 'false',
-    },
-    body: blob,
-  });
+  const { error } = await supabase.storage
+    .from('firme')
+    .upload(fileName, blob, { contentType: 'image/png', upsert: false });
 
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Upload firma fallito (${res.status}). ${detail}`);
-  }
+  if (error) throw new Error(`Upload firma fallito. ${error.message}`);
 
-  return `${SUPABASE_URL}/storage/v1/object/public/firme/${fileName}`;
+  const { data } = supabase.storage.from('firme').getPublicUrl(fileName);
+  return data.publicUrl;
 }
 
 /* ================================================================
@@ -140,11 +137,11 @@ async function uploadSignature(blob, email) {
 async function submitRegistration(data, signatureBlob) {
   const firmaUrl = await uploadSignature(signatureBlob, data.email);
 
-  const payload = {
+  const { error } = await supabase.from('soci').insert({
     nome: data.nome,
     cognome: data.cognome,
     luogo_nascita: data.luogoNascita,
-    data_nascita: data.dataNascita,   // yyyy-MM-dd
+    data_nascita: data.dataNascita,
     residenza: data.residenza,
     comune: data.comune,
     cap: data.cap,
@@ -154,18 +151,9 @@ async function submitRegistration(data, signatureBlob) {
     stato: 'pending',
     privacy_accepted: data.privacyAccepted,
     created_at: new Date().toISOString(),
-  };
-
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/soci`, {
-    method: 'POST',
-    headers: { ..._HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-    body: JSON.stringify(payload),
   });
 
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Errore inserimento socio (${res.status}). ${detail}`);
-  }
+  if (error) throw new Error(`Errore inserimento socio. ${error.message}`);
 }
 
 /* ================================================================
@@ -180,13 +168,13 @@ async function submitRegistration(data, signatureBlob) {
 async function submitLegacyMembershipRequest(data, signatureBlob) {
   const firmaUrl = await uploadSignature(signatureBlob, data.email);
 
-  const payload = {
+  const { error } = await supabase.from('legacy_membership_requests').insert({
     numero_tessera: data.numeroTessera,
     nome: data.nome,
     cognome: data.cognome,
     luogo_nascita: data.luogoNascita,
-    data_nascita: data.dataNascita,                       // yyyy-MM-dd
-    data_registrazione_tessera: data.dataRegistrazioneTessera,  // yyyy-MM-dd
+    data_nascita: data.dataNascita,
+    data_registrazione_tessera: data.dataRegistrazioneTessera,
     residenza: data.residenza,
     comune: data.comune,
     cap: data.cap,
@@ -196,18 +184,9 @@ async function submitLegacyMembershipRequest(data, signatureBlob) {
     stato: 'pending',
     privacy_accepted: data.privacyAccepted,
     created_at: new Date().toISOString(),
-  };
-
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/legacy_membership_requests`, {
-    method: 'POST',
-    headers: { ..._HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-    body: JSON.stringify(payload),
   });
 
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Errore inserimento richiesta legacy (${res.status}). ${detail}`);
-  }
+  if (error) throw new Error(`Errore inserimento richiesta legacy. ${error.message}`);
 }
 
 /* ================================================================
@@ -259,50 +238,25 @@ function dateToIso(ddmmyyyy) {
 
 /**
  * Effettua il login admin tramite email/password.
+ * La sessione viene gestita automaticamente dall'SDK.
  * @param {string} email
  * @param {string} password
- * @returns {Promise<{access_token:string, refresh_token:string, user:Object}>}
+ * @returns {Promise<{session: Object, user: Object}>}
  */
 async function signInAdmin(email, password) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-    method: 'POST',
-    headers: {
-      'apikey': SUPABASE_ANON,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
   });
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({}));
-    const msg = detail.error_description || detail.msg || detail.message || `Errore login (${res.status})`;
-    throw new Error(msg);
-  }
-  return res.json();
+  if (error) throw new Error(error.message || 'Errore login');
+  return data;
 }
 
 /**
- * Effettua il logout admin invalidando il token.
- * @param {string} accessToken
+ * Effettua il logout admin e invalida la sessione corrente.
  */
-async function signOutAdmin(accessToken) {
-  await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
-    method: 'POST',
-    headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${accessToken}` },
-  }).catch(() => {});
-}
-
-/**
- * Restituisce gli header HTTP per le chiamate privilegiate admin.
- * @param {string} accessToken
- * @returns {Object}
- */
-function getAdminHeaders(accessToken) {
-  return {
-    'apikey': SUPABASE_ANON,
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json',
-    'Cache-Control': 'no-cache',
-  };
+async function signOutAdmin() {
+  await supabase.auth.signOut();
 }
 
 /* ================================================================
@@ -311,51 +265,118 @@ function getAdminHeaders(accessToken) {
 
 /**
  * Recupera i soci con stato=pending.
- * @param {string} accessToken
  * @returns {Promise<Array>}
  */
-async function fetchPendingMembers(accessToken) {
-  const url = `${SUPABASE_URL}/rest/v1/soci?stato=eq.pending&order=created_at.desc`;
-  const res = await fetch(url, { headers: getAdminHeaders(accessToken) });
-  if (!res.ok) throw new Error(`fetchPendingMembers (${res.status})`);
-  return res.json();
+async function fetchPendingMembers() {
+  const { data, error } = await supabase
+    .from('soci')
+    .select('*')
+    .eq('stato', 'pending')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`fetchPendingMembers: ${error.message}`);
+  return data;
 }
 
 /**
  * Recupera i soci approvati, limitati agli ultimi N.
- * @param {string} accessToken
  * @param {number} [limit=30]
  * @returns {Promise<Array>}
  */
-async function fetchApprovedMembers(accessToken, limit = 30) {
-  const url = `${SUPABASE_URL}/rest/v1/soci?stato=eq.approved&order=created_at.desc&limit=${limit}`;
-  const res = await fetch(url, { headers: getAdminHeaders(accessToken) });
-  if (!res.ok) throw new Error(`fetchApprovedMembers (${res.status})`);
-  return res.json();
+async function fetchApprovedMembers(limit = 30) {
+  const { data, error } = await supabase
+    .from('soci')
+    .select('*')
+    .eq('stato', 'approved')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`fetchApprovedMembers: ${error.message}`);
+  return data;
 }
 
 /**
- * Recupera TUTTI i soci (usato dalla pagina di ricerca).
- * @param {string} accessToken
- * @returns {Promise<Array>}
+ * Recupera soci con filtri server-side, paginazione e conteggio totale.
+ * @param {Object} [opts]
+ * @param {Object} [opts.filters]        - Campi filtro (vedi sotto)
+ * @param {string} [opts.filters.stato]
+ * @param {string} [opts.filters.nome]
+ * @param {string} [opts.filters.cognome]
+ * @param {string} [opts.filters.luogoNascita]
+ * @param {string} [opts.filters.dataNascita]  - Accetta gg/mm/aaaa o parziale
+ * @param {string} [opts.filters.residenza]
+ * @param {string} [opts.filters.comune]
+ * @param {string} [opts.filters.cap]
+ * @param {string} [opts.filters.email]
+ * @param {string} [opts.filters.telefono]
+ * @param {string} [opts.filters.dateFrom]     - yyyy-MM-dd
+ * @param {string} [opts.filters.dateTo]       - yyyy-MM-dd
+ * @param {string} [opts.filters.general]      - Ricerca su più colonne via OR
+ * @param {number} [opts.page=0]               - Pagina 0-based
+ * @param {number} [opts.pageSize=50]          - Righe per pagina; 0 = nessun limite
+ * @returns {Promise<{data: Array, count: number}>}
  */
-async function fetchAllMembers(accessToken) {
-  const url = `${SUPABASE_URL}/rest/v1/soci?order=created_at.desc`;
-  const res = await fetch(url, { headers: getAdminHeaders(accessToken) });
-  if (!res.ok) throw new Error(`fetchAllMembers (${res.status})`);
-  return res.json();
+async function fetchAllMembers({ filters = {}, page = 0, pageSize = 50 } = {}) {
+  let q = supabase.from('soci').select('*', { count: 'exact' });
+
+  if (filters.stato)        q = q.eq('stato', filters.stato);
+  if (filters.nome)         q = q.ilike('nome', `%${filters.nome}%`);
+  if (filters.cognome)      q = q.ilike('cognome', `%${filters.cognome}%`);
+  if (filters.luogoNascita) q = q.ilike('luogo_nascita', `%${filters.luogoNascita}%`);
+  if (filters.residenza)    q = q.ilike('residenza', `%${filters.residenza}%`);
+  if (filters.comune)       q = q.ilike('comune', `%${filters.comune}%`);
+  if (filters.cap)          q = q.ilike('cap', `%${filters.cap}%`);
+  if (filters.email)        q = q.ilike('email', `%${filters.email}%`);
+  if (filters.telefono)     q = q.ilike('telefono', `%${filters.telefono}%`);
+  if (filters.dateFrom)     q = q.gte('created_at', filters.dateFrom);
+  if (filters.dateTo)       q = q.lte('created_at', filters.dateTo + 'T23:59:59.999Z');
+
+  if (filters.dataNascita) {
+    // Converte gg/mm/aaaa → aaaa-mm-gg per la colonna date; accetta anche parziali
+    const parts = filters.dataNascita.split('/');
+    let s = filters.dataNascita;
+    if (parts.length === 3 && parts[2])
+      s = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    else if (parts.length === 2 && parts[1])
+      s = `${parts[1]}-${parts[0].padStart(2, '0')}`;
+    q = q.ilike('data_nascita', `%${s}%`);
+  }
+
+  if (filters.general) {
+    const g = `%${filters.general}%`;
+    q = q.or(
+      [
+        `nome.ilike.${g}`,
+        `cognome.ilike.${g}`,
+        `email.ilike.${g}`,
+        `telefono.ilike.${g}`,
+        `residenza.ilike.${g}`,
+        `comune.ilike.${g}`,
+        `cap.ilike.${g}`,
+        `stato.ilike.${g}`,
+        `luogo_nascita.ilike.${g}`,
+      ].join(',')
+    );
+  }
+
+  q = q.order('created_at', { ascending: false });
+  if (pageSize > 0) q = q.range(page * pageSize, (page + 1) * pageSize - 1);
+
+  const { data, error, count } = await q;
+  if (error) throw new Error(`fetchAllMembers: ${error.message}`);
+  return { data: data ?? [], count: count ?? 0 };
 }
 
 /**
  * Recupera le richieste legacy con stato=pending.
- * @param {string} accessToken
  * @returns {Promise<Array>}
  */
-async function fetchPendingLegacyRequests(accessToken) {
-  const url = `${SUPABASE_URL}/rest/v1/legacy_membership_requests?stato=eq.pending&order=created_at.desc`;
-  const res = await fetch(url, { headers: getAdminHeaders(accessToken) });
-  if (!res.ok) throw new Error(`fetchPendingLegacyRequests (${res.status})`);
-  return res.json();
+async function fetchPendingLegacyRequests() {
+  const { data, error } = await supabase
+    .from('legacy_membership_requests')
+    .select('*')
+    .eq('stato', 'pending')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`fetchPendingLegacyRequests: ${error.message}`);
+  return data;
 }
 
 /* ================================================================
@@ -365,61 +386,43 @@ async function fetchPendingLegacyRequests(accessToken) {
 /**
  * Approva un socio e assegna il numero tessera via RPC.
  * @param {string} memberId
- * @param {string} accessToken
  * @returns {Promise<string>} numero tessera assegnato
  */
-async function approveMember(memberId, accessToken) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/approve_member_with_membership_number`, {
-    method: 'POST',
-    headers: getAdminHeaders(accessToken),
-    body: JSON.stringify({ p_member_id: memberId }),
+async function approveMember(memberId) {
+  const { data, error } = await supabase.rpc('approve_member_with_membership_number', {
+    p_member_id: memberId,
   });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Approvazione fallita (${res.status}). ${detail}`);
-  }
-  const result = await res.json();
-  if (typeof result === 'number' || typeof result === 'string') return String(result);
-  return result?.toString() ?? '';
+  if (error) throw new Error(`Approvazione fallita. ${error.message}`);
+  return String(data ?? '');
 }
 
 /**
  * Archivia (soft-delete) un socio.
  * @param {string} memberId
- * @param {string} accessToken
  */
-async function deleteMemberSoft(memberId, accessToken) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/soci?id=eq.${encodeURIComponent(memberId)}`, {
-    method: 'PATCH',
-    headers: { ...getAdminHeaders(accessToken), 'Prefer': 'return=minimal' },
-    body: JSON.stringify({
+async function deleteMemberSoft(memberId) {
+  const { error } = await supabase
+    .from('soci')
+    .update({
       is_active: false,
       stato: 'deleted',
       deleted_at: new Date().toISOString(),
-    }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Archiviazione fallita (${res.status}). ${detail}`);
-  }
+    })
+    .eq('id', memberId);
+  if (error) throw new Error(`Archiviazione fallita. ${error.message}`);
 }
 
 /**
  * Modifica i campi anagrafici di un socio.
  * @param {string} memberId
  * @param {Object} fields – sottoinsieme di campi da aggiornare
- * @param {string} accessToken
  */
-async function updateMember(memberId, fields, accessToken) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/soci?id=eq.${encodeURIComponent(memberId)}`, {
-    method: 'PATCH',
-    headers: { ...getAdminHeaders(accessToken), 'Prefer': 'return=minimal' },
-    body: JSON.stringify(fields),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Aggiornamento socio fallito (${res.status}). ${detail}`);
-  }
+async function updateMember(memberId, fields) {
+  const { error } = await supabase
+    .from('soci')
+    .update(fields)
+    .eq('id', memberId);
+  if (error) throw new Error(`Aggiornamento socio fallito. ${error.message}`);
 }
 
 /* ================================================================
@@ -429,45 +432,29 @@ async function updateMember(memberId, fields, accessToken) {
 /**
  * Approva una richiesta legacy e la converte in un record soci via RPC.
  * @param {string} requestId
- * @param {string} accessToken
  * @returns {Promise<string>} numero tessera assegnato
  */
-async function approveLegacyRequest(requestId, accessToken) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/approve_legacy_membership_request`, {
-    method: 'POST',
-    headers: getAdminHeaders(accessToken),
-    body: JSON.stringify({ p_request_id: requestId }),
+async function approveLegacyRequest(requestId) {
+  const { data, error } = await supabase.rpc('approve_legacy_membership_request', {
+    p_request_id: requestId,
   });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Approvazione legacy fallita (${res.status}). ${detail}`);
-  }
-  const result = await res.json();
-  if (typeof result === 'number' || typeof result === 'string') return String(result);
-  return result?.toString() ?? '';
+  if (error) throw new Error(`Approvazione legacy fallita. ${error.message}`);
+  return String(data ?? '');
 }
 
 /**
  * Rifiuta una richiesta legacy.
  * @param {string} requestId
- * @param {string} accessToken
  */
-async function rejectLegacyRequest(requestId, accessToken) {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/legacy_membership_requests?id=eq.${encodeURIComponent(requestId)}`,
-    {
-      method: 'PATCH',
-      headers: { ...getAdminHeaders(accessToken), 'Prefer': 'return=minimal' },
-      body: JSON.stringify({
-        stato: 'rejected',
-        reviewed_at: new Date().toISOString(),
-      }),
-    },
-  );
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Rifiuto legacy fallito (${res.status}). ${detail}`);
-  }
+async function rejectLegacyRequest(requestId) {
+  const { error } = await supabase
+    .from('legacy_membership_requests')
+    .update({
+      stato: 'rejected',
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('id', requestId);
+  if (error) throw new Error(`Rifiuto legacy fallito. ${error.message}`);
 }
 
 /* ================================================================
@@ -478,21 +465,12 @@ async function rejectLegacyRequest(requestId, accessToken) {
  * Salva (upsert) un valore nelle app_settings.
  * @param {string} key
  * @param {string} value
- * @param {string} accessToken
  */
-async function saveAppSetting(key, value, accessToken) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_settings`, {
-    method: 'POST',
-    headers: {
-      ...getAdminHeaders(accessToken),
-      'Prefer': 'resolution=merge-duplicates,return=minimal',
-    },
-    body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Salvataggio impostazione fallito (${res.status}). ${detail}`);
-  }
+async function saveAppSetting(key, value) {
+  const { error } = await supabase
+    .from('app_settings')
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  if (error) throw new Error(`Salvataggio impostazione fallito. ${error.message}`);
 }
 
 /* ================================================================
@@ -502,51 +480,33 @@ async function saveAppSetting(key, value, accessToken) {
 /**
  * Carica un'immagine nel bucket "firme", cartella "landing/".
  * @param {File} file  – file scelto dall'utente
- * @param {string} accessToken
  * @returns {Promise<string>} URL pubblico
  */
-async function uploadCarouselImage(file, accessToken) {
+async function uploadCarouselImage(file) {
   const safeName = file.name
     .toLowerCase()
     .replace(/[^a-z0-9._-]/g, '_')
     .replace(/_+/g, '_');
-  const path = `landing/${Date.now()}-${safeName}`;
+  const path = `landing/${crypto.randomUUID()}-${safeName}`;
 
-  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/firme/${path}`, {
-    method: 'POST',
-    headers: {
-      'apikey': SUPABASE_ANON,
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': file.type || 'image/jpeg',
-      'x-upsert': 'true',
-    },
-    body: file,
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Upload immagine carosello fallito (${res.status}). ${detail}`);
-  }
-  return `${SUPABASE_URL}/storage/v1/object/public/firme/${path}`;
+  const { error } = await supabase.storage
+    .from('firme')
+    .upload(path, file, { contentType: file.type || 'image/jpeg', upsert: true });
+
+  if (error) throw new Error(`Upload immagine carosello fallito. ${error.message}`);
+
+  const { data } = supabase.storage.from('firme').getPublicUrl(path);
+  return data.publicUrl;
 }
 
 /**
  * Elimina un'immagine del carosello dallo storage tramite il suo URL pubblico.
  * @param {string} publicUrl - URL pubblico dell'immagine
- * @param {string} accessToken - JWT token
  */
-async function deleteCarouselImageByPublicUrl(publicUrl, accessToken) {
+async function deleteCarouselImageByPublicUrl(publicUrl) {
   const prefix = `${SUPABASE_URL}/storage/v1/object/public/firme/`;
   if (!publicUrl.startsWith(prefix)) return;
   const objectPath = publicUrl.slice(prefix.length);
-  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/firme/${objectPath}`, {
-    method: 'DELETE',
-    headers: {
-      'apikey': SUPABASE_ANON,
-      'Authorization': `Bearer ${accessToken}`,
-    },
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Eliminazione immagine fallita (${res.status}). ${detail}`);
-  }
+  const { error } = await supabase.storage.from('firme').remove([objectPath]);
+  if (error) throw new Error(`Eliminazione immagine fallita. ${error.message}`);
 }
