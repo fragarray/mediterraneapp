@@ -358,11 +358,29 @@ async function fetchAllMembers({ filters = {}, page = 0, pageSize = 50 } = {}) {
   }
 
   q = q.order('created_at', { ascending: false });
-  if (pageSize > 0) q = q.range(page * pageSize, (page + 1) * pageSize - 1);
 
-  const { data, error, count } = await q;
-  if (error) throw new Error(`fetchAllMembers: ${error.message}`);
-  return { data: data ?? [], count: count ?? 0 };
+  if (pageSize > 0) {
+    q = q.range(page * pageSize, (page + 1) * pageSize - 1);
+    const { data, error, count } = await q;
+    if (error) throw new Error(`fetchAllMembers: ${error.message}`);
+    return { data: data ?? [], count: count ?? 0 };
+  }
+
+  // pageSize === 0: fetch all pages (Supabase hard-limit is 1000 rows/request)
+  const CHUNK = 1000;
+  let allData = [];
+  let from = 0;
+  let totalCount = 0;
+  while (true) {
+    const chunk = q.range(from, from + CHUNK - 1);
+    const { data: chunkData, error: chunkError, count } = await chunk;
+    if (chunkError) throw new Error(`fetchAllMembers: ${chunkError.message}`);
+    if (count !== null) totalCount = count;
+    allData = allData.concat(chunkData ?? []);
+    if (!chunkData || chunkData.length < CHUNK) break;
+    from += CHUNK;
+  }
+  return { data: allData, count: totalCount };
 }
 
 /**
