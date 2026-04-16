@@ -876,14 +876,28 @@
     =========================================================== */
     let _supaClient = null;
     let _rtChannel  = null;
+    let _localActionInProgress = false;
 
     function initRealtime() {
       if (!window.supabase) return;
+      const accessToken  = getToken();
+      const refreshToken = sessionStorage.getItem(SB_RKEY);
       _supaClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+      // Authenticate the realtime client so postgres_changes pass RLS
+      if (accessToken && refreshToken) {
+        _supaClient.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+          .then(() => _subscribeRealtime())
+          .catch(() => _subscribeRealtime());
+      } else {
+        _subscribeRealtime();
+      }
+    }
+
+    function _subscribeRealtime() {
       _rtChannel = _supaClient
         .channel('admin-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'soci' }, () => loadDashboardData())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'legacy_membership_requests' }, () => loadDashboardData())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'soci' }, () => { if (!_localActionInProgress) loadDashboardData(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'legacy_membership_requests' }, () => { if (!_localActionInProgress) loadDashboardData(); })
         .subscribe(status => {
           const dot = document.getElementById('rtDot');
           dot.classList.toggle('connected', status === 'SUBSCRIBED');
@@ -1110,11 +1124,15 @@
       const ok = await showConfirm('Approva socio', `Approvare ${fullName}? Verrà assegnato il prossimo numero tessera disponibile.`, 'Approva');
       if (!ok) return;
       const token = getToken();
+      _localActionInProgress = true;
       try {
         const num = await approveMember(memberId, token);
         showSnackbar(`Tessera n° ${num} assegnata a ${fullName}. ✓`);
+        await loadDashboardData();
       } catch (e) {
         showSnackbar(e.message || 'Approvazione fallita.', true);
+      } finally {
+        _localActionInProgress = false;
       }
     }
 
@@ -1122,11 +1140,15 @@
       const ok = await showConfirm('Archivia socio', `Archiviare ${fullName}? Il record verrà conservato ma il numero tessera non sarà più riutilizzato.`, 'Archivia');
       if (!ok) return;
       const token = getToken();
+      _localActionInProgress = true;
       try {
         await deleteMemberSoft(memberId, token);
         showSnackbar(`Socio archiviato.`);
+        await loadDashboardData();
       } catch (e) {
         showSnackbar(e.message || 'Archiviazione fallita.', true);
+      } finally {
+        _localActionInProgress = false;
       }
     }
 
@@ -1134,11 +1156,15 @@
       const ok = await showConfirm('Approva richiesta legacy', `Approvare la richiesta di ${fullName} per la tessera n° ${tesseraNum}?`, 'Approva');
       if (!ok) return;
       const token = getToken();
+      _localActionInProgress = true;
       try {
         const num = await approveLegacyRequest(requestId, token);
         showSnackbar(`Tessera n° ${num} approvata per ${fullName}. ✓`);
+        await loadDashboardData();
       } catch (e) {
         showSnackbar(e.message || 'Approvazione legacy fallita.', true);
+      } finally {
+        _localActionInProgress = false;
       }
     }
 
@@ -1146,12 +1172,15 @@
       const ok = await showConfirm('Rifiuta richiesta legacy', `Rifiutare la richiesta di ${fullName}?`, 'Rifiuta');
       if (!ok) return;
       const token = getToken();
+      _localActionInProgress = true;
       try {
         await rejectLegacyRequest(requestId, token);
         showSnackbar(`Richiesta rifiutata.`);
-        loadDashboardData();
+        await loadDashboardData();
       } catch (e) {
         showSnackbar(e.message || 'Rifiuto fallito.', true);
+      } finally {
+        _localActionInProgress = false;
       }
     }
 
@@ -1159,11 +1188,15 @@
       const ok = await showConfirm('Rifiuta richiesta', `Rifiutare la richiesta di ${fullName}?`, 'Rifiuta');
       if (!ok) return;
       const token = getToken();
+      _localActionInProgress = true;
       try {
         await updateMember(memberId, { stato: 'rejected' }, token);
         showSnackbar('Richiesta rifiutata.');
+        await loadDashboardData();
       } catch (e) {
         showSnackbar(e.message || 'Rifiuto fallito.', true);
+      } finally {
+        _localActionInProgress = false;
       }
     }
 
@@ -1365,15 +1398,17 @@
 
       const btn = document.getElementById('editSaveBtn');
       btn.disabled = true;
+      _localActionInProgress = true;
       try {
         await updateMember(memberId, fields, getToken());
         closeEditModal();
         showSnackbar('Socio aggiornato.');
-        loadDashboardData();
+        await loadDashboardData();
       } catch (e) {
         showSnackbar(e.message || 'Aggiornamento fallito.', true);
       } finally {
         btn.disabled = false;
+        _localActionInProgress = false;
       }
     }
 

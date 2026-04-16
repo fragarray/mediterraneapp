@@ -301,6 +301,7 @@ function getAdminHeaders(accessToken) {
     'apikey': SUPABASE_ANON,
     'Authorization': `Bearer ${accessToken}`,
     'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache',
   };
 }
 
