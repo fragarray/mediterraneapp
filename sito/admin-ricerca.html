@@ -39,23 +39,24 @@
     /* ---- AppBar ---- */
     .appbar {
       display: flex; align-items: center;
-      padding: 12px 20px;
+      padding: 6px 16px;
       background: var(--white);
       border-bottom: 1px solid var(--border-color);
-      gap: 8px;
+      gap: 2px;
       position: sticky; top: 0; z-index: 100;
     }
-    .appbar-title { font-size: 18px; font-weight: 700; flex: 1; }
-    .appbar-user  { font-size: 13px; color: var(--text-secondary); }
+    .appbar-title { font-size: 15px; font-weight: 700; flex: 1; }
+    .appbar-user  { font-size: 12px; color: var(--text-secondary); margin-right: 4px; }
     .appbar-action {
       display: inline-flex; align-items: center; justify-content: center;
-      padding: 7px 14px; border: none; background: none; cursor: pointer;
-      color: var(--text-secondary); font-size: 13px; font-weight: 600;
-      border-radius: 8px; text-decoration: none; gap: 5px;
+      width: 36px; height: 36px; border: none; background: none; cursor: pointer;
+      color: var(--text-secondary);
+      border-radius: 8px; text-decoration: none;
       transition: background .15s;
     }
     .appbar-action:hover { background: var(--seed-10); color: var(--seed); }
-    .appbar-action .material-icons-outlined { font-size: 18px; }
+    .appbar-action.active { background: var(--seed-10); color: var(--seed); }
+    .appbar-action .material-icons-outlined { font-size: 20px; }
 
     /* ---- Auth gate ---- */
     #authGate {
@@ -327,17 +328,22 @@
 
   <!-- AppBar -->
   <header class="appbar">
-    <span class="material-icons-outlined" style="color:var(--seed);font-size:20px;">search</span>
-    <span class="appbar-title">Ricerca soci – Mediterranea</span>
+    <a href="index.html" class="appbar-action" title="Home">
+      <span class="material-icons-outlined">home</span>
+    </a>
+    <span class="appbar-title">Mediterranea</span>
     <span class="appbar-user" id="appbarUser"></span>
-    <a href="admin.html" class="appbar-action">
-      <span class="material-icons-outlined">dashboard</span> Dashboard
+    <a href="admin.html" class="appbar-action" title="Dashboard">
+      <span class="material-icons-outlined">dashboard</span>
     </a>
-    <a href="index.html" class="appbar-action">
-      <span class="material-icons-outlined">home</span> Home
+    <a href="admin-ricerca.html" class="appbar-action active" title="Ricerca">
+      <span class="material-icons-outlined">search</span>
     </a>
-    <button class="appbar-action" id="signOutBtn" style="display:none;" onclick="handleSignOut()">
-      <span class="material-icons-outlined">logout</span> Esci
+    <a href="admin.html" class="appbar-action" title="Impostazioni">
+      <span class="material-icons-outlined">settings</span>
+    </a>
+    <button class="appbar-action" id="signOutBtn" style="display:none;" onclick="handleSignOut()" title="Esci">
+      <span class="material-icons-outlined">logout</span>
     </button>
   </header>
 
