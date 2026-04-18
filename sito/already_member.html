@@ -64,6 +64,23 @@
     .appbar-action:hover {
       background: var(--seed-10);
     }
+    .appbar-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--seed);
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: background .15s;
+    }
+    .appbar-link:hover { background: var(--seed-10); }
+    .appbar-link .material-icons-outlined { font-size: 20px; }
 
 
     /* ---- Layout ---- */
@@ -209,8 +226,8 @@
   <header class="appbar">
     <span class="appbar-title">Ho già la tessera!</span>
     </a>
-    <a href="admin.html" class="appbar-link">
-      <span class="material-icons-outlined">admin_panel_settings</span> Admin
+    <a href="index.html" class="appbar-link">
+      <span class="material-icons-outlined">home</span> Home
     </a>
   </header>
 
