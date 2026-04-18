@@ -690,7 +690,10 @@
       return p.length >= 3 ? `${p[2]}/${p[1]}/${p[0]}` : '';
     }
     function escHtml(str) {
-      return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    function escJs(str) {
+      return String(str ?? '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     }
     function fmtBirthLabel(m) {
       const place = m.luogo_nascita || '';
@@ -807,50 +810,50 @@
         let actionsHtml = '';
         if (isApproved) {
           actionsHtml = `
-            <button class="action-btn" title="Modifica" onclick="openEditModal(getCached('${escHtml(m.id)}'))">
+            <button class="action-btn" title="Modifica" onclick="openEditModal(getCached('${escJs(m.id)}'))">
               <span class="material-icons-outlined">edit</span>
             </button>
-            <button class="action-btn" title="Genera PDF" onclick="exportMemberPdf(getCached('${escHtml(m.id)}'))">
+            <button class="action-btn" title="Genera PDF" onclick="exportMemberPdf(getCached('${escJs(m.id)}'))">
               <span class="material-icons-outlined">picture_as_pdf</span>
             </button>
-            <button class="action-btn danger" title="Archivia" onclick="handleDeleteMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+            <button class="action-btn danger" title="Archivia" onclick="handleDeleteMember('${escJs(m.id)}','${escJs(m.nome+' '+m.cognome)}')">
               <span class="material-icons-outlined">delete</span>
             </button>`;
         } else if (isPending) {
           actionsHtml = `
-            <button class="action-btn" title="Genera PDF" onclick="exportMemberPdf(getCached('${escHtml(m.id)}'))">
+            <button class="action-btn" title="Genera PDF" onclick="exportMemberPdf(getCached('${escJs(m.id)}'))">
               <span class="material-icons-outlined">picture_as_pdf</span>
             </button>
-            <button class="action-btn danger" title="Archivia" onclick="handleDeleteMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+            <button class="action-btn danger" title="Archivia" onclick="handleDeleteMember('${escJs(m.id)}','${escJs(m.nome+' '+m.cognome)}')">
               <span class="material-icons-outlined">delete</span>
             </button>
-            <button class="action-btn" title="Approva" onclick="handleApproveMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+            <button class="action-btn" title="Approva" onclick="handleApproveMember('${escJs(m.id)}','${escJs(m.nome+' '+m.cognome)}')">
               <span class="material-icons-outlined">check_circle</span>
             </button>
-            <button class="action-btn danger" title="Rifiuta" onclick="handleRejectMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+            <button class="action-btn danger" title="Rifiuta" onclick="handleRejectMember('${escJs(m.id)}','${escJs(m.nome+' '+m.cognome)}')">
               <span class="material-icons-outlined">close</span>
             </button>`;
         } else if (normalizedStatus === 'rejected') {
           actionsHtml = `
-            <button class="action-btn" title="Genera PDF" onclick="exportMemberPdf(getCached('${escHtml(m.id)}'))">
+            <button class="action-btn" title="Genera PDF" onclick="exportMemberPdf(getCached('${escJs(m.id)}'))">
               <span class="material-icons-outlined">picture_as_pdf</span>
             </button>
-            <button class="action-btn" title="Riapprova" onclick="handleReapproveMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+            <button class="action-btn" title="Riapprova" onclick="handleReapproveMember('${escJs(m.id)}','${escJs(m.nome+' '+m.cognome)}')">
               <span class="material-icons-outlined">check_circle</span>
             </button>
-            <button class="action-btn danger" title="Elimina definitivamente" onclick="handleHardDeleteMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+            <button class="action-btn danger" title="Elimina definitivamente" onclick="handleHardDeleteMember('${escJs(m.id)}','${escJs(m.nome+' '+m.cognome)}')">
               <span class="material-icons-outlined">delete_forever</span>
             </button>`;
         } else {
           // deleted → PDF + restore + hard delete
           actionsHtml = `
-            <button class="action-btn" title="Genera PDF" onclick="exportMemberPdf(getCached('${escHtml(m.id)}'))">
+            <button class="action-btn" title="Genera PDF" onclick="exportMemberPdf(getCached('${escJs(m.id)}'))">
               <span class="material-icons-outlined">picture_as_pdf</span>
             </button>
-            <button class="action-btn" title="Ripristina tesseramento" onclick="handleRestoreDeletedMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+            <button class="action-btn" title="Ripristina tesseramento" onclick="handleRestoreDeletedMember('${escJs(m.id)}','${escJs(m.nome+' '+m.cognome)}')">
               <span class="material-icons-outlined">restore</span>
             </button>
-            <button class="action-btn danger" title="Elimina definitivamente" onclick="handleHardDeleteMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+            <button class="action-btn danger" title="Elimina definitivamente" onclick="handleHardDeleteMember('${escJs(m.id)}','${escJs(m.nome+' '+m.cognome)}')">
               <span class="material-icons-outlined">delete_forever</span>
             </button>`;
         }
