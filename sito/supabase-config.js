@@ -45,6 +45,7 @@ const SETTING_THEME_COLOR      = 'theme_seed_color';
 const SETTING_INSTAGRAM_URL    = 'instagram_profile_url';
 const SETTING_CAROUSEL_CONFIG  = 'landing_carousel_config';
 const SETTING_MEMBERSHIP_START = 'membership_start_number';
+const SETTING_APPROVED_LIMIT   = 'admin_approved_table_limit';
 
 /* ================================================================
    Verifica numero tessera legacy
@@ -221,6 +222,13 @@ function applySeedColor(hex) {
   root.setProperty('--seed', `rgb(${r},${g},${b})`);
   root.setProperty('--seed-light', `rgba(${r},${g},${b},0.05)`);
   root.setProperty('--seed-10', `rgba(${r},${g},${b},0.10)`);
+  // Warm accent: blend seed with amber for request sections
+  const wr = Math.min(255, Math.round(r * 0.55 + 255 * 0.45));
+  const wg = Math.min(255, Math.round(g * 0.55 + 160 * 0.45));
+  const wb = Math.min(255, Math.round(b * 0.55 + 0 * 0.45));
+  root.setProperty('--seed-accent', `rgb(${wr},${wg},${wb})`);
+  root.setProperty('--seed-accent-light', `rgba(${wr},${wg},${wb},0.08)`);
+  root.setProperty('--seed-accent-10', `rgba(${wr},${wg},${wb},0.13)`);
 }
 
 /**
@@ -290,6 +298,59 @@ async function fetchApprovedMembers(limit = 30) {
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw new Error(`fetchApprovedMembers: ${error.message}`);
+  return data;
+}
+
+/**
+ * Conta i soci approvati oggi (created_at >= inizio giornata).
+ * @returns {Promise<number>}
+ */
+async function fetchApprovedTodayCount() {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const { count, error } = await supabase
+    .from('soci')
+    .select('*', { count: 'exact', head: true })
+    .eq('stato', 'approved')
+    .gte('created_at', todayStart.toISOString());
+  if (error) throw new Error(`fetchApprovedTodayCount: ${error.message}`);
+  return count ?? 0;
+}
+
+/**
+ * Conta i soci approvati in una data specifica (formato YYYY-MM-DD).
+ * @param {string} dateStr - Data in formato ISO (YYYY-MM-DD)
+ * @returns {Promise<number>}
+ */
+async function fetchApprovedByDateCount(dateStr) {
+  const dayStart = new Date(dateStr + 'T00:00:00');
+  const dayEnd   = new Date(dateStr + 'T23:59:59.999');
+  const { count, error } = await supabase
+    .from('soci')
+    .select('*', { count: 'exact', head: true })
+    .eq('stato', 'approved')
+    .gte('created_at', dayStart.toISOString())
+    .lte('created_at', dayEnd.toISOString());
+  if (error) throw new Error(`fetchApprovedByDateCount: ${error.message}`);
+  return count ?? 0;
+}
+
+/**
+ * Recupera i soci approvati in una data specifica (formato YYYY-MM-DD).
+ * @param {string} dateStr - Data in formato ISO (YYYY-MM-DD)
+ * @returns {Promise<Array>}
+ */
+async function fetchApprovedByDate(dateStr) {
+  const dayStart = new Date(dateStr + 'T00:00:00');
+  const dayEnd   = new Date(dateStr + 'T23:59:59.999');
+  const { data, error } = await supabase
+    .from('soci')
+    .select('*')
+    .eq('stato', 'approved')
+    .gte('created_at', dayStart.toISOString())
+    .lte('created_at', dayEnd.toISOString())
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`fetchApprovedByDate: ${error.message}`);
   return data;
 }
 
@@ -428,6 +489,83 @@ async function deleteMemberSoft(memberId) {
     })
     .eq('id', memberId);
   if (error) throw new Error(`Archiviazione fallita. ${error.message}`);
+}
+
+/**
+ * Elimina definitivamente un socio dal database.
+ * @param {string} memberId
+ */
+async function deleteMemberHard(memberId) {
+  const { error } = await supabase
+    .from('soci')
+    .delete()
+    .eq('id', memberId);
+  if (error) throw new Error(`Eliminazione fallita. ${error.message}`);
+}
+
+/**
+ * Riapprova un socio rejected: lo riporta a pending e poi lo approva
+ * assegnandogli un nuovo numero tessera progressivo.
+ * @param {string} memberId
+ * @returns {Promise<string>} numero tessera assegnato
+ */
+async function reapproveMember(memberId) {
+  const { error } = await supabase
+    .from('soci')
+    .update({ stato: 'pending' })
+    .eq('id', memberId);
+  if (error) throw new Error(`Ripristino a pending fallito. ${error.message}`);
+  return await approveMember(memberId);
+}
+
+/**
+ * Ripristina un socio archiviato (deleted).
+ * Verifica se il vecchio numero tessera è ancora libero:
+ * - Se sì, riattiva il socio con lo stesso numero.
+ * - Se no, assegna il prossimo numero disponibile.
+ * @param {string} memberId
+ * @returns {Promise<{numero: string, reused: boolean}>}
+ */
+async function restoreDeletedMember(memberId) {
+  // Leggi il record corrente per conoscere il vecchio numero
+  const { data: member, error: fetchErr } = await supabase
+    .from('soci')
+    .select('numero_tessera')
+    .eq('id', memberId)
+    .single();
+  if (fetchErr) throw new Error(`Lettura socio fallita. ${fetchErr.message}`);
+
+  const oldNum = member.numero_tessera;
+  let reused = false;
+
+  if (oldNum) {
+    // Verifica che nessun altro socio attivo usi lo stesso numero
+    const { count, error: countErr } = await supabase
+      .from('soci')
+      .select('*', { count: 'exact', head: true })
+      .eq('numero_tessera', oldNum)
+      .neq('id', memberId);
+    if (countErr) throw new Error(`Verifica tessera fallita. ${countErr.message}`);
+
+    if (count === 0) {
+      // Numero ancora libero: riattiva con lo stesso numero
+      const { error: upErr } = await supabase
+        .from('soci')
+        .update({ stato: 'approved', is_active: true, deleted_at: null })
+        .eq('id', memberId);
+      if (upErr) throw new Error(`Ripristino fallito. ${upErr.message}`);
+      return { numero: oldNum, reused: true };
+    }
+  }
+
+  // Numero non disponibile o mai assegnato: usa il flusso standard
+  const { error: pendErr } = await supabase
+    .from('soci')
+    .update({ stato: 'pending', numero_tessera: null, deleted_at: null })
+    .eq('id', memberId);
+  if (pendErr) throw new Error(`Ripristino a pending fallito. ${pendErr.message}`);
+  const newNum = await approveMember(memberId);
+  return { numero: newNum, reused: false };
 }
 
 /**

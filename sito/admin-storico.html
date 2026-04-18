@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storico approvazioni – Mediterranea</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --seed: #2E7D32;
+      --seed-light: rgba(46,125,50,0.05);
+      --seed-10: rgba(46,125,50,0.10);
+      --scaffold-bg: #F7F8F6;
+      --text-primary: #152417;
+      --text-secondary: #555;
+      --border-color: #d0d0d0;
+      --white: #fff;
+      --radius: 14px;
+      --radius-lg: 18px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--scaffold-bg);
+      color: var(--text-primary);
+      padding: 20px;
+      opacity: 0;
+      transition: opacity .25s ease;
+    }
+    body.ready { opacity: 1; }
+
+    /* ---- Stats ---- */
+    .stats-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-chip {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      background: var(--white);
+      border: 1px solid #e8e8e8;
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      min-width: 160px;
+    }
+    .stat-chip-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .stat-chip-value { font-size: 28px; font-weight: 800; color: var(--text-primary); }
+    .stat-chip-sub { font-size: 12px; color: var(--text-secondary); }
+
+    /* ---- Empty state ---- */
+    .empty-state {
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    /* ---- Table ---- */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      table-layout: fixed;
+    }
+    th {
+      background: #F4F6F3;
+      font-weight: 700;
+      text-align: left;
+      padding: 10px 12px;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    th:hover { background: #EAF0EA; }
+    th .sort-icon { font-size: 13px; vertical-align: middle; color: var(--seed); }
+    th .resize-handle {
+      position: absolute; top: 0; right: 0;
+      width: 5px; height: 100%; cursor: col-resize;
+      background: transparent; z-index: 1;
+    }
+    th .resize-handle:hover,
+    th .resize-handle.active {
+      background: var(--seed);
+      opacity: .35;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--seed-light); }
+
+    /* ---- Action buttons ---- */
+    .action-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px;
+      border: none; background: none; cursor: pointer;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      transition: background .12s, color .12s;
+    }
+    .action-btn .material-icons-outlined { font-size: 18px; }
+    .action-btn:hover { background: var(--seed-10); color: var(--seed); }
+  </style>
+</head>
+<body>
+
+  <!-- Stats badge -->
+  <div class="stats-row">
+    <div class="stat-chip">
+      <span class="stat-chip-label" id="badgeLabel">Approvati il …</span>
+      <span class="stat-chip-value" id="badgeCount">–</span>
+      <span class="stat-chip-sub" id="badgeSub">caricamento…</span>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap" id="tableWrap">
+    <div class="empty-state">Caricamento…</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="logo-data.js"></script>
+  <script src="pdf-builder.js"></script>
+  <script>
+    /* ========= Helpers ========= */
+    function escHtml(str) {
+      return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function fmtDate(isoStr) {
+      if (!isoStr) return '–';
+      const d = new Date(isoStr);
+      if (isNaN(d)) return isoStr;
+      return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' });
+    }
+
+    function fmtBirth(isoDate) {
+      if (!isoDate) return '–';
+      const parts = isoDate.split('-');
+      if (parts.length < 3) return isoDate;
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
+    function residenceLabel(m) {
+      const addr = (m.residenza || '').trim();
+      const city = (m.comune || '').trim();
+      const zip  = (m.cap || '').trim();
+      const cityZip = [city, zip ? `(${zip})` : ''].filter(Boolean).join(' ');
+      const parts = [addr, cityZip].filter(Boolean);
+      return parts.length ? parts.join(' · ') : '–';
+    }
+
+    function birthPlaceAndDateLabel(m) {
+      const place = (m.luogo_nascita || '').trim() || '–';
+      const date  = fmtBirth(m.data_nascita);
+      if (place === '–' && date === '–') return '–';
+      if (date === '–') return place;
+      if (place === '–') return date;
+      return `${place} · ${date}`;
+    }
+
+    /* ========= Sort state ========= */
+    let _sortKey = 'created_at';
+    let _sortAsc = false;
+    let _resizing = false;
+    let _members = [];
+
+    function sortBy(key) {
+      if (_resizing) return;
+      if (_sortKey === key) { _sortAsc = !_sortAsc; }
+      else { _sortKey = key; _sortAsc = true; }
+      renderTable();
+    }
+
+    function sortIcon(key) {
+      if (_sortKey !== key) return '';
+      return `<span class="sort-icon material-icons-outlined">${_sortAsc ? 'arrow_upward' : 'arrow_downward'}</span>`;
+    }
+
+    function _sortRows(rows, key, asc) {
+      return [...rows].sort((a, b) => {
+        let va = a[key], vb = b[key];
+        if (key === 'numero_tessera') { va = parseInt(va, 10) || 0; vb = parseInt(vb, 10) || 0; }
+        else if (key === 'created_at' || key === 'data_nascita') { va = va || ''; vb = vb || ''; }
+        else { va = String(va || '').toLowerCase(); vb = String(vb || '').toLowerCase(); }
+        if (va < vb) return asc ? -1 : 1;
+        if (va > vb) return asc ? 1 : -1;
+        return 0;
+      });
+    }
+
+    /* ========= Column resize ========= */
+    let _colWidths = {};
+
+    function _saveColWidths() {
+      const ths = document.querySelectorAll('#storicoTable thead th');
+      ths.forEach((th, i) => { _colWidths[i] = th.style.width; });
+    }
+    function _restoreColWidths() {
+      const ths = document.querySelectorAll('#storicoTable thead th');
+      ths.forEach((th, i) => { if (_colWidths[i]) th.style.width = _colWidths[i]; });
+    }
+
+    function initResizeHandles() {
+      const table = document.getElementById('storicoTable');
+      if (!table) return;
+      _restoreColWidths();
+      table.querySelectorAll('.resize-handle').forEach(handle => {
+        handle.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          _resizing = true;
+          const th = this.parentElement;
+          const allThs = Array.from(th.closest('tr').children);
+          const idx = allThs.indexOf(th);
+          const rightThs = allThs.slice(idx + 1);
+          const startX = e.clientX;
+          const startW = th.offsetWidth;
+          const rightStartWidths = rightThs.map(t => t.offsetWidth);
+          const totalStart = allThs.reduce((s, t) => s + t.offsetWidth, 0);
+          const containerW = table.parentElement.clientWidth;
+          const MIN = 40;
+          this.classList.add('active');
+          const onMove = ev => {
+            const delta = ev.clientX - startX;
+            const newW = Math.max(MIN, startW + delta);
+            const growth = newW - startW;
+            const freeSpace = containerW - totalStart;
+            const overflow = Math.max(0, growth - Math.max(0, freeSpace));
+            let remaining = overflow;
+            const rightNewWidths = rightStartWidths.map(w => w);
+            if (remaining > 0 && rightThs.length > 0) {
+              const shrinkable = rightNewWidths.reduce((s, w) => s + Math.max(0, w - MIN), 0);
+              if (shrinkable > 0) {
+                for (let i = 0; i < rightNewWidths.length; i++) {
+                  const avail = Math.max(0, rightNewWidths[i] - MIN);
+                  const share = avail / shrinkable * remaining;
+                  rightNewWidths[i] = Math.max(MIN, rightNewWidths[i] - share);
+                }
+              }
+            }
+            const actualShrink = rightStartWidths.reduce((s, w, i) => s + (w - rightNewWidths[i]), 0);
+            const cappedW = Math.max(MIN, startW + Math.max(0, freeSpace) + actualShrink);
+            th.style.width = Math.min(newW, cappedW) + 'px';
+            rightThs.forEach((t, i) => { t.style.width = rightNewWidths[i] + 'px'; });
+          };
+          const onUp = () => {
+            this.classList.remove('active');
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            _saveColWidths();
+            setTimeout(() => { _resizing = false; }, 0);
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+      });
+    }
+
+    /* ========= Render table ========= */
+    function renderTable() {
+      const wrap = document.getElementById('tableWrap');
+      if (!_members.length) {
+        wrap.innerHTML = '<div class="empty-state">Nessun socio approvato in questa data.</div>';
+        return;
+      }
+      const sorted = _sortRows(_members, _sortKey, _sortAsc);
+      wrap.innerHTML = `
+        <table id="storicoTable">
+          <thead><tr>
+            <th onclick="sortBy('numero_tessera')" style="width:7%">Tessera ${sortIcon('numero_tessera')}<div class="resize-handle"></div></th>
+            <th onclick="sortBy('cognome')" style="width:16%">Nome ${sortIcon('cognome')}<div class="resize-handle"></div></th>
+            <th onclick="sortBy('data_nascita')" style="width:14%">Nascita ${sortIcon('data_nascita')}<div class="resize-handle"></div></th>
+            <th onclick="sortBy('comune')" style="width:15%">Residenza ${sortIcon('comune')}<div class="resize-handle"></div></th>
+            <th onclick="sortBy('email')" style="width:18%">Email ${sortIcon('email')}<div class="resize-handle"></div></th>
+            <th style="width:11%">Telefono<div class="resize-handle"></div></th>
+            <th onclick="sortBy('created_at')" style="width:10%">Data ${sortIcon('created_at')}<div class="resize-handle"></div></th>
+            <th style="width:9%">Azioni</th>
+          </tr></thead>
+          <tbody id="storicoTbody"></tbody>
+        </table>`;
+      const tbody = document.getElementById('storicoTbody');
+      sorted.forEach(m => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${escHtml(m.numero_tessera || '–')}</strong></td>
+          <td title="${escHtml(m.nome + ' ' + m.cognome)}">${escHtml(m.nome)} ${escHtml(m.cognome)}</td>
+          <td>${escHtml(birthPlaceAndDateLabel(m))}</td>
+          <td title="${escHtml(residenceLabel(m))}">${escHtml(residenceLabel(m))}</td>
+          <td title="${escHtml(m.email)}">${escHtml(m.email)}</td>
+          <td>${escHtml(m.telefono)}</td>
+          <td>${fmtDate(m.created_at)}</td>
+          <td style="white-space:nowrap;">
+            <button class="action-btn" title="Genera PDF" onclick="handlePdf('${escHtml(m.id)}')">
+              <span class="material-icons-outlined">picture_as_pdf</span>
+            </button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+      initResizeHandles();
+    }
+
+    /* ========= PDF export ========= */
+    const _cache = {};
+    function handlePdf(id) {
+      const m = _cache[id];
+      if (m) exportMemberPdf(m);
+    }
+
+    /* ========= Init ========= */
+    (async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const dateStr = params.get('data');
+      if (!dateStr) {
+        document.getElementById('badgeSub').textContent = 'nessuna data selezionata';
+        document.getElementById('tableWrap').innerHTML = '<div class="empty-state">Nessuna data specificata.</div>';
+        document.body.classList.add('ready');
+        return;
+      }
+
+      const [y, m, d] = dateStr.split('-');
+      const label = `${d}/${m}/${y}`;
+      document.getElementById('badgeLabel').textContent = `Approvati il ${label}`;
+
+      try {
+        const [count, members] = await Promise.all([
+          fetchApprovedByDateCount(dateStr),
+          fetchApprovedByDate(dateStr),
+        ]);
+        _members = members;
+        members.forEach(m => { _cache[m.id] = m; });
+
+        document.getElementById('badgeCount').textContent = count;
+        document.getElementById('badgeSub').textContent = count === 1 ? '1 socio approvato' : `${count} soci approvati`;
+
+        renderTable();
+      } catch (e) {
+        document.getElementById('badgeCount').textContent = '–';
+        document.getElementById('badgeSub').textContent = 'errore nel caricamento';
+        document.getElementById('tableWrap').innerHTML = `<div class="empty-state">${escHtml(e.message)}</div>`;
+      }
+
+      // Load theme color
+      try {
+        const hex = await getAppSetting(SETTING_THEME_COLOR);
+        if (hex) {
+          document.documentElement.style.setProperty('--seed', hex);
+          document.documentElement.style.setProperty('--seed-light', hex + '0D');
+          document.documentElement.style.setProperty('--seed-10', hex + '1A');
+        }
+      } catch (_) {}
+
+      document.body.classList.add('ready');
+    })();
+  </script>
+</body>
+</html>

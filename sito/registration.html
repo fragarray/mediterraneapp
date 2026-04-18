@@ -340,6 +340,110 @@
     .mt-24 { margin-top: 24px; }
     .mt-12 { margin-top: 12px; }
     .mb-16 { margin-bottom: 16px; }
+
+    /* ---- Opt-out inline button ---- */
+    .input-with-optout {
+      position: relative;
+    }
+    .input-with-optout input {
+      padding-right: 40px;
+      width: 100%;
+    }
+    .opt-out-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: #bbb;
+      cursor: pointer;
+      transition: all .15s ease;
+      padding: 0;
+    }
+    .opt-out-btn .material-icons-outlined { font-size: 18px; }
+    .opt-out-btn:hover { color: var(--seed); }
+    .opt-out-btn.active {
+      background: var(--seed);
+      color: var(--white);
+      border-radius: 6px;
+    }
+    .form-group.opted-out .input-with-optout input {
+      opacity: .4;
+      pointer-events: none;
+    }
+
+    /* ---- Opt-out confirmation dialog ---- */
+    .optout-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .optout-overlay.visible { display: flex; }
+    .optout-dialog {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      max-width: 420px;
+      width: 100%;
+      padding: 28px 24px 20px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.18);
+      text-align: center;
+    }
+    .optout-dialog .dialog-icon {
+      font-size: 40px;
+      color: #ef6c00;
+      margin-bottom: 8px;
+    }
+    .optout-dialog h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text-primary);
+    }
+    .optout-dialog p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+    .optout-dialog .dialog-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .optout-dialog .btn-dialog {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 20px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter .15s;
+    }
+    .optout-dialog .btn-dialog:hover { filter: brightness(1.06); }
+    .optout-dialog .btn-stay {
+      background: var(--seed);
+      color: var(--white);
+    }
+    .optout-dialog .btn-skip {
+      background: var(--seed-10);
+      color: var(--seed);
+    }
   </style>
 </head>
 <body>
@@ -434,9 +538,9 @@
                 </div>
 
                 <div class="field-half form-group">
-                  <label for="residenza">Residenza</label>
+                  <label for="residenza">Nazione di Residenza</label>
                   <input type="text" id="residenza" name="residenza" required>
-                  <span class="error-msg">Residenza obbligatoria</span>
+                  <span class="error-msg">Nazione di residenza obbligatoria</span>
                 </div>
 
                 <div class="field-half form-group">
@@ -451,15 +555,25 @@
                   <span class="error-msg">Inserisci un CAP valido</span>
                 </div>
 
-                <div class="field-half form-group">
+                <div class="field-half form-group" id="telefonoGroup">
                   <label for="telefono">Telefono</label>
-                  <input type="tel" id="telefono" name="telefono" required>
+                  <div class="input-with-optout">
+                    <input type="tel" id="telefono" name="telefono" required>
+                    <button type="button" class="opt-out-btn" id="optOutTelefono" title="Preferisco non fornirlo">
+                      <span class="material-icons-outlined">phone_disabled</span>
+                    </button>
+                  </div>
                   <span class="error-msg">Inserisci un numero di telefono valido</span>
                 </div>
 
-                <div class="field-half form-group">
+                <div class="field-half form-group" id="emailGroup">
                   <label for="email">Email</label>
-                  <input type="email" id="email" name="email" autocomplete="email" required>
+                  <div class="input-with-optout">
+                    <input type="email" id="email" name="email" autocomplete="email" required>
+                    <button type="button" class="opt-out-btn" id="optOutEmail" title="Preferisco non fornirla">
+                      <span class="material-icons-outlined">mail_lock</span>
+                    </button>
+                  </div>
                   <span class="error-msg">Inserisci un indirizzo email valido</span>
                 </div>
 
@@ -518,6 +632,24 @@
 
   <!-- Snackbar -->
   <div class="snackbar" id="snackbar"></div>
+
+  <!-- Opt-out confirmation dialog -->
+  <div class="optout-overlay" id="optoutOverlay">
+    <div class="optout-dialog">
+      <span class="material-icons-outlined dialog-icon">notifications_off</span>
+      <h3>Sei sicuro?</h3>
+      <p id="optoutDialogMsg"></p>
+      <div class="dialog-actions">
+        <button class="btn-dialog btn-stay" id="optoutBtnStay">
+          <span class="material-icons-outlined">favorite</span>
+          Forse è meglio stare nei paraggi.
+        </button>
+        <button class="btn-dialog btn-skip" id="optoutBtnSkip">
+          No, grazie!
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="supabase-config.js"></script>
@@ -665,6 +797,76 @@
       return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
     }
 
+    /* ========= Opt-out chip toggles ========= */
+    let _optOutTelefono = false;
+    let _optOutEmail = false;
+    let _optOutDialogShown = false;
+
+    function activateOptOut(chip, group, input, flagSetter) {
+      chip.classList.add('active');
+      group.classList.add('opted-out');
+      flagSetter(true);
+      input.value = '';
+      group.classList.remove('has-error');
+      input.tabIndex = -1;
+    }
+
+    function deactivateOptOut(chip, group, input, flagSetter) {
+      chip.classList.remove('active');
+      group.classList.remove('opted-out');
+      flagSetter(false);
+      input.tabIndex = 0;
+    }
+
+    function setupOptOutChip(chipId, groupId, inputId, flagSetter, labelField) {
+      const chip = document.getElementById(chipId);
+      const group = document.getElementById(groupId);
+      const input = document.getElementById(inputId);
+      chip.addEventListener('click', async () => {
+        const isActive = chip.classList.contains('active');
+        if (isActive) {
+          deactivateOptOut(chip, group, input, flagSetter);
+          return;
+        }
+        // First activation ever: show dialog
+        if (!_optOutDialogShown) {
+          const confirmed = await showOptOutDialog(
+            `Senza ${labelField} non potrai ricevere aggiornamenti e newsletter riguardo gli eventi di Mediterranea. Vuoi proseguire ugualmente?`
+          );
+          if (!confirmed) return;
+          _optOutDialogShown = true;
+        }
+        activateOptOut(chip, group, input, flagSetter);
+      });
+    }
+
+    setupOptOutChip('optOutTelefono', 'telefonoGroup', 'telefono', v => { _optOutTelefono = v; }, 'numero di telefono');
+    setupOptOutChip('optOutEmail', 'emailGroup', 'email', v => { _optOutEmail = v; }, 'indirizzo email');
+
+    function showOptOutDialog(message) {
+      return new Promise(resolve => {
+        document.getElementById('optoutDialogMsg').textContent = message;
+        const overlay = document.getElementById('optoutOverlay');
+        overlay.classList.add('visible');
+        function cleanup(result) {
+          overlay.classList.remove('visible');
+          document.getElementById('optoutBtnStay').removeEventListener('click', onStay);
+          document.getElementById('optoutBtnSkip').removeEventListener('click', onSkip);
+          resolve(result);
+        }
+        function onStay() { cleanup(false); }
+        function onSkip() { cleanup(true); }
+        document.getElementById('optoutBtnStay').addEventListener('click', onStay);
+        document.getElementById('optoutBtnSkip').addEventListener('click', onSkip);
+      });
+    }
+
+    /* ========= Sanitizzazione testo ========= */
+    function sanitizeText(str) {
+      // Rimuove spazi dopo apostrofi e apici tipografici (es. "D' Amato" → "D'Amato")
+      return str.replace(/([''`])\ +/g, '$1');
+    }
+
     /* ========= Form submit ========= */
     document.getElementById('registrationForm').addEventListener('submit', async function (e) {
       e.preventDefault();
@@ -677,8 +879,8 @@
       valid = validateRequired('residenza') & valid;
       valid = validateRequired('comune') & valid;
       valid = validateCap('cap') & valid;
-      valid = validatePhone('telefono') & valid;
-      valid = validateEmail('email') & valid;
+      if (!_optOutTelefono) valid = validatePhone('telefono') & valid;
+      if (!_optOutEmail) valid = validateEmail('email') & valid;
 
       if (isLegacyFlow) {
         valid = validateDate('dataRegTessera') & valid;
@@ -710,15 +912,15 @@
         }
 
         const formData = {
-          nome: document.getElementById('nome').value.trim(),
-          cognome: document.getElementById('cognome').value.trim(),
-          luogoNascita: document.getElementById('luogoNascita').value.trim(),
+          nome: sanitizeText(document.getElementById('nome').value.trim()),
+          cognome: sanitizeText(document.getElementById('cognome').value.trim()),
+          luogoNascita: sanitizeText(document.getElementById('luogoNascita').value.trim()),
           dataNascita: dateToIso(document.getElementById('dataNascita').value.trim()),
-          residenza: document.getElementById('residenza').value.trim(),
-          comune: document.getElementById('comune').value.trim(),
+          residenza: sanitizeText(document.getElementById('residenza').value.trim()),
+          comune: sanitizeText(document.getElementById('comune').value.trim()),
           cap: document.getElementById('cap').value.trim(),
-          email: document.getElementById('email').value.trim().toLowerCase(),
-          telefono: document.getElementById('telefono').value.trim(),
+          email: _optOutEmail ? 'no@mail.no' : document.getElementById('email').value.trim().toLowerCase(),
+          telefono: _optOutTelefono ? '0000000000' : document.getElementById('telefono').value.trim(),
           privacyAccepted: true,
         };
 
@@ -742,7 +944,14 @@
         document.getElementById('registrationForm').reset();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         signatureUsed = false;
+        _optOutDialogShown = false;
         document.querySelectorAll('.form-group.has-error').forEach(g => g.classList.remove('has-error'));
+
+        // Reset opt-out chips
+        ['optOutTelefono', 'optOutEmail'].forEach(id => document.getElementById(id).classList.remove('active'));
+        ['telefonoGroup', 'emailGroup'].forEach(id => document.getElementById(id).classList.remove('opted-out'));
+        _optOutTelefono = false;
+        _optOutEmail = false;
 
         // Ripristina valore numero tessera (il reset lo cancella)
         if (isLegacyFlow) {

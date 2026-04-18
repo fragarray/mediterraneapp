@@ -212,18 +212,29 @@
       border-radius: var(--radius);
       background: var(--white);
     }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
     th {
       background: #F4F6F3; font-weight: 700; text-align: left;
       padding: 10px 12px; white-space: nowrap;
       border-bottom: 1px solid var(--border-color);
       color: var(--text-secondary); cursor: pointer; user-select: none;
+      position: relative;
     }
     th:hover { background: #EAF0EA; }
     th .sort-icon { font-size: 13px; vertical-align: middle; color: var(--seed); }
+    th .resize-handle {
+      position: absolute; top: 0; right: 0;
+      width: 5px; height: 100%; cursor: col-resize;
+      background: transparent; z-index: 1;
+    }
+    th .resize-handle:hover,
+    th .resize-handle.active {
+      background: var(--seed);
+      opacity: .35;
+    }
     td {
       padding: 10px 12px; border-bottom: 1px solid #f0f0f0;
-      vertical-align: middle; max-width: 200px;
+      vertical-align: middle;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     tr:last-child td { border-bottom: none; }
@@ -699,6 +710,7 @@
        Sorting
     =========================================================== */
     function sortBy(key) {
+      if (_resizing) return;
       if (_sortKey === key) { _sortAsc = !_sortAsc; }
       else { _sortKey = key; _sortAsc = true; }
       renderTable(_filtered);
@@ -768,18 +780,19 @@
       wrap.innerHTML = `
         <table>
           <thead><tr>
-            <th onclick="sortBy('numero_tessera')">Tessera ${sortIcon('numero_tessera')}</th>
-            <th onclick="sortBy('cognome')">Nome ${sortIcon('cognome')}</th>
-            <th onclick="sortBy('data_nascita')">Nascita ${sortIcon('data_nascita')}</th>
-            <th onclick="sortBy('comune')">Residenza ${sortIcon('comune')}</th>
-            <th onclick="sortBy('email')">Email ${sortIcon('email')}</th>
-            <th>Telefono</th>
-            <th onclick="sortBy('stato')">Stato ${sortIcon('stato')}</th>
-            <th onclick="sortBy('created_at')">Data ${sortIcon('created_at')}</th>
-            <th>Azioni</th>
+            <th onclick="sortBy('numero_tessera')" style="width:6%">Tessera ${sortIcon('numero_tessera')}<div class="resize-handle"></div></th>
+            <th onclick="sortBy('cognome')" style="width:15%">Nome ${sortIcon('cognome')}<div class="resize-handle"></div></th>
+            <th onclick="sortBy('data_nascita')" style="width:14%">Nascita ${sortIcon('data_nascita')}<div class="resize-handle"></div></th>
+            <th onclick="sortBy('comune')" style="width:14%">Residenza ${sortIcon('comune')}<div class="resize-handle"></div></th>
+            <th onclick="sortBy('email')" style="width:17%">Email ${sortIcon('email')}<div class="resize-handle"></div></th>
+            <th style="width:10%">Telefono<div class="resize-handle"></div></th>
+            <th onclick="sortBy('stato')" style="width:5%">Stato ${sortIcon('stato')}<div class="resize-handle"></div></th>
+            <th onclick="sortBy('created_at')" style="width:8%">Data ${sortIcon('created_at')}<div class="resize-handle"></div></th>
+            <th style="width:11%">Azioni</th>
           </tr></thead>
           <tbody id="resultsTbody"></tbody>
         </table>`;
+      initResizeHandles();
       const tbody = document.getElementById('resultsTbody');
       sorted.forEach(m => {
         cacheMember(m);
@@ -817,11 +830,28 @@
             <button class="action-btn danger" title="Rifiuta" onclick="handleRejectMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
               <span class="material-icons-outlined">close</span>
             </button>`;
-        } else {
-          // deleted or rejected → only PDF
+        } else if (normalizedStatus === 'rejected') {
           actionsHtml = `
             <button class="action-btn" title="Genera PDF" onclick="exportMemberPdf(getCached('${escHtml(m.id)}'))">
               <span class="material-icons-outlined">picture_as_pdf</span>
+            </button>
+            <button class="action-btn" title="Riapprova" onclick="handleReapproveMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+              <span class="material-icons-outlined">check_circle</span>
+            </button>
+            <button class="action-btn danger" title="Elimina definitivamente" onclick="handleHardDeleteMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+              <span class="material-icons-outlined">delete_forever</span>
+            </button>`;
+        } else {
+          // deleted → PDF + restore + hard delete
+          actionsHtml = `
+            <button class="action-btn" title="Genera PDF" onclick="exportMemberPdf(getCached('${escHtml(m.id)}'))">
+              <span class="material-icons-outlined">picture_as_pdf</span>
+            </button>
+            <button class="action-btn" title="Ripristina tesseramento" onclick="handleRestoreDeletedMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+              <span class="material-icons-outlined">restore</span>
+            </button>
+            <button class="action-btn danger" title="Elimina definitivamente" onclick="handleHardDeleteMember('${escHtml(m.id)}','${escHtml(m.nome+' '+m.cognome)}')">
+              <span class="material-icons-outlined">delete_forever</span>
             </button>`;
         }
 
@@ -836,6 +866,82 @@
           <td>${fmtDate(m.created_at)}</td>
           <td style="white-space:nowrap;">${actionsHtml}</td>`;
         tbody.appendChild(tr);
+      });
+    }
+
+    /* ===========================================================
+       Column resize
+    =========================================================== */
+    let _resizing = false;
+    let _colWidths = {};
+
+    function _saveColWidths() {
+      const ths = document.querySelectorAll('#resultsTableWrap table thead th');
+      ths.forEach((th, i) => { _colWidths[i] = th.style.width; });
+    }
+
+    function _restoreColWidths() {
+      const ths = document.querySelectorAll('#resultsTableWrap table thead th');
+      ths.forEach((th, i) => { if (_colWidths[i]) th.style.width = _colWidths[i]; });
+    }
+
+    function initResizeHandles() {
+      const table = document.querySelector('#resultsTableWrap table');
+      if (!table) return;
+      _restoreColWidths();
+      table.querySelectorAll('.resize-handle').forEach(handle => {
+        handle.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          _resizing = true;
+          const th = this.parentElement;
+          const allThs = Array.from(th.closest('tr').children);
+          const idx = allThs.indexOf(th);
+          const rightThs = allThs.slice(idx + 1);
+          const startX = e.clientX;
+          const startW = th.offsetWidth;
+          const rightStartWidths = rightThs.map(t => t.offsetWidth);
+          const totalStart = allThs.reduce((s, t) => s + t.offsetWidth, 0);
+          const containerW = table.parentElement.clientWidth;
+          const MIN = 40;
+          this.classList.add('active');
+          const onMove = ev => {
+            const delta = ev.clientX - startX;
+            const newW = Math.max(MIN, startW + delta);
+            const growth = newW - startW;
+            // Free space before needing to shrink right columns
+            const freeSpace = containerW - totalStart;
+            const overflow = Math.max(0, growth - Math.max(0, freeSpace));
+            // Distribute overflow proportionally across all right columns
+            let remaining = overflow;
+            const rightNewWidths = rightStartWidths.map(w => w);
+            if (remaining > 0 && rightThs.length > 0) {
+              const shrinkable = rightNewWidths.reduce((s, w) => s + Math.max(0, w - MIN), 0);
+              if (shrinkable > 0) {
+                for (let i = 0; i < rightNewWidths.length; i++) {
+                  const avail = Math.max(0, rightNewWidths[i] - MIN);
+                  const share = avail / shrinkable * remaining;
+                  rightNewWidths[i] = Math.max(MIN, rightNewWidths[i] - share);
+                }
+              }
+            }
+            // Cap newW if right columns are all at minimum
+            const actualShrink = rightStartWidths.reduce((s, w, i) => s + (w - rightNewWidths[i]), 0);
+            const cappedW = Math.max(MIN, startW + Math.max(0, freeSpace) + actualShrink);
+            th.style.width = Math.min(newW, cappedW) + 'px';
+            rightThs.forEach((t, i) => { t.style.width = rightNewWidths[i] + 'px'; });
+          };
+          const onUp = () => {
+            this.classList.remove('active');
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            _saveColWidths();
+            // Block the click that fires right after mouseup
+            setTimeout(() => { _resizing = false; }, 0);
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
       });
     }
 
@@ -875,6 +981,46 @@
         await loadAllMembers();
       } catch (e) {
         showSnackbar(e.message || 'Rifiuto fallito.', true);
+      }
+    }
+
+    async function handleReapproveMember(memberId, fullName) {
+      const ok = await showConfirm('Riapprova socio', `Riapprovare ${fullName}? Verrà assegnato un nuovo numero tessera.`, 'Riapprova');
+      if (!ok) return;
+      try {
+        const num = await reapproveMember(memberId);
+        showSnackbar(`Tessera n° ${num} assegnata a ${fullName}.`);
+        await loadAllMembers();
+      } catch (e) {
+        showSnackbar(e.message || 'Riapprovazione fallita.', true);
+      }
+    }
+
+    async function handleRestoreDeletedMember(memberId, fullName) {
+      const ok = await showConfirm('Ripristina tesseramento', `Ripristinare il tesseramento di ${fullName}? Verrà verificato il numero tessera precedente.`, 'Ripristina');
+      if (!ok) return;
+      try {
+        const { numero, reused } = await restoreDeletedMember(memberId);
+        if (reused) {
+          showSnackbar(`${fullName} ripristinato con tessera n° ${numero} (numero originale).`);
+        } else {
+          showSnackbar(`Tessera originale non più disponibile. ${fullName} riapprovato con nuovo n° ${numero}.`);
+        }
+        await loadAllMembers();
+      } catch (e) {
+        showSnackbar(e.message || 'Ripristino fallito.', true);
+      }
+    }
+
+    async function handleHardDeleteMember(memberId, fullName) {
+      const ok = await showConfirm('Elimina definitivamente', `Eliminare definitivamente ${fullName}? Questa azione è irreversibile.`, 'Elimina');
+      if (!ok) return;
+      try {
+        await deleteMemberHard(memberId);
+        showSnackbar('Socio eliminato definitivamente.');
+        await loadAllMembers();
+      } catch (e) {
+        showSnackbar(e.message || 'Eliminazione fallita.', true);
       }
     }
 

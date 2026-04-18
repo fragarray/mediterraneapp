@@ -20,6 +20,9 @@
       --text-primary: #152417;
       --text-secondary: #555;
       --border-color: #d0d0d0;
+      --seed-accent: #C49100;
+      --seed-accent-light: rgba(196,145,0,0.08);
+      --seed-accent-10: rgba(196,145,0,0.13);
       --white: #fff;
       --radius: 14px;
       --radius-lg: 18px;
@@ -123,6 +126,94 @@
     .stat-chip-value { font-size: 28px; font-weight: 800; color: var(--text-primary); }
     .stat-chip-sub { font-size: 12px; color: var(--text-secondary); }
 
+    .stat-chip.accent { border-left: 3px solid var(--seed-accent); background: var(--seed-accent-light); }
+
+    .stat-chip-history {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 140px;
+    }
+    .stat-chip-cal-filled {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: calc(100% - 18px);
+      height: 44px;
+      border: none;
+      border-radius: var(--radius);
+      background: var(--seed);
+      color: var(--white);
+      cursor: pointer;
+      transition: filter .15s;
+      padding: 0;
+      margin-top: 4px;
+    }
+    .stat-chip-cal-filled .material-icons-outlined { font-size: 24px; }
+    .stat-chip-cal-filled:hover { filter: brightness(1.08); }
+    .hidden-date-input {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 0;
+      height: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ---- History overlay ---- */
+    .history-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      z-index: 2500;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .history-overlay.active { display: flex; }
+    .history-frame {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      width: 90vw;
+      height: 90vh;
+      overflow: hidden;
+      box-shadow: 0 12px 48px rgba(0,0,0,.22);
+      display: flex;
+      flex-direction: column;
+    }
+    .history-frame iframe {
+      border: none;
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+    }
+    .history-frame-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid #e8e8e8;
+    }
+    .history-frame-header h3 { font-size: 16px; font-weight: 700; margin: 0; }
+    .history-frame-close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all .15s;
+    }
+    .history-frame-close:hover { background: #f0f0f0; }
+
     /* ---- Section header ---- */
     .section-header {
       display: flex;
@@ -135,6 +226,12 @@
     .section-title { font-size: 18px; font-weight: 700; }
     .section-desc { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
     .section-mb { margin-bottom: 20px; }
+    .section-title.accent { color: var(--seed-accent); }
+    .table-wrap.accent { border-color: var(--seed-accent-10); }
+    .table-wrap.accent th { background: var(--seed-accent-light); }
+    .table-wrap.accent th:hover { background: var(--seed-accent-10); }
+    .table-wrap.accent th .sort-icon { color: var(--seed-accent); }
+    .table-wrap.accent tr:hover td { background: var(--seed-accent-light); }
 
     /* ---- Card ---- */
     .card {
@@ -156,6 +253,7 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
+      table-layout: fixed;
     }
     th {
       background: #F4F6F3;
@@ -165,12 +263,26 @@
       white-space: nowrap;
       border-bottom: 1px solid var(--border-color);
       color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    th:hover { background: #EAF0EA; }
+    th .sort-icon { font-size: 13px; vertical-align: middle; color: var(--seed); }
+    th .resize-handle {
+      position: absolute; top: 0; right: 0;
+      width: 5px; height: 100%; cursor: col-resize;
+      background: transparent; z-index: 1;
+    }
+    th .resize-handle:hover,
+    th .resize-handle.active {
+      background: var(--seed);
+      opacity: .35;
     }
     td {
       padding: 10px 12px;
       border-bottom: 1px solid #f0f0f0;
       vertical-align: middle;
-      max-width: 220px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -427,6 +539,37 @@
       object-fit: contain; display: block;
     }
 
+    /* ---- Limit picker ---- */
+    .limit-picker {
+      display: inline-flex; align-items: center; gap: 4px;
+      margin-left: 4px;
+    }
+    .limit-picker .limit-value {
+      font-size: 18px; font-weight: 700; cursor: default;
+    }
+    .limit-picker .limit-edit-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border: none; background: none;
+      cursor: pointer; border-radius: 6px; color: var(--text-secondary);
+      transition: background .12s, color .12s; padding: 0;
+    }
+    .limit-picker .limit-edit-btn:hover { background: var(--seed-10); color: var(--seed); }
+    .limit-picker .limit-edit-btn .material-icons-outlined { font-size: 16px; }
+    .limit-options {
+      display: none; align-items: center; gap: 4px;
+    }
+    .limit-options.active { display: inline-flex; }
+    .limit-options button {
+      padding: 3px 10px; border: 1px solid var(--border-color);
+      border-radius: 8px; background: var(--white); font-size: 13px;
+      font-weight: 600; cursor: pointer; transition: all .12s;
+      color: var(--text-primary);
+    }
+    .limit-options button:hover { border-color: var(--seed); color: var(--seed); background: var(--seed-10); }
+    .limit-options button.active {
+      border-color: var(--seed); background: var(--seed); color: var(--white);
+    }
+
     /* ---- Empty state ---- */
     .empty-state {
       padding: 28px;
@@ -518,55 +661,80 @@
   <!-- ====== Main view (post-login) ====== -->
   <div id="mainView">
 
-    <!-- ===== Dashboard tab ===== -->
+    <!-- ===== Dashboard tab ===== --> 
     <div class="page-body" id="tabDashboard">
 
       <!-- Stats -->
       <div class="stats-row">
-        <div class="stat-chip">
-          <span class="stat-chip-label">Pending</span>
+        <div class="stat-chip accent">
+          <span class="stat-chip-label">In sospeso</span>
           <span class="stat-chip-value" id="statPending">–</span>
           <span class="stat-chip-sub">da approvare</span>
         </div>
+        <div class="stat-chip accent">
+          <span class="stat-chip-label">Digitalizzazione</span>
+          <span class="stat-chip-value" id="statLegacy">–</span>
+          <span class="stat-chip-sub">tessere da digitalizzare</span>
+        </div>
         <div class="stat-chip">
-          <span class="stat-chip-label">Approvati</span>
+          <span class="stat-chip-label">Approvati oggi</span>
           <span class="stat-chip-value" id="statApproved">–</span>
           <span class="stat-chip-sub">ultimo n° <strong id="statLastNumber">–</strong></span>
         </div>
         <div class="stat-chip">
-          <span class="stat-chip-label">Legacy pending</span>
-          <span class="stat-chip-value" id="statLegacy">–</span>
-          <span class="stat-chip-sub">tessere da digitalizzare</span>
+          <span class="stat-chip-label">Approvati ieri</span>
+          <span class="stat-chip-value" id="statYesterday">–</span>
+          <span class="stat-chip-sub" id="statYesterdayDate"></span>
+        </div>
+        <div class="stat-chip stat-chip-history">
+          <span class="stat-chip-label">Approvati il</span>
+          <button type="button" class="stat-chip-cal-filled" id="btnHistoryDate" title="Seleziona data">
+            <span class="material-icons-outlined">calendar_month</span>
+          </button>
+          <input type="date" id="historyDatePicker" class="hidden-date-input">
         </div>
       </div>
+      
 
       <!-- Pending members -->
       <div class="section-header section-mb">
         <div>
-          <div class="section-title">Richieste pending</div>
+          <div class="section-title accent">Richieste in sospeso</div>
           <div class="section-desc">Nuove richieste di tesseramento in attesa di approvazione.</div>
         </div>
       </div>
-      <div class="table-wrap" id="pendingTableWrap">
+      <div class="table-wrap accent" id="pendingTableWrap">
         <div class="empty-state">Caricamento…</div>
       </div>
 
       <!-- Legacy requests -->
       <div class="section-header section-mb" style="margin-top:24px;">
         <div>
-          <div class="section-title">Richieste legacy pending</div>
+          <div class="section-title accent">Richieste digitalizzazione in sospeso</div>
           <div class="section-desc">Tessere cartacee in attesa di digitalizzazione.</div>
         </div>
       </div>
-      <div class="table-wrap" id="legacyTableWrap">
+      <div class="table-wrap accent" id="legacyTableWrap">
         <div class="empty-state">Caricamento…</div>
       </div>
 
       <!-- Recent approved -->
       <div class="section-header section-mb" style="margin-top:24px;">
         <div>
-          <div class="section-title">Ultimi approvati (30)</div>
-          <div class="section-desc">I 30 soci confermati più recenti.</div>
+          <div class="section-title">
+            Ultimi approvati
+            <span class="limit-picker">
+              (<span class="limit-value" id="approvedLimitLabel">30</span>)
+              <button class="limit-edit-btn" id="limitEditBtn" title="Cambia limite">
+                <span class="material-icons-outlined">edit</span>
+              </button>
+              <span class="limit-options" id="limitOptions">
+                <button onclick="setApprovedLimit(30)">30</button>
+                <button onclick="setApprovedLimit(60)">60</button>
+                <button onclick="setApprovedLimit(100)">100</button>
+              </span>
+            </span>
+          </div>
         </div>
       </div>
       <div class="table-wrap" id="approvedTableWrap">
@@ -779,6 +947,19 @@
     </div>
   </div>
 
+  <!-- ====== History overlay ====== -->
+  <div class="history-overlay" id="historyOverlay">
+    <div class="history-frame">
+      <div class="history-frame-header">
+        <h3 id="historyFrameTitle">Approvati il …</h3>
+        <button class="history-frame-close" id="historyCloseBtn" title="Chiudi">
+          <span class="material-icons-outlined">close</span>
+        </button>
+      </div>
+      <iframe id="historyIframe" src="about:blank"></iframe>
+    </div>
+  </div>
+
   <!-- ====== Lightbox ====== -->
   <div class="lightbox" id="lightbox" onclick="this.classList.remove('active')">
     <img id="lightboxImg" src="" alt="Firma">
@@ -832,6 +1013,44 @@
     }
 
     /* ===========================================================
+       History date viewer
+    =========================================================== */
+    (function initHistoryViewer() {
+      const calBtn   = document.getElementById('btnHistoryDate');
+      const picker   = document.getElementById('historyDatePicker');
+      const overlay  = document.getElementById('historyOverlay');
+      const iframe   = document.getElementById('historyIframe');
+      const closeBtn = document.getElementById('historyCloseBtn');
+      const titleEl  = document.getElementById('historyFrameTitle');
+
+      calBtn.addEventListener('click', () => picker.showPicker());
+
+      picker.addEventListener('change', () => {
+        const isoDate = picker.value;
+        if (!isoDate) return;
+        const [y, m, d] = isoDate.split('-');
+        const label = `${d}/${m}/${y}`;
+
+        // Open overlay with iframe
+        titleEl.textContent = `Approvati il ${label}`;
+        iframe.src = `admin-storico.html?data=${encodeURIComponent(isoDate)}`;
+        overlay.classList.add('active');
+      });
+
+      closeBtn.addEventListener('click', () => {
+        overlay.classList.remove('active');
+        iframe.src = 'about:blank';
+      });
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          overlay.classList.remove('active');
+          iframe.src = 'about:blank';
+        }
+      });
+    })();
+
+    /* ===========================================================
        Tab switching
     =========================================================== */
     function switchTab(name) {
@@ -849,6 +1068,9 @@
     let _pendingMembers  = [];
     let _approvedMembers = [];
     let _legacyPending   = [];
+    let _approvedTodayCount = 0;
+    let _approvedYesterdayCount = 0;
+    let _approvedLimit = 30;
 
     /* ===========================================================
        Realtime
@@ -877,22 +1099,54 @@
     async function loadDashboardData() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yISO = yesterday.getFullYear() + '-' + String(yesterday.getMonth() + 1).padStart(2, '0') + '-' + String(yesterday.getDate()).padStart(2, '0');
       try {
-        const [pending, approved, legacy] = await Promise.all([
+        const [pending, approved, legacy, approvedToday, approvedYesterday] = await Promise.all([
           fetchPendingMembers(),
-          fetchApprovedMembers(30),
+          fetchApprovedMembers(_approvedLimit),
           fetchPendingLegacyRequests(),
+          fetchApprovedTodayCount(),
+          fetchApprovedByDateCount(yISO),
         ]);
         _pendingMembers  = pending;
         _approvedMembers = approved;
         _legacyPending   = legacy;
+        _approvedTodayCount = approvedToday;
+        _approvedYesterdayCount = approvedYesterday;
         renderStats();
         renderPendingTable();
         renderLegacyTable();
         renderApprovedTable();
+        updateLimitUI();
       } catch (e) {
         showSnackbar(e.message || 'Errore caricamento dati.', true);
       }
+    }
+
+    /* ===========================================================
+       Approved limit picker
+    =========================================================== */
+    function updateLimitUI() {
+      document.getElementById('approvedLimitLabel').textContent = _approvedLimit;
+      const btns = document.querySelectorAll('#limitOptions button');
+      btns.forEach(b => b.classList.toggle('active', Number(b.textContent) === _approvedLimit));
+    }
+
+    document.getElementById('limitEditBtn').addEventListener('click', function() {
+      const opts = document.getElementById('limitOptions');
+      opts.classList.toggle('active');
+    });
+
+    async function setApprovedLimit(n) {
+      _approvedLimit = n;
+      document.getElementById('limitOptions').classList.remove('active');
+      updateLimitUI();
+      try {
+        await saveAppSetting(SETTING_APPROVED_LIMIT, String(n));
+      } catch(e) { /* ignore save error, UI already updated */ }
+      loadDashboardData();
     }
 
     /* ===========================================================
@@ -900,8 +1154,14 @@
     =========================================================== */
     function renderStats() {
       document.getElementById('statPending').textContent  = _pendingMembers.length;
-      document.getElementById('statApproved').textContent = _approvedMembers.length;
+      document.getElementById('statApproved').textContent = _approvedTodayCount;
       document.getElementById('statLegacy').textContent   = _legacyPending.length;
+      document.getElementById('statYesterday').textContent = _approvedYesterdayCount;
+
+      // Yesterday date label
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      document.getElementById('statYesterdayDate').textContent = y.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' });
 
       // Last membership number among approved (max of numero_tessera as int)
       let lastNum = null;
@@ -951,6 +1211,126 @@
     function cacheMember(m) { _memberCache[m.id] = m; }
     function getCached(id) { return _memberCache[id]; }
 
+    /* ---- Sorting state (per table) ---- */
+    let _sortPendingKey = 'created_at', _sortPendingAsc = false;
+    let _sortApprovedKey = 'numero_tessera', _sortApprovedAsc = false;
+    let _sortLegacyKey = 'created_at', _sortLegacyAsc = false;
+    let _resizing = false;
+
+    function sortByPending(key) {
+      if (_resizing) return;
+      if (_sortPendingKey === key) { _sortPendingAsc = !_sortPendingAsc; }
+      else { _sortPendingKey = key; _sortPendingAsc = true; }
+      renderPendingTable();
+    }
+    function sortByApproved(key) {
+      if (_resizing) return;
+      if (_sortApprovedKey === key) { _sortApprovedAsc = !_sortApprovedAsc; }
+      else { _sortApprovedKey = key; _sortApprovedAsc = true; }
+      renderApprovedTable();
+    }
+    function sortByLegacy(key) {
+      if (_resizing) return;
+      if (_sortLegacyKey === key) { _sortLegacyAsc = !_sortLegacyAsc; }
+      else { _sortLegacyKey = key; _sortLegacyAsc = true; }
+      renderLegacyTable();
+    }
+
+    function sortIconPending(key) {
+      if (_sortPendingKey !== key) return '';
+      return `<span class="sort-icon material-icons-outlined">${_sortPendingAsc ? 'arrow_upward' : 'arrow_downward'}</span>`;
+    }
+    function sortIconApproved(key) {
+      if (_sortApprovedKey !== key) return '';
+      return `<span class="sort-icon material-icons-outlined">${_sortApprovedAsc ? 'arrow_upward' : 'arrow_downward'}</span>`;
+    }
+    function sortIconLegacy(key) {
+      if (_sortLegacyKey !== key) return '';
+      return `<span class="sort-icon material-icons-outlined">${_sortLegacyAsc ? 'arrow_upward' : 'arrow_downward'}</span>`;
+    }
+
+    function _sortRows(rows, key, asc) {
+      return [...rows].sort((a, b) => {
+        let va = a[key], vb = b[key];
+        if (key === 'numero_tessera') { va = parseInt(va, 10) || 0; vb = parseInt(vb, 10) || 0; }
+        else if (key === 'created_at' || key === 'data_nascita') { va = va || ''; vb = vb || ''; }
+        else { va = String(va || '').toLowerCase(); vb = String(vb || '').toLowerCase(); }
+        if (va < vb) return asc ? -1 : 1;
+        if (va > vb) return asc ? 1 : -1;
+        return 0;
+      });
+    }
+
+    /* ---- Column resize ---- */
+    let _colWidthsPending = {};
+    let _colWidthsApproved = {};
+    let _colWidthsLegacy = {};
+
+    function _saveColWidths(tableSelector, store) {
+      const ths = document.querySelectorAll(tableSelector + ' thead th');
+      ths.forEach((th, i) => { store[i] = th.style.width; });
+    }
+    function _restoreColWidths(tableSelector, store) {
+      const ths = document.querySelectorAll(tableSelector + ' thead th');
+      ths.forEach((th, i) => { if (store[i]) th.style.width = store[i]; });
+    }
+
+    function initResizeHandles(tableSelector, store) {
+      const table = document.querySelector(tableSelector);
+      if (!table) return;
+      _restoreColWidths(tableSelector, store);
+      table.querySelectorAll('.resize-handle').forEach(handle => {
+        handle.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          _resizing = true;
+          const th = this.parentElement;
+          const allThs = Array.from(th.closest('tr').children);
+          const idx = allThs.indexOf(th);
+          const rightThs = allThs.slice(idx + 1);
+          const startX = e.clientX;
+          const startW = th.offsetWidth;
+          const rightStartWidths = rightThs.map(t => t.offsetWidth);
+          const totalStart = allThs.reduce((s, t) => s + t.offsetWidth, 0);
+          const containerW = table.parentElement.clientWidth;
+          const MIN = 40;
+          this.classList.add('active');
+          const onMove = ev => {
+            const delta = ev.clientX - startX;
+            const newW = Math.max(MIN, startW + delta);
+            const growth = newW - startW;
+            const freeSpace = containerW - totalStart;
+            const overflow = Math.max(0, growth - Math.max(0, freeSpace));
+            let remaining = overflow;
+            const rightNewWidths = rightStartWidths.map(w => w);
+            if (remaining > 0 && rightThs.length > 0) {
+              const shrinkable = rightNewWidths.reduce((s, w) => s + Math.max(0, w - MIN), 0);
+              if (shrinkable > 0) {
+                for (let i = 0; i < rightNewWidths.length; i++) {
+                  const avail = Math.max(0, rightNewWidths[i] - MIN);
+                  const share = avail / shrinkable * remaining;
+                  rightNewWidths[i] = Math.max(MIN, rightNewWidths[i] - share);
+                }
+              }
+            }
+            const actualShrink = rightStartWidths.reduce((s, w, i) => s + (w - rightNewWidths[i]), 0);
+            const cappedW = Math.max(MIN, startW + Math.max(0, freeSpace) + actualShrink);
+            th.style.width = Math.min(newW, cappedW) + 'px';
+            rightThs.forEach((t, i) => { t.style.width = rightNewWidths[i] + 'px'; });
+          };
+          const onUp = () => {
+            this.classList.remove('active');
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            _saveColWidths(tableSelector, store);
+            setTimeout(() => { _resizing = false; }, 0);
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+      });
+    }
+
     // --- Pending members ---
     function residenceLabel(m) {
       const addr = (m.residenza || '').trim();
@@ -976,16 +1356,24 @@
         wrap.innerHTML = '<div class="empty-state">Nessuna richiesta pending.</div>';
         return;
       }
+      const sorted = _sortRows(_pendingMembers, _sortPendingKey, _sortPendingAsc);
       wrap.innerHTML = `
-        <table>
+        <table id="pendingTable">
           <thead><tr>
-            <th>Tessera</th><th>Nome</th><th>Nascita</th><th>Residenza</th>
-            <th>Email</th><th>Telefono</th><th>Data</th><th>Azioni</th>
+            <th onclick="sortByPending('numero_tessera')" style="width:6%">Tessera ${sortIconPending('numero_tessera')}<div class="resize-handle"></div></th>
+            <th onclick="sortByPending('cognome')" style="width:16%">Nome ${sortIconPending('cognome')}<div class="resize-handle"></div></th>
+            <th onclick="sortByPending('data_nascita')" style="width:14%">Nascita ${sortIconPending('data_nascita')}<div class="resize-handle"></div></th>
+            <th onclick="sortByPending('comune')" style="width:14%">Residenza ${sortIconPending('comune')}<div class="resize-handle"></div></th>
+            <th onclick="sortByPending('email')" style="width:18%">Email ${sortIconPending('email')}<div class="resize-handle"></div></th>
+            <th style="width:10%">Telefono<div class="resize-handle"></div></th>
+            <th onclick="sortByPending('created_at')" style="width:8%">Data ${sortIconPending('created_at')}<div class="resize-handle"></div></th>
+            <th style="width:14%">Azioni</th>
           </tr></thead>
           <tbody id="pendingTbody"></tbody>
         </table>`;
+      initResizeHandles('#pendingTable', _colWidthsPending);
       const tbody = document.getElementById('pendingTbody');
-      _pendingMembers.forEach(m => {
+      sorted.forEach(m => {
         cacheMember(m);
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -1014,31 +1402,49 @@
       });
     }
 
-    // --- Legacy requests (card layout like Flutter app) ---
+    // --- Legacy requests ---
     function renderLegacyTable() {
       const wrap = document.getElementById('legacyTableWrap');
       if (!_legacyPending.length) {
-        wrap.innerHTML = '<div class="empty-state">Nessuna richiesta legacy pending.</div>';
+        wrap.innerHTML = '<div class="empty-state">Nessuna richiesta di digitalizzazione in sospeso.</div>';
         return;
       }
-      wrap.innerHTML = '';
-      _legacyPending.forEach(r => {
-        const card = document.createElement('div');
-        card.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;background:#F8FAF7;border-radius:14px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;';
-        card.innerHTML = `
-          <div style="max-width:720px;">
-            <div style="font-weight:700;font-size:16px;">Tessera ${escHtml(r.numero_tessera)} · ${escHtml(r.nome)} ${escHtml(r.cognome)}</div>
-            <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">${escHtml(r.email)} · ${escHtml(r.telefono)} · richiesta ${fmtDate(r.created_at)}</div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn-filled" style="font-size:13px;padding:8px 16px;" onclick="handleApproveLegacy('${escHtml(r.id)}','${escHtml(r.nome+' '+r.cognome)}','${escHtml(r.numero_tessera)}')">
-              <span class="material-icons-outlined" style="font-size:17px;">check_circle</span> Approva
+      const sorted = _sortRows(_legacyPending, _sortLegacyKey, _sortLegacyAsc);
+      wrap.innerHTML = `
+        <table id="legacyTable">
+          <thead><tr>
+            <th onclick="sortByLegacy('numero_tessera')" style="width:6%">Tessera ${sortIconLegacy('numero_tessera')}<div class="resize-handle"></div></th>
+            <th onclick="sortByLegacy('cognome')" style="width:16%">Nome ${sortIconLegacy('cognome')}<div class="resize-handle"></div></th>
+            <th onclick="sortByLegacy('data_nascita')" style="width:14%">Nascita ${sortIconLegacy('data_nascita')}<div class="resize-handle"></div></th>
+            <th onclick="sortByLegacy('comune')" style="width:14%">Residenza ${sortIconLegacy('comune')}<div class="resize-handle"></div></th>
+            <th onclick="sortByLegacy('email')" style="width:18%">Email ${sortIconLegacy('email')}<div class="resize-handle"></div></th>
+            <th style="width:10%">Telefono<div class="resize-handle"></div></th>
+            <th onclick="sortByLegacy('created_at')" style="width:8%">Data ${sortIconLegacy('created_at')}<div class="resize-handle"></div></th>
+            <th style="width:14%">Azioni</th>
+          </tr></thead>
+          <tbody id="legacyTbody"></tbody>
+        </table>`;
+      initResizeHandles('#legacyTable', _colWidthsLegacy);
+      const tbody = document.getElementById('legacyTbody');
+      sorted.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${escHtml(r.numero_tessera||'–')}</strong></td>
+          <td title="${escHtml(r.nome+' '+r.cognome)}">${escHtml(r.nome)} ${escHtml(r.cognome)}</td>
+          <td>${escHtml(birthPlaceAndDateLabel(r))}</td>
+          <td title="${escHtml(residenceLabel(r))}">${escHtml(residenceLabel(r))}</td>
+          <td title="${escHtml(r.email)}">${escHtml(r.email)}</td>
+          <td>${escHtml(r.telefono)}</td>
+          <td>${fmtDate(r.created_at)}</td>
+          <td style="white-space:nowrap;">
+            <button class="action-btn" title="Approva" onclick="handleApproveLegacy('${escHtml(r.id)}','${escHtml(r.nome+' '+r.cognome)}','${escHtml(r.numero_tessera)}')">
+              <span class="material-icons-outlined">check_circle</span>
             </button>
-            <button class="btn-outlined" style="font-size:13px;padding:8px 16px;" onclick="handleRejectLegacy('${escHtml(r.id)}','${escHtml(r.nome+' '+r.cognome)}')">
-              <span class="material-icons-outlined" style="font-size:17px;">close</span> Rifiuta
+            <button class="action-btn danger" title="Rifiuta" onclick="handleRejectLegacy('${escHtml(r.id)}','${escHtml(r.nome+' '+r.cognome)}')">
+              <span class="material-icons-outlined">close</span>
             </button>
-          </div>`;
-        wrap.appendChild(card);
+          </td>`;
+        tbody.appendChild(tr);
       });
     }
 
@@ -1049,16 +1455,24 @@
         wrap.innerHTML = '<div class="empty-state">Nessun socio approvato.</div>';
         return;
       }
+      const sorted = _sortRows(_approvedMembers, _sortApprovedKey, _sortApprovedAsc);
       wrap.innerHTML = `
-        <table>
+        <table id="approvedTable">
           <thead><tr>
-            <th>Tessera</th><th>Nome</th><th>Nascita</th><th>Residenza</th>
-            <th>Email</th><th>Telefono</th><th>Data</th><th>Azioni</th>
+            <th onclick="sortByApproved('numero_tessera')" style="width:6%">Tessera ${sortIconApproved('numero_tessera')}<div class="resize-handle"></div></th>
+            <th onclick="sortByApproved('cognome')" style="width:16%">Nome ${sortIconApproved('cognome')}<div class="resize-handle"></div></th>
+            <th onclick="sortByApproved('data_nascita')" style="width:14%">Nascita ${sortIconApproved('data_nascita')}<div class="resize-handle"></div></th>
+            <th onclick="sortByApproved('comune')" style="width:14%">Residenza ${sortIconApproved('comune')}<div class="resize-handle"></div></th>
+            <th onclick="sortByApproved('email')" style="width:18%">Email ${sortIconApproved('email')}<div class="resize-handle"></div></th>
+            <th style="width:10%">Telefono<div class="resize-handle"></div></th>
+            <th onclick="sortByApproved('created_at')" style="width:8%">Data ${sortIconApproved('created_at')}<div class="resize-handle"></div></th>
+            <th style="width:14%">Azioni</th>
           </tr></thead>
           <tbody id="approvedTbody"></tbody>
         </table>`;
+      initResizeHandles('#approvedTable', _colWidthsApproved);
       const tbody = document.getElementById('approvedTbody');
-      _approvedMembers.forEach(m => {
+      sorted.forEach(m => {
         cacheMember(m);
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -1628,6 +2042,15 @@
         applySeedColor(colorHex);
       } catch (err) {
         console.error('[admin] init color error:', err);
+      }
+      try {
+        const savedLimit = await getAppSetting(SETTING_APPROVED_LIMIT);
+        if (savedLimit && [30,60,100].includes(Number(savedLimit))) {
+          _approvedLimit = Number(savedLimit);
+          updateLimitUI();
+        }
+      } catch (err) {
+        console.error('[admin] init limit error:', err);
       }
       document.body.classList.add('ready');
 
