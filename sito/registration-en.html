@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tesseramento Mediterranea – Registrazione</title>
+  <title>Mediterranea Membership – Registration</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -483,10 +483,10 @@
 
   <!-- AppBar -->
   <header class="appbar">
-    <span class="appbar-title">Tesseramento Mediterranea</span>
+    <span class="appbar-title">Mediterranea Membership</span>
     <div class="lang-switcher">
-      <span class="lang-btn active">🇮🇹 IT</span>
-      <a href="registration-en.html" class="lang-btn" id="langEnBtn">🇬🇧 EN</a>
+      <a href="registration.html" class="lang-btn" id="langItBtn">🇮🇹 IT</a>
+      <span class="lang-btn active">🇬🇧 EN</span>
     </div>
     <a href="index.html" class="appbar-link">
       <span class="material-icons-outlined">home</span> Home
@@ -506,10 +506,10 @@
         <!-- Intro card -->
         <div class="col-intro">
           <div class="card">
-            <h1 class="section-title" id="introTitle">Registrazione socio</h1>
+            <h1 class="section-title" id="introTitle">Member Registration</h1>
             <p class="mb-16" id="introDesc">
-              Compila tutti i dati anagrafici, accetta la privacy e firma
-              digitalmente per inviare la richiesta di tesseramento.
+              Fill in all personal details, accept the privacy policy and sign
+              digitally to submit your membership request.
             </p>
 
             <div class="info-tile">
@@ -517,13 +517,13 @@
                 <span class="material-icons-outlined">badge</span>
               </div>
               <div class="info-tile-text">
-                <strong>Dati completi</strong>
-                <span>Nome, nascita, residenza, contatti e firma vengono salvati nel profilo socio.</span>
+                <strong>Complete details</strong>
+                <span>Name, date of birth, address, contacts and signature are saved in the member profile.</span>
               </div>
             </div>
 
             <p class="text-bold mb-16" id="introTesseraNote">
-              Il numero tessera viene assegnato dall'admin in approvazione.
+              The membership number is assigned by the admin upon approval.
             </p>
 
             <div class="info-tile">
@@ -531,8 +531,8 @@
                 <span class="material-icons-outlined">verified_user</span>
               </div>
               <div class="info-tile-text">
-                <strong>Privacy GDPR</strong>
-                <span>Accettazione obbligatoria prima dell'invio.</span>
+                <strong>GDPR Privacy</strong>
+                <span>Acceptance required before submitting.</span>
               </div>
             </div>
           </div>
@@ -543,120 +543,120 @@
           <div class="card">
             <form id="registrationForm" novalidate>
 
-              <h2 class="section-subtitle">Dati anagrafici</h2>
+              <h2 class="section-subtitle">Personal details</h2>
 
               <div class="fields-grid">
 
                 <div class="field-half form-group">
-                  <label for="nome">Nome</label>
+                  <label for="nome">First name</label>
                   <input type="text" id="nome" name="nome" autocomplete="given-name" required>
-                  <span class="error-msg">Nome obbligatorio</span>
+                  <span class="error-msg">First name is required</span>
                 </div>
 
                 <div class="field-half form-group">
-                  <label for="cognome">Cognome</label>
+                  <label for="cognome">Last name</label>
                   <input type="text" id="cognome" name="cognome" autocomplete="family-name" required>
-                  <span class="error-msg">Cognome obbligatorio</span>
+                  <span class="error-msg">Last name is required</span>
                 </div>
 
                 <div class="field-half form-group">
-                  <label for="luogoNascita">Luogo di nascita</label>
+                  <label for="luogoNascita">Place of birth</label>
                   <input type="text" id="luogoNascita" name="luogoNascita" required>
-                  <span class="error-msg">Luogo di nascita obbligatorio</span>
+                  <span class="error-msg">Place of birth is required</span>
                 </div>
 
                 <div class="field-half form-group">
-                  <label for="dataNascita">Data di nascita</label>
+                  <label for="dataNascita">Date of birth</label>
                   <div class="input-with-icon">
                     <span class="material-icons-outlined">event</span>
                     <input type="text" id="dataNascita" name="dataNascita" placeholder="__/__/____" inputmode="numeric" maxlength="10" required>
                   </div>
-                  <span class="error-msg">Usa il formato gg/mm/aaaa</span>
+                  <span class="error-msg">Use the format dd/mm/yyyy</span>
                 </div>
 
                 <div class="field-half form-group">
-                  <label for="residenza">Nazione di Residenza</label>
+                  <label for="residenza">Country of residence</label>
                   <input type="text" id="residenza" name="residenza" required>
-                  <span class="error-msg">Nazione di residenza obbligatoria</span>
+                  <span class="error-msg">Country of residence is required</span>
                 </div>
 
                 <div class="field-half form-group">
-                  <label for="comune">Comune</label>
+                  <label for="comune">City / Town</label>
                   <input type="text" id="comune" name="comune" required>
-                  <span class="error-msg">Comune obbligatorio</span>
+                  <span class="error-msg">City is required</span>
                 </div>
 
                 <div class="field-half form-group">
-                  <label for="cap">CAP</label>
+                  <label for="cap">Postcode</label>
                   <input type="text" id="cap" name="cap" inputmode="numeric" required>
-                  <span class="error-msg">Inserisci un CAP valido</span>
+                  <span class="error-msg">Enter a valid postcode</span>
                 </div>
 
                 <div class="field-half form-group" id="telefonoGroup">
-                  <label for="telefono">Telefono</label>
+                  <label for="telefono">Phone</label>
                   <div class="input-with-optout">
                     <input type="tel" id="telefono" name="telefono" required>
-                    <button type="button" class="opt-out-btn" id="optOutTelefono" title="Preferisco non fornirlo">
+                    <button type="button" class="opt-out-btn" id="optOutTelefono" title="I prefer not to provide it">
                       <span class="material-icons-outlined">phone_disabled</span>
                     </button>
                   </div>
-                  <span class="error-msg">Inserisci un numero di telefono valido</span>
+                  <span class="error-msg">Enter a valid phone number</span>
                 </div>
 
                 <div class="field-half form-group" id="emailGroup">
                   <label for="email">Email</label>
                   <div class="input-with-optout">
                     <input type="email" id="email" name="email" autocomplete="email" required>
-                    <button type="button" class="opt-out-btn" id="optOutEmail" title="Preferisco non fornirla">
+                    <button type="button" class="opt-out-btn" id="optOutEmail" title="I prefer not to provide it">
                       <span class="material-icons-outlined">mail_lock</span>
                     </button>
                   </div>
-                  <span class="error-msg">Inserisci un indirizzo email valido</span>
+                  <span class="error-msg">Enter a valid email address</span>
                 </div>
 
                 <div class="field-half form-group">
-                  <label for="numeroTessera">Numero tessera</label>
+                  <label for="numeroTessera">Membership number</label>
                   <div class="input-with-icon">
                     <span class="material-icons-outlined">confirmation_number</span>
-                    <input type="text" id="numeroTessera" value="Assegnato dopo approvazione" disabled>
+                    <input type="text" id="numeroTessera" value="Assigned after approval" disabled>
                   </div>
-                  <span class="helper" id="numeroTesseraHelper">Viene generato dall'admin al momento dell'approvazione</span>
+                  <span class="helper" id="numeroTesseraHelper">Generated by the admin upon approval</span>
                 </div>
 
-                <!-- Campo visibile solo nel flusso legacy -->
+                <!-- Visible only in legacy flow -->
                 <div class="field-half form-group" id="dataRegTesseraGroup" style="display:none;">
-                  <label for="dataRegTessera">Data registrazione vecchia tessera</label>
+                  <label for="dataRegTessera">Old membership card registration date</label>
                   <div class="input-with-icon">
                     <span class="material-icons-outlined">history_toggle_off</span>
                     <input type="text" id="dataRegTessera" name="dataRegTessera" placeholder="__/__/____" inputmode="numeric" maxlength="10">
                   </div>
-                  <span class="error-msg">Usa il formato gg/mm/aaaa</span>
+                  <span class="error-msg">Use the format dd/mm/yyyy</span>
                 </div>
 
               </div>
 
-              <!-- Firma -->
-              <h3 class="section-subtitle-sm mt-24">Firma elettronica</h3>
-              <p class="mb-16" style="font-size:14px;color:var(--text-secondary);">Firma nel riquadro bianco qui sotto.</p>
+              <!-- Signature -->
+              <h3 class="section-subtitle-sm mt-24">Electronic signature</h3>
+              <p class="mb-16" style="font-size:14px;color:var(--text-secondary);">Sign in the white box below.</p>
 
               <div class="signature-container">
                 <canvas id="signatureCanvas"></canvas>
               </div>
               <button type="button" class="clear-signature" id="clearSignature">
                 <span class="material-icons-outlined" style="font-size:18px;">restart_alt</span>
-                Cancella firma
+                Clear signature
               </button>
 
               <!-- Privacy -->
               <div class="privacy-row">
                 <input type="checkbox" id="privacy" name="privacy">
-                <label for="privacy">Accetto il trattamento dei dati personali ai sensi del GDPR.</label>
+                <label for="privacy">I accept the processing of personal data pursuant to GDPR.</label>
               </div>
 
               <!-- Submit -->
               <button type="submit" class="btn-filled" id="submitBtn">
                 <span class="material-icons-outlined">send</span>
-                Invia richiesta
+                Submit request
               </button>
 
             </form>
@@ -674,15 +674,15 @@
   <div class="optout-overlay" id="optoutOverlay">
     <div class="optout-dialog">
       <span class="material-icons-outlined dialog-icon">notifications_off</span>
-      <h3>Sei sicuro?</h3>
+      <h3>Are you sure?</h3>
       <p id="optoutDialogMsg"></p>
       <div class="dialog-actions">
         <button class="btn-dialog btn-stay" id="optoutBtnStay">
           <span class="material-icons-outlined">favorite</span>
-          Forse è meglio stare nei paraggi.
+          Maybe it's better to stay in touch.
         </button>
         <button class="btn-dialog btn-skip" id="optoutBtnSkip">
-          No, grazie!
+          No, thanks!
         </button>
       </div>
     </div>
@@ -691,34 +691,43 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="supabase-config.js"></script>
   <script>
+    /* ========= Language switcher: preserve query string ========= */
+    (function() {
+      const qs = window.location.search;
+      if (qs) {
+        const itBtn = document.getElementById('langItBtn');
+        if (itBtn) itBtn.href = 'registration.html' + qs;
+      }
+    })();
+
     /* ========= Legacy flow detection ========= */
     const params = new URLSearchParams(window.location.search);
     const fixedMembershipNumber = params.get('tessera');
     const isLegacyFlow = fixedMembershipNumber !== null && fixedMembershipNumber !== '';
 
     if (isLegacyFlow) {
-      // Titolo AppBar
-      document.querySelector('.appbar-title').textContent = 'Conferma vecchia tessera';
-      document.title = 'Conferma vecchia tessera – Mediterranea';
+      // AppBar title
+      document.querySelector('.appbar-title').textContent = 'Confirm old membership card';
+      document.title = 'Confirm old membership card – Mediterranea';
 
       // Intro card
-      document.getElementById('introTitle').textContent = 'Digitalizzazione vecchia tessera';
+      document.getElementById('introTitle').textContent = 'Legacy Membership Digitisation';
       document.getElementById('introDesc').textContent =
-        `Stai digitalizzando la tessera cartacea n° ${fixedMembershipNumber} già in tuo possesso. La richiesta verrà inviata in una coda pending e l'admin dovrà approvarla prima del salvataggio nel database soci.`;
+        `You are digitising paper membership card n° ${fixedMembershipNumber} you already hold. The request will be placed in a pending queue and the admin must approve it before it is saved to the member database.`;
       document.getElementById('introTesseraNote').textContent =
-        'Il numero tessera rimane fisso e viene verificato dall\'admin.';
+        'The membership number remains fixed and will be verified by the admin.';
 
-      // Numero tessera fisso
+      // Fixed membership number
       const tesseraInput = document.getElementById('numeroTessera');
       tesseraInput.value = fixedMembershipNumber;
       document.getElementById('numeroTesseraHelper').textContent =
-        'Numero tessera storico richiesto dall\'utente';
+        'Historic membership number requested by the user';
 
-      // Mostra campo data registrazione vecchia tessera
+      // Show old card registration date field
       document.getElementById('dataRegTesseraGroup').style.display = '';
     }
 
-    /* ========= Date formatter (gg/mm/aaaa) ========= */
+    /* ========= Date formatter (dd/mm/yyyy) ========= */
     function setupDateFormatter(inputEl) {
       inputEl.addEventListener('input', function () {
         let digits = this.value.replace(/\D/g, '').slice(0, 8);
@@ -747,7 +756,6 @@
       const newW = rect.width;
       const newH = rect.height;
 
-      // Salva il contenuto corrente prima di ridimensionare
       let savedDataUrl = null;
       if (signatureUsed && canvas.width > 0 && canvas.height > 0) {
         savedDataUrl = canvas.toDataURL();
@@ -760,7 +768,6 @@
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
-      // Ripristina la firma scalata alle nuove dimensioni
       if (savedDataUrl) {
         const img = new Image();
         img.onload = () => ctx.drawImage(img, 0, 0, newW, newH);
@@ -881,10 +888,9 @@
           deactivateOptOut(chip, group, input, flagSetter);
           return;
         }
-        // First activation ever: show dialog
         if (!_optOutDialogShown) {
           const confirmed = await showOptOutDialog(
-            `Senza ${labelField} non potrai ricevere aggiornamenti e newsletter riguardo gli eventi di Mediterranea. Vuoi proseguire ugualmente?`
+            `Without a ${labelField} you won't be able to receive updates and newsletters about Mediterranea events. Do you still want to proceed?`
           );
           if (!confirmed) return;
           _optOutDialogShown = true;
@@ -893,8 +899,8 @@
       });
     }
 
-    setupOptOutChip('optOutTelefono', 'telefonoGroup', 'telefono', v => { _optOutTelefono = v; }, 'numero di telefono');
-    setupOptOutChip('optOutEmail', 'emailGroup', 'email', v => { _optOutEmail = v; }, 'indirizzo email');
+    setupOptOutChip('optOutTelefono', 'telefonoGroup', 'telefono', v => { _optOutTelefono = v; }, 'phone number');
+    setupOptOutChip('optOutEmail', 'emailGroup', 'email', v => { _optOutEmail = v; }, 'email address');
 
     function showOptOutDialog(message) {
       return new Promise(resolve => {
@@ -914,9 +920,8 @@
       });
     }
 
-    /* ========= Sanitizzazione testo ========= */
+    /* ========= Text sanitisation ========= */
     function sanitizeText(str) {
-      // Rimuove spazi dopo apostrofi e apici tipografici (es. "D' Amato" → "D'Amato")
       return str.replace(/([''`])\ +/g, '$1');
     }
 
@@ -940,28 +945,28 @@
       }
 
       if (!valid) {
-        showSnackbar('Controlla i campi evidenziati.', true);
+        showSnackbar('Please check the highlighted fields.', true);
         return;
       }
 
       if (!document.getElementById('privacy').checked) {
-        showSnackbar('Devi accettare la privacy per proseguire.', true);
+        showSnackbar('You must accept the privacy policy to proceed.', true);
         return;
       }
 
       if (!signatureUsed) {
-        showSnackbar('La firma elettronica è obbligatoria.', true);
+        showSnackbar('The electronic signature is required.', true);
         return;
       }
 
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
-      btn.innerHTML = '<span class="material-icons-outlined" style="animation:spin 1s linear infinite">sync</span> Invio in corso...';
+      btn.innerHTML = '<span class="material-icons-outlined" style="animation:spin 1s linear infinite">sync</span> Sending...';
 
       try {
         const signatureBlob = await canvasToBlob(canvas);
         if (!signatureBlob || signatureBlob.size === 0) {
-          throw new Error('Impossibile generare il file PNG della firma.');
+          throw new Error('Unable to generate the signature PNG file.');
         }
 
         const formData = {
@@ -982,13 +987,13 @@
           formData.dataRegistrazioneTessera = dateToIso(document.getElementById('dataRegTessera').value.trim());
           await submitLegacyMembershipRequest(formData, signatureBlob);
           showSnackbar(
-            `Richiesta inviata in pending per la digitalizzazione della tessera ${fixedMembershipNumber}. Sarà validata dall'admin prima del salvataggio definitivo.`,
+            `Request placed in the pending queue for digitisation of membership card ${fixedMembershipNumber}. The admin will validate it before final saving.`,
             false
           );
         } else {
           await submitRegistration(formData, signatureBlob);
           showSnackbar(
-            'Richiesta inviata correttamente. Il numero tessera verrà assegnato in fase di approvazione admin.',
+            'Request submitted successfully. The membership number will be assigned during admin approval.',
             false
           );
         }
@@ -1006,31 +1011,22 @@
         _optOutTelefono = false;
         _optOutEmail = false;
 
-        // Ripristina valore numero tessera (il reset lo cancella)
+        // Restore membership number field value after reset
         if (isLegacyFlow) {
           document.getElementById('numeroTessera').value = fixedMembershipNumber;
         } else {
-          document.getElementById('numeroTessera').value = 'Assegnato dopo approvazione';
+          document.getElementById('numeroTessera').value = 'Assigned after approval';
         }
 
       } catch (err) {
-        showSnackbar(err.message || 'Errore durante l\'invio.', true);
+        showSnackbar(err.message || 'An error occurred while submitting.', true);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span class="material-icons-outlined">send</span> Invia richiesta';
+        btn.innerHTML = '<span class="material-icons-outlined">send</span> Submit request';
       }
     });
 
-    /* ========= Language switcher: preserve query string ========= */
-    (function() {
-      const qs = window.location.search;
-      if (qs) {
-        const enBtn = document.getElementById('langEnBtn');
-        if (enBtn) enBtn.href = 'registration-en.html' + qs;
-      }
-    })();
-
-    /* ========= Carica colore tema ========= */
+    /* ========= Load theme colour ========= */
     (async function() {
       const hex = await getAppSetting(SETTING_THEME_COLOR);
       applySeedColor(hex);

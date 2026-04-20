@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ho già la tessera! – Mediterranea</title>
+  <title>I already have a card! – Mediterranea</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -48,22 +48,6 @@
       font-weight: 600;
       flex: 1;
     }
-     .appbar-action {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      border: none;
-      background: none;
-      cursor: pointer;
-      color: var(--text-primary);
-      border-radius: 50%;
-      transition: background .15s;
-    }
-    .appbar-action:hover {
-      background: var(--seed-10);
-    }
     .appbar-link {
       display: inline-flex;
       align-items: center;
@@ -81,7 +65,6 @@
     }
     .appbar-link:hover { background: var(--seed-10); }
     .appbar-link .material-icons-outlined { font-size: 20px; }
-
 
     /* ---- Layout ---- */
     .page-body {
@@ -257,10 +240,10 @@
 
   <!-- AppBar -->
   <header class="appbar">
-    <span class="appbar-title">Ho già la tessera!</span>
+    <span class="appbar-title">I already have a card!</span>
     <div class="lang-switcher">
-      <span class="lang-btn active">🇮🇹 IT</span>
-      <a href="already_member-en.html" class="lang-btn">🇬🇧 EN</a>
+      <a href="already_member.html" class="lang-btn">🇮🇹 IT</a>
+      <span class="lang-btn active">🇬🇧 EN</span>
     </div>
     <a href="index.html" class="appbar-link">
       <span class="material-icons-outlined">home</span> Home
@@ -270,26 +253,26 @@
   <!-- Body -->
   <main class="page-body">
     <div class="card">
-      <h1 class="card-title">Digitalizzazione vecchia tessera</h1>
+      <h1 class="card-title">Legacy Membership Digitisation</h1>
       <p class="card-desc">
-        Inserisci il numero della tessera cartacea già in tuo possesso.
-        Se valido, potrai compilare i tuoi dati per digitalizzarla mantenendo lo stesso numero.
+        Enter the number of the paper membership card you already hold.
+        If valid, you'll be able to fill in your details to digitise it while keeping the same number.
       </p>
 
       <form id="memberForm" novalidate>
         <div class="form-group">
-          <label for="membershipNumber">Numero tessera</label>
+          <label for="membershipNumber">Membership number</label>
           <div class="input-with-icon">
             <span class="material-icons-outlined">confirmation_number</span>
             <input type="text" id="membershipNumber" name="membershipNumber"
-                   placeholder="es. 845" inputmode="numeric" required>
+                   placeholder="e.g. 845" inputmode="numeric" required>
           </div>
-          <span class="error-msg" id="memberError">Inserisci un numero valido maggiore di zero</span>
+          <span class="error-msg" id="memberError">Enter a valid number greater than zero</span>
         </div>
 
         <button type="submit" class="btn-filled" id="submitBtn">
           <span class="material-icons-outlined">arrow_forward</span>
-          Continua con questo numero
+          Continue with this number
         </button>
       </form>
     </div>
@@ -308,7 +291,7 @@
       setTimeout(() => el.classList.remove('visible'), 4000);
     }
 
-    // Carica colore tema
+    // Load theme colour
     (async function() {
       const hex = await getAppSetting(SETTING_THEME_COLOR);
       applySeedColor(hex);
@@ -330,7 +313,7 @@
 
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
-      btn.innerHTML = '<span class="material-icons-outlined" style="animation:spin 1s linear infinite">sync</span> Verifica in corso...';
+      btn.innerHTML = '<span class="material-icons-outlined" style="animation:spin 1s linear infinite">sync</span> Checking...';
 
       try {
         const result = await canRequestLegacyMembershipNumber(num);
@@ -340,12 +323,12 @@
           return;
         }
 
-        window.location.href = 'registration.html?tessera=' + encodeURIComponent(num);
+        window.location.href = 'registration-en.html?tessera=' + encodeURIComponent(num);
       } catch (err) {
-        showSnackbar(err.message || 'Errore durante la verifica.', true);
+        showSnackbar(err.message || 'An error occurred during verification.', true);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span class="material-icons-outlined">arrow_forward</span> Continua con questo numero';
+        btn.innerHTML = '<span class="material-icons-outlined">arrow_forward</span> Continue with this number';
       }
     });
   </script>
