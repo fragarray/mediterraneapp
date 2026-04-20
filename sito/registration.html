@@ -703,15 +703,32 @@
     const ctx = canvas.getContext('2d');
     let drawing = false;
     let lastX = 0, lastY = 0;
+    let signatureUsed = false;
 
     function resizeCanvas() {
       const rect = canvas.parentElement.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      const newW = rect.width;
+      const newH = rect.height;
+
+      // Salva il contenuto corrente prima di ridimensionare
+      let savedDataUrl = null;
+      if (signatureUsed && canvas.width > 0 && canvas.height > 0) {
+        savedDataUrl = canvas.toDataURL();
+      }
+
+      canvas.width = newW;
+      canvas.height = newH;
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 2.5;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
+
+      // Ripristina la firma scalata alle nuove dimensioni
+      if (savedDataUrl) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0, newW, newH);
+        img.src = savedDataUrl;
+      }
     }
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -731,7 +748,6 @@
     canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); lastX = p.x; lastY = p.y; }, { passive: false });
     canvas.addEventListener('touchend', () => drawing = false);
 
-    let signatureUsed = false;
     canvas.addEventListener('mousedown', () => signatureUsed = true);
     canvas.addEventListener('touchstart', () => signatureUsed = true);
 
