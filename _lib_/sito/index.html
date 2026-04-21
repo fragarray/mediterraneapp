@@ -1,0 +1,75 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tesseramento Mediterranea</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+
+ 
+  <main class="page-center">
+    <div class="page-content">
+
+      <!-- Logo -->
+      <img src="logopiccolo.png" alt="Logo Mediterranea" class="logo">
+
+      <!-- Carousel placeholder (mostrato se non ci sono immagini) -->
+      <div class="carousel-placeholder" id="carouselPlaceholder">
+        Il carosello verrà mostrato qui.
+      </div>
+
+      <!-- Carousel reale (nascosto di default) -->
+      <div class="carousel-wrapper" id="carouselWrapper">
+        <div class="carousel-viewport">
+          <div class="carousel-track" id="carouselTrack"></div>
+        </div>
+      </div>
+
+      <!-- Instagram -->
+      <button class="instagram-btn" id="instagramBtn" title="Apri profilo Instagram" disabled>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Instagram">
+          <path fill="#E4405F" d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4c0 3.2-2.6 5.8-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8C2 4.6 4.6 2 7.8 2zm0 1.9A3.9 3.9 0 0 0 3.9 7.8v8.4a3.9 3.9 0 0 0 3.9 3.9h8.4a3.9 3.9 0 0 0 3.9-3.9V7.8a3.9 3.9 0 0 0-3.9-3.9H7.8zm8.9 1.5a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 1.9a3.1 3.1 0 1 0 0 6.2 3.1 3.1 0 0 0 0-6.2z"/>
+        </svg>
+      </button>
+
+      <!-- CTA buttons -->
+      <a href="registration.html" class="btn-filled gap-18">
+        <span class="material-icons-outlined">how_to_reg</span>
+        Nuova registrazione
+      </a>
+
+      <a href="already_member.html" class="btn-outlined gap-18">
+        <span class="material-icons-outlined">badge</span>
+        Ho già la tessera!
+      </a>
+
+      <a href="admin.html" class="admin-link">
+        <span class="material-icons-outlined" style="font-size:15px;">admin_panel_settings</span>
+        Area admin
+      </a>
+
+    </div>
+  </main>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox">
+    <img id="lightboxImg" src="" alt="Immagine ingrandita">
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+    <script src="js/common-ui.js"></script>
+  <script src="js/index.js"></script>
+</body>
+</html>
+
+
+
+

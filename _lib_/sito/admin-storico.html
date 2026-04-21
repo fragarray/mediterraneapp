@@ -1,0 +1,44 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storico approvazioni – Mediterranea</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/admin-shared.css">
+  <link rel="stylesheet" href="css/admin-storico.css">
+</head>
+<body>
+
+  <!-- Stats badge -->
+  <div class="stats-row">
+    <div class="stat-chip">
+      <span class="stat-chip-label" id="badgeLabel">Approvati il …</span>
+      <span class="stat-chip-value" id="badgeCount">–</span>
+      <span class="stat-chip-sub" id="badgeSub">caricamento…</span>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap" id="tableWrap">
+    <div class="empty-state">Caricamento…</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="logo-data.js"></script>
+  <script src="pdf-builder.js"></script>
+    <script src="js/common-ui.js"></script>
+  <script src="js/admin-shared.js"></script>
+  <script src="js/admin-storico.js"></script>
+</body>
+</html>
+
+
+
+

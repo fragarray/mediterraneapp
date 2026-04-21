@@ -1,0 +1,74 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ho già la tessera! – Mediterranea</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/legacy-check-shared.css">
+  <link rel="stylesheet" href="css/already_member.css">
+</head>
+<body>
+
+  <!-- AppBar -->
+  <header class="appbar">
+    <span class="appbar-title">Ho già la tessera!</span>
+    <div class="lang-switcher">
+      <span class="lang-btn active">
+        <span class="flag-circle"><img src="https://flagcdn.com/it.svg" alt="Italiano"></span>
+      </span>
+      <a href="already_member-en.html" class="lang-btn">
+        <span class="flag-circle flag-double"><img src="https://flagcdn.com/us.svg" alt=""><img src="https://flagcdn.com/gb.svg" alt="English"></span>
+      </a>
+    </div>
+    <a href="index.html" class="appbar-link">
+      <span class="material-icons-outlined">home</span> Home
+    </a>
+  </header>
+
+  <!-- Body -->
+  <main class="page-body">
+    <div class="card">
+      <h1 class="card-title">Digitalizzazione vecchia tessera</h1>
+      <p class="card-desc">
+        Inserisci il numero della tessera cartacea già in tuo possesso.
+        Se valido, potrai compilare i tuoi dati per digitalizzarla mantenendo lo stesso numero.
+      </p>
+
+      <form id="memberForm" novalidate>
+        <div class="form-group">
+          <label for="membershipNumber">Numero tessera</label>
+          <div class="input-with-icon">
+            <span class="material-icons-outlined">confirmation_number</span>
+            <input type="text" id="membershipNumber" name="membershipNumber"
+                   placeholder="es. 845" inputmode="numeric" required>
+          </div>
+          <span class="error-msg" id="memberError">Inserisci un numero valido maggiore di zero</span>
+        </div>
+
+        <button type="submit" class="btn-filled" id="submitBtn">
+          <span class="material-icons-outlined">arrow_forward</span>
+          Continua con questo numero
+        </button>
+      </form>
+    </div>
+  </main>
+
+  <!-- Snackbar -->
+  <div class="snackbar" id="snackbar"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+    <script src="js/common-ui.js"></script>
+  <script src="js/already-member-shared.js"></script>
+  <script src="js/already_member.js"></script>
+</body>
+</html>
+
+
+
+

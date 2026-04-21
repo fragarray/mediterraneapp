@@ -1,0 +1,238 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tesseramento Mediterranea – Registrazione</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/registration-shared.css">
+  <link rel="stylesheet" href="css/registration.css">
+</head>
+<body>
+
+  <!-- AppBar -->
+  <header class="appbar">
+    <span class="appbar-title">Tesseramento Mediterranea</span>
+    <div class="lang-switcher">
+      <span class="lang-btn active">
+        <span class="flag-circle"><img src="https://flagcdn.com/it.svg" alt="Italiano"></span>
+      </span>
+      <a href="registration-en.html" class="lang-btn" id="langEnBtn">
+        <span class="flag-circle flag-double"><img src="https://flagcdn.com/us.svg" alt=""><img src="https://flagcdn.com/gb.svg" alt="English"></span>
+      </a>
+    </div>
+    <a href="index.html" class="appbar-link">
+      <span class="material-icons-outlined">home</span> Home
+    </a>
+  </header>
+
+  <!-- Body -->
+  <main class="page-body">
+    <div class="page-container">
+
+      <!-- Logo -->
+      <img src="logopiccolo.png" alt="Logo Mediterranea" class="logo">
+
+      <!-- Two-column -->
+      <div class="two-col">
+
+        <!-- Intro card -->
+        <div class="col-intro">
+          <div class="card">
+            <h1 class="section-title" id="introTitle">Registrazione socio</h1>
+            <p class="mb-16" id="introDesc">
+              Compila tutti i dati anagrafici, accetta la privacy e firma
+              digitalmente per inviare la richiesta di tesseramento.
+            </p>
+
+            <div class="info-tile">
+              <div class="info-tile-icon">
+                <span class="material-icons-outlined">badge</span>
+              </div>
+              <div class="info-tile-text">
+                <strong>Dati completi</strong>
+                <span>Nome, nascita, residenza, contatti e firma vengono salvati nel profilo socio.</span>
+              </div>
+            </div>
+
+            <p class="text-bold mb-16" id="introTesseraNote">
+              Il numero tessera viene assegnato dall'admin in approvazione.
+            </p>
+
+            <div class="info-tile">
+              <div class="info-tile-icon">
+                <span class="material-icons-outlined">verified_user</span>
+              </div>
+              <div class="info-tile-text">
+                <strong>Privacy GDPR</strong>
+                <span>Accettazione obbligatoria prima dell'invio.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form card -->
+        <div class="col-form">
+          <div class="card">
+            <form id="registrationForm" novalidate>
+
+              <h2 class="section-subtitle">Dati anagrafici</h2>
+
+              <div class="fields-grid">
+
+                <div class="field-half form-group">
+                  <label for="nome">Nome</label>
+                  <input type="text" id="nome" name="nome" autocomplete="given-name" required>
+                  <span class="error-msg">Nome obbligatorio</span>
+                </div>
+
+                <div class="field-half form-group">
+                  <label for="cognome">Cognome</label>
+                  <input type="text" id="cognome" name="cognome" autocomplete="family-name" required>
+                  <span class="error-msg">Cognome obbligatorio</span>
+                </div>
+
+                <div class="field-half form-group">
+                  <label for="luogoNascita">Luogo di nascita</label>
+                  <input type="text" id="luogoNascita" name="luogoNascita" required>
+                  <span class="error-msg">Luogo di nascita obbligatorio</span>
+                </div>
+
+                <div class="field-half form-group">
+                  <label for="dataNascita">Data di nascita</label>
+                  <div class="input-with-icon">
+                    <span class="material-icons-outlined">event</span>
+                    <input type="text" id="dataNascita" name="dataNascita" placeholder="__/__/____" inputmode="numeric" maxlength="10" required>
+                  </div>
+                  <span class="error-msg">Usa il formato gg/mm/aaaa</span>
+                </div>
+
+                <div class="field-half form-group">
+                  <label for="residenza">Nazione di Residenza</label>
+                  <input type="text" id="residenza" name="residenza" required>
+                  <span class="error-msg">Nazione di residenza obbligatoria</span>
+                </div>
+
+                <div class="field-half form-group">
+                  <label for="comune">Comune</label>
+                  <input type="text" id="comune" name="comune" required>
+                  <span class="error-msg">Comune obbligatorio</span>
+                </div>
+
+                <div class="field-half form-group">
+                  <label for="cap">CAP</label>
+                  <input type="text" id="cap" name="cap" inputmode="numeric" required>
+                  <span class="error-msg">Inserisci un CAP valido</span>
+                </div>
+
+                <div class="field-half form-group" id="telefonoGroup">
+                  <label for="telefono">Telefono</label>
+                  <div class="input-with-optout">
+                    <input type="tel" id="telefono" name="telefono" required>
+                    <button type="button" class="opt-out-btn" id="optOutTelefono" title="Preferisco non fornirlo">
+                      <span class="material-icons-outlined">phone_disabled</span>
+                    </button>
+                  </div>
+                  <span class="error-msg">Inserisci un numero di telefono valido</span>
+                </div>
+
+                <div class="field-half form-group" id="emailGroup">
+                  <label for="email">Email</label>
+                  <div class="input-with-optout">
+                    <input type="email" id="email" name="email" autocomplete="email" required>
+                    <button type="button" class="opt-out-btn" id="optOutEmail" title="Preferisco non fornirla">
+                      <span class="material-icons-outlined">mail_lock</span>
+                    </button>
+                  </div>
+                  <span class="error-msg">Inserisci un indirizzo email valido</span>
+                </div>
+
+                <div class="field-half form-group">
+                  <label for="numeroTessera">Numero tessera</label>
+                  <div class="input-with-icon">
+                    <span class="material-icons-outlined">confirmation_number</span>
+                    <input type="text" id="numeroTessera" value="Assegnato dopo approvazione" disabled>
+                  </div>
+                  <span class="helper" id="numeroTesseraHelper">Viene generato dall'admin al momento dell'approvazione</span>
+                </div>
+
+                <!-- Campo visibile solo nel flusso legacy -->
+                <div class="field-half form-group" id="dataRegTesseraGroup" style="display:none;">
+                  <label for="dataRegTessera">Data registrazione vecchia tessera</label>
+                  <div class="input-with-icon">
+                    <span class="material-icons-outlined">history_toggle_off</span>
+                    <input type="text" id="dataRegTessera" name="dataRegTessera" placeholder="__/__/____" inputmode="numeric" maxlength="10">
+                  </div>
+                  <span class="error-msg">Usa il formato gg/mm/aaaa</span>
+                </div>
+
+              </div>
+
+              <!-- Firma -->
+              <h3 class="section-subtitle-sm mt-24">Firma elettronica</h3>
+              <p class="mb-16" style="font-size:14px;color:var(--text-secondary);">Firma nel riquadro bianco qui sotto.</p>
+
+              <div class="signature-container">
+                <canvas id="signatureCanvas"></canvas>
+              </div>
+              <button type="button" class="clear-signature" id="clearSignature">
+                <span class="material-icons-outlined" style="font-size:18px;">restart_alt</span>
+                Cancella firma
+              </button>
+
+              <!-- Privacy -->
+              <div class="privacy-row">
+                <input type="checkbox" id="privacy" name="privacy">
+                <label for="privacy">Accetto il trattamento dei dati personali ai sensi del GDPR.</label>
+              </div>
+
+              <!-- Submit -->
+              <button type="submit" class="btn-filled" id="submitBtn">
+                <span class="material-icons-outlined">send</span>
+                Invia richiesta
+              </button>
+
+            </form>
+          </div>
+        </div>
+
+      </div><!-- /two-col -->
+    </div>
+  </main>
+
+  <!-- Snackbar -->
+  <div class="snackbar" id="snackbar"></div>
+
+  <!-- Opt-out confirmation dialog -->
+  <div class="optout-overlay" id="optoutOverlay">
+    <div class="optout-dialog">
+      <span class="material-icons-outlined dialog-icon">notifications_off</span>
+      <h3>Sei sicuro?</h3>
+      <p id="optoutDialogMsg"></p>
+      <div class="dialog-actions">
+        <button class="btn-dialog btn-stay" id="optoutBtnStay">
+          <span class="material-icons-outlined">favorite</span>
+          Forse è meglio stare nei paraggi.
+        </button>
+        <button class="btn-dialog btn-skip" id="optoutBtnSkip">
+          No, grazie!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+    <script src="js/common-ui.js"></script>
+  <script src="js/registration-shared.js"></script>
+  <script src="js/registration.js"></script>
+</body>
+</html>
+
+
+
+

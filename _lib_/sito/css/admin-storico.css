@@ -1,0 +1,93 @@
+﻿*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --seed: #2E7D32;
+      --seed-light: rgba(46,125,50,0.05);
+      --seed-10: rgba(46,125,50,0.10);
+      --scaffold-bg: #F7F8F6;
+      --text-primary: #152417;
+      --text-secondary: #555;
+      --border-color: #d0d0d0;
+      --white: #fff;
+      --radius: 14px;
+      --radius-lg: 18px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--scaffold-bg);
+      color: var(--text-primary);
+      padding: 20px;
+      opacity: 0;
+      transition: opacity .25s ease;
+    }
+    body.ready { opacity: 1; }
+
+    /* ---- Stats ---- */
+    .stats-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-chip {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      background: var(--white);
+      border: 1px solid #e8e8e8;
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      min-width: 160px;
+    }
+    .stat-chip-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .stat-chip-value { font-size: 28px; font-weight: 800; color: var(--text-primary); }
+    .stat-chip-sub { font-size: 12px; color: var(--text-secondary); }
+
+    /* ---- Table ---- */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      table-layout: fixed;
+    }
+    th {
+      background: #F4F6F3;
+      font-weight: 700;
+      text-align: left;
+      padding: 10px 12px;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    th:hover { background: #EAF0EA; }
+    th .sort-icon { font-size: 13px; vertical-align: middle; color: var(--seed); }
+    th .resize-handle {
+      position: absolute; top: 0; right: 0;
+      width: 5px; height: 100%; cursor: col-resize;
+      background: transparent; z-index: 1;
+    }
+    th .resize-handle:hover,
+    th .resize-handle.active {
+      background: var(--seed);
+      opacity: .35;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--seed-light); }
+

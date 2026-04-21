@@ -1,0 +1,389 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – Mediterranea</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/admin-shared.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <!-- AppBar -->
+  <header class="appbar">
+    <a href="index.html" class="appbar-action" title="Home">
+      <span class="material-icons-outlined">home</span>
+    </a>
+    <span class="appbar-title">Mediterranea</span>
+    <span class="appbar-user" id="appbarUser"></span>
+    <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')" title="Dashboard">
+      <span class="material-icons-outlined">dashboard</span>
+    </button>
+    <a href="admin-ricerca.html" class="appbar-action" title="Ricerca">
+      <span class="material-icons-outlined">search</span>
+    </a>
+    <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')" title="Impostazioni">
+      <span class="material-icons-outlined">settings</span>
+    </button>
+    <span class="rt-dot" id="rtDot" title="Realtime"></span>
+    <button class="appbar-action" id="signOutBtn" style="display:none;" onclick="handleSignOut()" title="Esci">
+      <span class="material-icons-outlined">logout</span>
+    </button>
+  </header>
+
+  <!-- ====== Login view ====== -->
+  <div id="loginView">
+    <div class="login-card">
+      <h1>Accesso admin</h1>
+      <p>Inserisci le credenziali per accedere alla dashboard.</p>
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" autocomplete="username" required>
+          <span class="error-msg">Email obbligatoria</span>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" autocomplete="current-password" required>
+          <span class="error-msg">Password obbligatoria</span>
+        </div>
+        <button type="submit" class="btn-filled full" id="loginBtn">
+          <span class="material-icons-outlined">lock_open</span>
+          Accedi
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====== Main view (post-login) ====== -->
+  <div id="mainView">
+
+    <!-- ===== Dashboard tab ===== --> 
+    <div class="page-body" id="tabDashboard">
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-chip accent">
+          <span class="stat-chip-label">In sospeso</span>
+          <span class="stat-chip-value" id="statPending">–</span>
+          <span class="stat-chip-sub">da approvare</span>
+        </div>
+        <div class="stat-chip accent">
+          <span class="stat-chip-label">Digitalizzazione</span>
+          <span class="stat-chip-value" id="statLegacy">–</span>
+          <span class="stat-chip-sub">tessere da digitalizzare</span>
+        </div>
+        <div class="stat-chip">
+          <span class="stat-chip-label">Approvati oggi</span>
+          <span class="stat-chip-value" id="statApproved">–</span>
+          <span class="stat-chip-sub">ultimo n° <strong id="statLastNumber">–</strong></span>
+        </div>
+        <div class="stat-chip">
+          <span class="stat-chip-label">Approvati ieri</span>
+          <span class="stat-chip-value" id="statYesterday">–</span>
+          <span class="stat-chip-sub" id="statYesterdayDate"></span>
+        </div>
+        <div class="stat-chip stat-chip-history">
+          <span class="stat-chip-label">Approvati il</span>
+          <button type="button" class="stat-chip-cal-filled" id="btnHistoryDate" title="Seleziona data">
+            <span class="material-icons-outlined">calendar_month</span>
+          </button>
+          <input type="date" id="historyDatePicker" class="hidden-date-input">
+        </div>
+      </div>
+      
+
+      <!-- Pending members -->
+      <div class="section-header section-mb">
+        <div>
+          <div class="section-title accent">Richieste in sospeso</div>
+          <div class="section-desc">Nuove richieste di tesseramento in attesa di approvazione.</div>
+        </div>
+      </div>
+      <div class="table-wrap accent" id="pendingTableWrap">
+        <div class="empty-state">Caricamento…</div>
+      </div>
+
+      <!-- Legacy requests -->
+      <div class="section-header section-mb" style="margin-top:24px;">
+        <div>
+          <div class="section-title accent">Richieste digitalizzazione in sospeso</div>
+          <div class="section-desc">Tessere cartacee in attesa di digitalizzazione.</div>
+        </div>
+      </div>
+      <div class="table-wrap accent" id="legacyTableWrap">
+        <div class="empty-state">Caricamento…</div>
+      </div>
+
+      <!-- Recent approved -->
+      <div class="section-header section-mb" style="margin-top:24px;">
+        <div>
+          <div class="section-title">
+            Ultimi approvati
+            <span class="limit-picker">
+              (<span class="limit-value" id="approvedLimitLabel">30</span>)
+              <button class="limit-edit-btn" id="limitEditBtn" title="Cambia limite">
+                <span class="material-icons-outlined">edit</span>
+              </button>
+              <span class="limit-options" id="limitOptions">
+                <button onclick="setApprovedLimit(30)">30</button>
+                <button onclick="setApprovedLimit(60)">60</button>
+                <button onclick="setApprovedLimit(100)">100</button>
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap" id="approvedTableWrap">
+        <div class="empty-state">Caricamento…</div>
+      </div>
+
+    </div><!-- /tabDashboard -->
+
+    <!-- ===== Settings tab ===== -->
+    <div class="page-body" id="tabSettings" style="display:none;">
+
+      <!-- Numero tessera start -->
+      <div class="card">
+        <div class="card-title">Numero iniziale tessere</div>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">
+          Il primo numero che verrà assegnato ai nuovi soci digitalizzati. Tutti i numeri inferiori a questo sono considerati tessere cartacee.
+        </p>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+            <label for="membershipStartInput">Numero iniziale</label>
+            <input type="number" id="membershipStartInput" min="1" placeholder="es. 500">
+          </div>
+          <button class="btn-filled" id="saveMembershipStartBtn" onclick="saveMembershipStart()">
+            <span class="material-icons-outlined">save</span> Salva
+          </button>
+        </div>
+      </div>
+
+      <!-- Instagram -->
+      <div class="card">
+        <div class="card-title">Link Instagram</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="form-group" style="margin:0;flex:1;min-width:200px;">
+            <label for="instagramInput">URL profilo</label>
+            <input type="url" id="instagramInput" placeholder="https://www.instagram.com/...">
+          </div>
+          <button class="btn-filled" id="saveInstagramBtn" onclick="saveInstagram()">
+            <span class="material-icons-outlined">save</span> Salva
+          </button>
+        </div>
+      </div>
+
+      <!-- Colore tema -->
+      <div class="card">
+        <div class="card-title">Colore tema</div>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;">Seleziona il colore seed dell'app e del sito.</p>
+
+        <div class="color-picker-wrap">
+          <!-- Native color wheel -->
+          <input type="color" class="color-input-native" id="colorWheel" value="#2E7D32"
+                 oninput="onColorWheelChange(this.value)">
+
+          <div class="color-controls">
+            <!-- Hex input -->
+            <div class="color-hex-row">
+              <label>HEX</label>
+              <input type="text" class="color-hex-input" id="colorHexInput" value="#2E7D32" maxlength="7"
+                     oninput="onHexInputChange(this.value)">
+            </div>
+            <!-- Alpha slider -->
+            <div class="color-alpha-row">
+              <label>Opacità</label>
+              <input type="range" id="colorAlpha" min="0" max="255" value="255"
+                     oninput="onAlphaChange(this.value)">
+              <span class="color-alpha-val" id="colorAlphaVal">100%</span>
+            </div>
+            <!-- Preview bar -->
+            <div class="color-preview-bar" id="colorPreviewBar" style="background:#2E7D32;"></div>
+          </div>
+        </div>
+
+        <!-- Preset shortcuts -->
+        <p style="font-size:11px;color:var(--text-secondary);margin:0 0 6px;">Preset rapidi</p>
+        <div class="color-presets" id="colorPresets">
+          <div class="color-preset" style="background:#2E7D32;" data-color="#2E7D32" title="Verde" onclick="pickPreset(this)"></div>
+          <div class="color-preset" style="background:#1565C0;" data-color="#1565C0" title="Blu" onclick="pickPreset(this)"></div>
+          <div class="color-preset" style="background:#6A1B9A;" data-color="#6A1B9A" title="Viola" onclick="pickPreset(this)"></div>
+          <div class="color-preset" style="background:#9C2748;" data-color="#9C2748" title="Bordeaux" onclick="pickPreset(this)"></div>
+          <div class="color-preset" style="background:#EF6C00;" data-color="#EF6C00" title="Arancio" onclick="pickPreset(this)"></div>
+          <div class="color-preset" style="background:#00838F;" data-color="#00838F" title="Teal" onclick="pickPreset(this)"></div>
+          <div class="color-preset" style="background:#AD1457;" data-color="#AD1457" title="Rosa" onclick="pickPreset(this)"></div>
+          <div class="color-preset" style="background:#4E342E;" data-color="#4E342E" title="Marrone" onclick="pickPreset(this)"></div>
+          <div class="color-preset" style="background:#37474F;" data-color="#37474F" title="Grigio" onclick="pickPreset(this)"></div>
+          <div class="color-preset" style="background:#F9A825;" data-color="#F9A825" title="Giallo" onclick="pickPreset(this)"></div>
+        </div>
+
+        <button class="btn-filled" id="saveColorBtn" style="margin-top:16px;" onclick="saveThemeColor()">
+          <span class="material-icons-outlined">palette</span> Salva colore
+        </button>
+      </div>
+
+      <!-- Carosello -->
+      <div class="card">
+        <div class="card-title">Carosello</div>
+
+        <!-- Live carousel preview (same as index.html) -->
+        <div class="carousel-preview-outer" id="carouselPreviewOuter">
+          <div class="carousel-preview-wrap" id="carouselPreviewWrap" style="height:230px;">
+            <div class="carousel-viewport">
+              <div class="carousel-track" id="carouselTrack"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sliders -->
+        <div style="margin-top:16px; border-top:1px solid var(--border-color); padding-top:14px;">
+          <div class="slider-row">
+            <label>Altezza (px)</label>
+            <input type="range" id="sliderHeight" min="140" max="520" step="10" value="230"
+              oninput="document.getElementById('valHeight').textContent=this.value; updateCarouselPreview()">
+            <span class="slider-value" id="valHeight">230</span>
+          </div>
+          <div class="slider-row">
+            <label>Immagini visibili</label>
+            <input type="range" id="sliderItems" min="1" max="6" step="1" value="2"
+              oninput="document.getElementById('valItems').textContent=this.value; updateCarouselPreview()">
+            <span class="slider-value" id="valItems">2</span>
+          </div>
+          <div class="slider-row">
+            <label>Autoplay (secondi)</label>
+            <input type="range" id="sliderAutoplay" min="1" max="12" step="1" value="4"
+              oninput="document.getElementById('valAutoplay').textContent=this.value; updateCarouselPreview()">
+            <span class="slider-value" id="valAutoplay">4</span>
+          </div>
+        </div>
+
+        <!-- Upload -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 6px;">
+          <label class="btn-filled" style="cursor:pointer;">
+            <span class="material-icons-outlined">add_photo_alternate</span> Carica immagini
+            <input type="file" id="carouselFileInput" accept="image/*" multiple style="display:none;" onchange="uploadCarouselFiles(this)">
+          </label>
+        </div>
+
+        <!-- Image list (badges) -->
+        <div id="carouselImageList" class="carousel-image-list">
+          <div class="empty-state" style="padding:16px;">Nessuna immagine caricata.</div>
+        </div>
+
+        <button class="btn-filled" style="margin-top:12px;" onclick="saveCarouselConfig()">
+          <span class="material-icons-outlined">save</span> Salva configurazione carosello
+        </button>
+      </div>
+
+    </div><!-- /tabSettings -->
+
+  </div><!-- /mainView -->
+
+  <!-- ====== Edit member modal ====== -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-box">
+      <div class="modal-title">Modifica socio</div>
+      <input type="hidden" id="editMemberId">
+      <div class="fields-grid">
+        <div class="field-half form-group">
+          <label for="editNome">Nome</label>
+          <input type="text" id="editNome">
+        </div>
+        <div class="field-half form-group">
+          <label for="editCognome">Cognome</label>
+          <input type="text" id="editCognome">
+        </div>
+        <div class="field-half form-group">
+          <label for="editLuogoNascita">Luogo di nascita</label>
+          <input type="text" id="editLuogoNascita">
+        </div>
+        <div class="field-half form-group">
+          <label for="editDataNascita">Data di nascita (gg/mm/aaaa)</label>
+          <input type="text" id="editDataNascita" placeholder="__/__/____" maxlength="10" inputmode="numeric">
+        </div>
+        <div class="field-half form-group">
+          <label for="editResidenza">Residenza</label>
+          <input type="text" id="editResidenza">
+        </div>
+        <div class="field-half form-group">
+          <label for="editComune">Comune</label>
+          <input type="text" id="editComune">
+        </div>
+        <div class="field-half form-group">
+          <label for="editCap">CAP</label>
+          <input type="text" id="editCap" inputmode="numeric">
+        </div>
+        <div class="field-half form-group">
+          <label for="editEmail">Email</label>
+          <input type="email" id="editEmail">
+        </div>
+        <div class="field-half form-group">
+          <label for="editTelefono">Telefono</label>
+          <input type="tel" id="editTelefono">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeEditModal()">Annulla</button>
+        <button class="btn-filled" id="editSaveBtn" onclick="submitEditMember()">
+          <span class="material-icons-outlined">save</span> Salva
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Confirm dialog ====== -->
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box">
+      <h3 id="confirmTitle">Conferma</h3>
+      <p id="confirmText"></p>
+      <div class="confirm-actions">
+        <button class="btn-ghost" onclick="confirmResolve(false)">Annulla</button>
+        <button class="btn-filled" id="confirmOkBtn" onclick="confirmResolve(true)">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== History overlay ====== -->
+  <div class="history-overlay" id="historyOverlay">
+    <div class="history-frame">
+      <div class="history-frame-header">
+        <h3 id="historyFrameTitle">Approvati il …</h3>
+        <button class="history-frame-close" id="historyCloseBtn" title="Chiudi">
+          <span class="material-icons-outlined">close</span>
+        </button>
+      </div>
+      <iframe id="historyIframe" src="about:blank"></iframe>
+    </div>
+  </div>
+
+  <!-- ====== Lightbox ====== -->
+  <div class="lightbox" id="lightbox" onclick="this.classList.remove('active')">
+    <img id="lightboxImg" src="" alt="Firma">
+  </div>
+
+  <!-- Snackbar -->
+  <div class="snackbar" id="snackbar"></div>
+
+  <!-- Supabase JS SDK (condiviso con supabase-config.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- jsPDF per export PDF singolo socio -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="logo-data.js"></script>
+  <script src="pdf-builder.js"></script>
+    <script src="js/common-ui.js"></script>
+  <script src="js/admin-shared.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
+
+
+
+

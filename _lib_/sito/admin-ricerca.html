@@ -1,0 +1,256 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ricerca soci – Mediterranea</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/admin-shared.css">
+  <link rel="stylesheet" href="css/admin-ricerca.css">
+</head>
+<body>
+
+  <!-- AppBar -->
+  <header class="appbar">
+    <a href="index.html" class="appbar-action" title="Home">
+      <span class="material-icons-outlined">home</span>
+    </a>
+    <span class="appbar-title">Mediterranea</span>
+    <span class="appbar-user" id="appbarUser"></span>
+    <a href="admin.html" class="appbar-action" title="Dashboard">
+      <span class="material-icons-outlined">dashboard</span>
+    </a>
+    <a href="admin-ricerca.html" class="appbar-action active" title="Ricerca">
+      <span class="material-icons-outlined">search</span>
+    </a>
+    <a href="admin.html" class="appbar-action" title="Impostazioni">
+      <span class="material-icons-outlined">settings</span>
+    </a>
+    <button class="appbar-action" id="signOutBtn" style="display:none;" onclick="handleSignOut()" title="Esci">
+      <span class="material-icons-outlined">logout</span>
+    </button>
+  </header>
+
+  <!-- Auth gate -->
+  <div id="authGate">
+    <div class="auth-gate-box">
+      <div class="material-icons-outlined">lock</div>
+      <h2>Accesso richiesto</h2>
+      <p>Effettua l'accesso dalla dashboard admin per usare la ricerca.</p>
+      <a href="admin.html" class="btn-filled">
+        <span class="material-icons-outlined">login</span> Vai al login
+      </a>
+    </div>
+  </div>
+
+  <!-- Page body (visible after auth) -->
+  <div id="pageBody">
+
+    <!-- Filter panel -->
+    <div class="filter-card">
+      <!-- Main search bar with tune toggle -->
+      <div class="search-main">
+        <input type="search" id="fGeneral"
+               placeholder="Tessera, nome, cognome, nascita, residenza, comune, CAP, email, telefono o data"
+               oninput="applyFilters()">
+        <button class="tune-btn" id="tuneBtn" onclick="toggleAdvanced()" title="Mostra/nascondi filtri avanzati">
+          <span class="material-icons-outlined">tune</span>
+        </button>
+      </div>
+
+      <!-- Advanced filters (hidden by default) -->
+      <div class="advanced-panel" id="advancedPanel">
+        <!-- Row 1: Stato, Privacy, Date range -->
+        <div class="filter-row">
+          <div class="filter-field">
+            <label>Stato</label>
+            <select id="fStato" onchange="applyFilters()">
+              <option value="">Tutti gli stati</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Confermati</option>
+              <option value="rejected">Rifiutati</option>
+              <option value="deleted">Archiviati</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label>Registrato dal</label>
+            <input type="date" id="fDateFrom" onchange="applyFilters()">
+          </div>
+          <div class="filter-field">
+            <label>Registrato al</label>
+            <input type="date" id="fDateTo" onchange="applyFilters()">
+          </div>
+        </div>
+        <!-- Row 2: Text filters -->
+        <div class="filter-row">
+          <div class="filter-field">
+            <label>Nome</label>
+            <input type="text" id="fNome" placeholder="Nome" oninput="applyFilters()">
+          </div>
+          <div class="filter-field">
+            <label>Cognome</label>
+            <input type="text" id="fCognome" placeholder="Cognome" oninput="applyFilters()">
+          </div>
+          <div class="filter-field">
+            <label>Luogo nascita</label>
+            <input type="text" id="fLuogo" placeholder="Luogo nascita" oninput="applyFilters()">
+          </div>
+          <div class="filter-field">
+            <label>Data nascita</label>
+            <input type="text" id="fDataNascita" placeholder="gg/mm/aaaa" oninput="applyFilters()">
+          </div>
+          <div class="filter-field">
+            <label>Residenza</label>
+            <input type="text" id="fResidenza" placeholder="Residenza" oninput="applyFilters()">
+          </div>
+          <div class="filter-field">
+            <label>Comune</label>
+            <input type="text" id="fComune" placeholder="Comune" oninput="applyFilters()">
+          </div>
+          <div class="filter-field">
+            <label>CAP</label>
+            <input type="text" id="fCap" placeholder="CAP" oninput="applyFilters()">
+          </div>
+          <div class="filter-field">
+            <label>Email</label>
+            <input type="text" id="fEmail" placeholder="Email" oninput="applyFilters()">
+          </div>
+          <div class="filter-field">
+            <label>Telefono</label>
+            <input type="text" id="fTelefono" placeholder="Telefono" oninput="applyFilters()">
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <button class="btn-ghost" onclick="resetFilters()">
+            <span class="material-icons-outlined">restart_alt</span> Pulisci filtri
+          </button>
+        </div>
+      </div>
+
+      <div class="filter-actions">
+        <button class="btn-outlined" onclick="loadAllMembers()">
+          <span class="material-icons-outlined">refresh</span> Ricarica
+        </button>
+        <button class="btn-filled" onclick="exportExcel()">
+          <span class="material-icons-outlined">table_chart</span> Excel
+        </button>
+        <button class="btn-outlined" id="exportPdfZipBtn" onclick="exportPdfZip()" title="Genera tutti i PDF in un file ZIP">
+          <span class="material-icons-outlined">folder_zip</span> PDF ZIP
+        </button>
+        <span class="result-count" id="resultCount" style="margin-left:0;"></span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+          <button id="pagePrev" class="btn-outlined" onclick="changePage(-1)" disabled
+            style="padding:6px 12px;min-width:0;" title="Pagina precedente">
+            <span class="material-icons-outlined" style="font-size:18px;">chevron_left</span>
+          </button>
+          <button id="pageNext" class="btn-outlined" onclick="changePage(1)" disabled
+            style="padding:6px 12px;min-width:0;" title="Pagina successiva">
+            <span class="material-icons-outlined" style="font-size:18px;">chevron_right</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results table -->
+    <div class="table-wrap" id="resultsTableWrap">
+      <div class="empty-state">Caricamento…</div>
+    </div>
+
+  </div><!-- /pageBody -->
+
+  <!-- ====== Edit member modal ====== -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-box">
+      <div class="modal-title">Modifica socio</div>
+      <input type="hidden" id="editMemberId">
+      <div class="fields-grid">
+        <div class="field-half form-group">
+          <label for="editNome">Nome</label>
+          <input type="text" id="editNome">
+        </div>
+        <div class="field-half form-group">
+          <label for="editCognome">Cognome</label>
+          <input type="text" id="editCognome">
+        </div>
+        <div class="field-half form-group">
+          <label for="editLuogoNascita">Luogo di nascita</label>
+          <input type="text" id="editLuogoNascita">
+        </div>
+        <div class="field-half form-group">
+          <label for="editDataNascita">Data di nascita (gg/mm/aaaa)</label>
+          <input type="text" id="editDataNascita" placeholder="__/__/____" maxlength="10" inputmode="numeric">
+        </div>
+        <div class="field-half form-group">
+          <label for="editResidenza">Residenza</label>
+          <input type="text" id="editResidenza">
+        </div>
+        <div class="field-half form-group">
+          <label for="editComune">Comune</label>
+          <input type="text" id="editComune">
+        </div>
+        <div class="field-half form-group">
+          <label for="editCap">CAP</label>
+          <input type="text" id="editCap" inputmode="numeric">
+        </div>
+        <div class="field-half form-group">
+          <label for="editEmail">Email</label>
+          <input type="email" id="editEmail">
+        </div>
+        <div class="field-half form-group">
+          <label for="editTelefono">Telefono</label>
+          <input type="tel" id="editTelefono">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeEditModal()">Annulla</button>
+        <button class="btn-filled" id="editSaveBtn" onclick="submitEditMember()">
+          <span class="material-icons-outlined">save</span> Salva
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Confirm dialog ====== -->
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box">
+      <h3 id="confirmTitle">Conferma</h3>
+      <p id="confirmText"></p>
+      <div class="confirm-actions">
+        <button class="btn-ghost" onclick="confirmResolve(false)">Annulla</button>
+        <button class="btn-filled" id="confirmOkBtn" onclick="confirmResolve(true)">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Lightbox ====== -->
+  <div class="lightbox" id="lightbox" onclick="this.classList.remove('active')">
+    <img id="lightboxImg" src="" alt="Firma">
+  </div>
+
+  <!-- Snackbar -->
+  <div class="snackbar" id="snackbar"></div>
+
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <!-- jsPDF + autoTable for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="logo-data.js"></script>
+  <script src="pdf-builder.js"></script>
+    <script src="js/common-ui.js"></script>
+  <script src="js/admin-shared.js"></script>
+  <script src="js/admin-ricerca.js"></script>
+</body>
+</html>
+
+
+
+

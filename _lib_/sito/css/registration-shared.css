@@ -1,0 +1,372 @@
+body {
+  background: linear-gradient(to bottom, var(--seed-light), var(--scaffold-bg));
+  background-color: var(--scaffold-bg);
+}
+
+.appbar {
+  padding: 12px 20px;
+  background: transparent;
+  gap: 4px;
+}
+
+.appbar-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.page-body {
+  padding: 24px 16px;
+  display: flex;
+  justify-content: center;
+}
+
+@media (min-width: 960px) {
+  .page-body {
+    padding: 24px 32px;
+  }
+}
+
+.page-container {
+  width: 100%;
+  max-width: 1180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo {
+  height: 78px;
+  border-radius: 16px;
+  object-fit: contain;
+  margin-bottom: 14px;
+}
+
+@media (min-width: 960px) {
+  .logo {
+    height: 110px;
+    margin-bottom: 20px;
+  }
+}
+
+.two-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+@media (min-width: 960px) {
+  .two-col {
+    flex-direction: row;
+    gap: 24px;
+  }
+
+  .two-col .col-intro {
+    flex: 1;
+  }
+
+  .two-col .col-form {
+    flex: 2;
+  }
+}
+
+.card {
+  padding: 24px;
+}
+
+.info-tile {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+  align-items: flex-start;
+}
+
+.info-tile-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  background: var(--seed-10);
+  border-radius: 12px;
+  color: var(--seed);
+}
+
+.info-tile-icon .material-icons-outlined {
+  font-size: 22px;
+}
+
+.info-tile-text strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.info-tile-text span {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.section-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.section-subtitle {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.section-subtitle-sm {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.text-bold {
+  font-weight: 600;
+}
+
+.fields-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.field-half {
+  width: 100%;
+}
+
+@media (min-width: 760px) {
+  .field-half {
+    width: calc(50% - 8px);
+  }
+}
+
+.form-group input {
+  padding: 14px 16px;
+  font-size: 16px;
+}
+
+.form-group input:disabled {
+  background: #f5f5f5;
+  color: #888;
+}
+
+.form-group .input-with-icon {
+  position: relative;
+}
+
+.form-group .input-with-icon .material-icons-outlined {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: #999;
+  pointer-events: none;
+}
+
+.form-group .input-with-icon input {
+  padding-left: 42px;
+}
+
+.form-group .helper {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.signature-container {
+  height: 210px;
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 4px;
+}
+
+.signature-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.clear-signature {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--seed);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  float: right;
+  transition: background .15s;
+}
+
+.clear-signature:hover {
+  background: var(--seed-10);
+}
+
+.privacy-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 8px;
+  clear: both;
+}
+
+.privacy-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--seed);
+  flex-shrink: 0;
+}
+
+.privacy-row label {
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.btn-filled {
+  width: 100%;
+  padding: 18px 24px;
+  font-size: 17px;
+  font-weight: 700;
+  margin-top: 16px;
+}
+
+.input-with-optout {
+  position: relative;
+}
+
+.input-with-optout input {
+  padding-right: 40px;
+  width: 100%;
+}
+
+.opt-out-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #bbb;
+  cursor: pointer;
+  transition: all .15s ease;
+  padding: 0;
+}
+
+.opt-out-btn .material-icons-outlined {
+  font-size: 18px;
+}
+
+.opt-out-btn:hover {
+  color: var(--seed);
+}
+
+.opt-out-btn.active {
+  background: var(--seed);
+  color: var(--white);
+  border-radius: 6px;
+}
+
+.form-group.opted-out .input-with-optout input {
+  opacity: .4;
+  pointer-events: none;
+}
+
+.optout-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 3000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.optout-overlay.visible {
+  display: flex;
+}
+
+.optout-dialog {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  max-width: 420px;
+  width: 100%;
+  padding: 28px 24px 20px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.18);
+  text-align: center;
+}
+
+.optout-dialog .dialog-icon {
+  font-size: 40px;
+  color: #ef6c00;
+  margin-bottom: 8px;
+}
+
+.optout-dialog h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+
+.optout-dialog p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.optout-dialog .dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.optout-dialog .btn-dialog {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter .15s;
+}
+
+.optout-dialog .btn-dialog:hover {
+  filter: brightness(1.06);
+}
+
+.optout-dialog .btn-stay {
+  background: var(--seed);
+  color: var(--white);
+}
+
+.optout-dialog .btn-skip {
+  background: var(--seed-10);
+  color: var(--seed);
+}
