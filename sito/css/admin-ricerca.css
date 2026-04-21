@@ -24,6 +24,9 @@
     }
     body.ready { opacity: 1; }
 
+    html.embedded-admin .appbar { display: none; }
+    html.embedded-admin #authGate { min-height: 100vh; }
+
     /* ---- AppBar ---- */
     .appbar {
       display: flex; align-items: center;

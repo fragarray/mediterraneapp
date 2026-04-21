@@ -9,6 +9,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 
+  <script>
+    if (new URLSearchParams(window.location.search).get('embedded') === '1') {
+      document.documentElement.classList.add('embedded-admin');
+    }
+  </script>
+
     <link rel="stylesheet" href="css/common.css">
   <link rel="stylesheet" href="css/admin-shared.css">
   <link rel="stylesheet" href="css/admin.css">
@@ -22,15 +28,15 @@
     </a>
     <span class="appbar-title">Mediterranea</span>
     <span class="appbar-user" id="appbarUser"></span>
-    <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')" title="Dashboard">
+    <a href="admin-shell.html?view=dashboard" class="appbar-action active" title="Dashboard">
       <span class="material-icons-outlined">dashboard</span>
-    </button>
-    <a href="admin-ricerca.html" class="appbar-action" title="Ricerca">
+    </a>
+    <a href="admin-shell.html?view=search" class="appbar-action" title="Ricerca">
       <span class="material-icons-outlined">search</span>
     </a>
-    <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')" title="Impostazioni">
+    <a href="admin-shell.html?view=settings" class="appbar-action" title="Impostazioni">
       <span class="material-icons-outlined">settings</span>
-    </button>
+    </a>
     <span class="rt-dot" id="rtDot" title="Realtime"></span>
     <button class="appbar-action" id="signOutBtn" style="display:none;" onclick="handleSignOut()" title="Esci">
       <span class="material-icons-outlined">logout</span>
@@ -91,10 +97,12 @@
         </div>
         <div class="stat-chip stat-chip-history">
           <span class="stat-chip-label">Approvati il</span>
-          <button type="button" class="stat-chip-cal-filled" id="btnHistoryDate" title="Seleziona data">
-            <span class="material-icons-outlined">calendar_month</span>
-          </button>
-          <input type="date" id="historyDatePicker" class="hidden-date-input">
+          <div class="history-date-trigger-wrap">
+            <button type="button" class="stat-chip-cal-filled" id="btnHistoryDate" title="Seleziona data" aria-label="Seleziona data">
+              <span class="material-icons-outlined">calendar_month</span>
+            </button>
+            <input type="date" id="historyDatePicker" class="history-date-input-overlay" aria-label="Seleziona data storico">
+          </div>
         </div>
       </div>
       
@@ -145,144 +153,6 @@
       </div>
 
     </div><!-- /tabDashboard -->
-
-    <!-- ===== Settings tab ===== -->
-    <div class="page-body" id="tabSettings" style="display:none;">
-
-      <!-- Numero tessera start -->
-      <div class="card">
-        <div class="card-title">Numero iniziale tessere</div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">
-          Il primo numero che verrà assegnato ai nuovi soci digitalizzati. Tutti i numeri inferiori a questo sono considerati tessere cartacee.
-        </p>
-        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-          <div class="form-group" style="margin:0;flex:1;min-width:160px;">
-            <label for="membershipStartInput">Numero iniziale</label>
-            <input type="number" id="membershipStartInput" min="1" placeholder="es. 500">
-          </div>
-          <button class="btn-filled" id="saveMembershipStartBtn" onclick="saveMembershipStart()">
-            <span class="material-icons-outlined">save</span> Salva
-          </button>
-        </div>
-      </div>
-
-      <!-- Instagram -->
-      <div class="card">
-        <div class="card-title">Link Instagram</div>
-        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-          <div class="form-group" style="margin:0;flex:1;min-width:200px;">
-            <label for="instagramInput">URL profilo</label>
-            <input type="url" id="instagramInput" placeholder="https://www.instagram.com/...">
-          </div>
-          <button class="btn-filled" id="saveInstagramBtn" onclick="saveInstagram()">
-            <span class="material-icons-outlined">save</span> Salva
-          </button>
-        </div>
-      </div>
-
-      <!-- Colore tema -->
-      <div class="card">
-        <div class="card-title">Colore tema</div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;">Seleziona il colore seed dell'app e del sito.</p>
-
-        <div class="color-picker-wrap">
-          <!-- Native color wheel -->
-          <input type="color" class="color-input-native" id="colorWheel" value="#2E7D32"
-                 oninput="onColorWheelChange(this.value)">
-
-          <div class="color-controls">
-            <!-- Hex input -->
-            <div class="color-hex-row">
-              <label>HEX</label>
-              <input type="text" class="color-hex-input" id="colorHexInput" value="#2E7D32" maxlength="7"
-                     oninput="onHexInputChange(this.value)">
-            </div>
-            <!-- Alpha slider -->
-            <div class="color-alpha-row">
-              <label>Opacità</label>
-              <input type="range" id="colorAlpha" min="0" max="255" value="255"
-                     oninput="onAlphaChange(this.value)">
-              <span class="color-alpha-val" id="colorAlphaVal">100%</span>
-            </div>
-            <!-- Preview bar -->
-            <div class="color-preview-bar" id="colorPreviewBar" style="background:#2E7D32;"></div>
-          </div>
-        </div>
-
-        <!-- Preset shortcuts -->
-        <p style="font-size:11px;color:var(--text-secondary);margin:0 0 6px;">Preset rapidi</p>
-        <div class="color-presets" id="colorPresets">
-          <div class="color-preset" style="background:#2E7D32;" data-color="#2E7D32" title="Verde" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#1565C0;" data-color="#1565C0" title="Blu" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#6A1B9A;" data-color="#6A1B9A" title="Viola" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#9C2748;" data-color="#9C2748" title="Bordeaux" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#EF6C00;" data-color="#EF6C00" title="Arancio" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#00838F;" data-color="#00838F" title="Teal" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#AD1457;" data-color="#AD1457" title="Rosa" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#4E342E;" data-color="#4E342E" title="Marrone" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#37474F;" data-color="#37474F" title="Grigio" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#F9A825;" data-color="#F9A825" title="Giallo" onclick="pickPreset(this)"></div>
-        </div>
-
-        <button class="btn-filled" id="saveColorBtn" style="margin-top:16px;" onclick="saveThemeColor()">
-          <span class="material-icons-outlined">palette</span> Salva colore
-        </button>
-      </div>
-
-      <!-- Carosello -->
-      <div class="card">
-        <div class="card-title">Carosello</div>
-
-        <!-- Live carousel preview (same as index.html) -->
-        <div class="carousel-preview-outer" id="carouselPreviewOuter">
-          <div class="carousel-preview-wrap" id="carouselPreviewWrap" style="height:230px;">
-            <div class="carousel-viewport">
-              <div class="carousel-track" id="carouselTrack"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Sliders -->
-        <div style="margin-top:16px; border-top:1px solid var(--border-color); padding-top:14px;">
-          <div class="slider-row">
-            <label>Altezza (px)</label>
-            <input type="range" id="sliderHeight" min="140" max="520" step="10" value="230"
-              oninput="document.getElementById('valHeight').textContent=this.value; updateCarouselPreview()">
-            <span class="slider-value" id="valHeight">230</span>
-          </div>
-          <div class="slider-row">
-            <label>Immagini visibili</label>
-            <input type="range" id="sliderItems" min="1" max="6" step="1" value="2"
-              oninput="document.getElementById('valItems').textContent=this.value; updateCarouselPreview()">
-            <span class="slider-value" id="valItems">2</span>
-          </div>
-          <div class="slider-row">
-            <label>Autoplay (secondi)</label>
-            <input type="range" id="sliderAutoplay" min="1" max="12" step="1" value="4"
-              oninput="document.getElementById('valAutoplay').textContent=this.value; updateCarouselPreview()">
-            <span class="slider-value" id="valAutoplay">4</span>
-          </div>
-        </div>
-
-        <!-- Upload -->
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 6px;">
-          <label class="btn-filled" style="cursor:pointer;">
-            <span class="material-icons-outlined">add_photo_alternate</span> Carica immagini
-            <input type="file" id="carouselFileInput" accept="image/*" multiple style="display:none;" onchange="uploadCarouselFiles(this)">
-          </label>
-        </div>
-
-        <!-- Image list (badges) -->
-        <div id="carouselImageList" class="carousel-image-list">
-          <div class="empty-state" style="padding:16px;">Nessuna immagine caricata.</div>
-        </div>
-
-        <button class="btn-filled" style="margin-top:12px;" onclick="saveCarouselConfig()">
-          <span class="material-icons-outlined">save</span> Salva configurazione carosello
-        </button>
-      </div>
-
-    </div><!-- /tabSettings -->
 
   </div><!-- /mainView -->
 
@@ -355,7 +225,7 @@
     <div class="history-frame">
       <div class="history-frame-header">
         <h3 id="historyFrameTitle">Approvati il …</h3>
-        <button class="history-frame-close" id="historyCloseBtn" title="Chiudi">
+        <button class="history-frame-close" id="historyFrameCloseBtn" title="Chiudi">
           <span class="material-icons-outlined">close</span>
         </button>
       </div>

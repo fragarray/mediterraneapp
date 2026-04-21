@@ -9,6 +9,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 
+  <script>
+    if (new URLSearchParams(window.location.search).get('embedded') === '1') {
+      document.documentElement.classList.add('embedded-admin');
+    }
+  </script>
+
     <link rel="stylesheet" href="css/common.css">
   <link rel="stylesheet" href="css/admin-shared.css">
   <link rel="stylesheet" href="css/admin-ricerca.css">
@@ -22,13 +28,13 @@
     </a>
     <span class="appbar-title">Mediterranea</span>
     <span class="appbar-user" id="appbarUser"></span>
-    <a href="admin.html" class="appbar-action" title="Dashboard">
+    <a href="admin-shell.html?view=dashboard" class="appbar-action" title="Dashboard">
       <span class="material-icons-outlined">dashboard</span>
     </a>
-    <a href="admin-ricerca.html" class="appbar-action active" title="Ricerca">
+    <a href="admin-shell.html?view=search" class="appbar-action active" title="Ricerca">
       <span class="material-icons-outlined">search</span>
     </a>
-    <a href="admin.html" class="appbar-action" title="Impostazioni">
+    <a href="admin-shell.html?view=settings" class="appbar-action" title="Impostazioni">
       <span class="material-icons-outlined">settings</span>
     </a>
     <button class="appbar-action" id="signOutBtn" style="display:none;" onclick="handleSignOut()" title="Esci">
@@ -42,7 +48,7 @@
       <div class="material-icons-outlined">lock</div>
       <h2>Accesso richiesto</h2>
       <p>Effettua l'accesso dalla dashboard admin per usare la ricerca.</p>
-      <a href="admin.html" class="btn-filled">
+      <a href="admin-shell.html?view=dashboard" class="btn-filled">
         <span class="material-icons-outlined">login</span> Vai al login
       </a>
     </div>

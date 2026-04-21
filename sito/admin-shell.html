@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – Mediterranea</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/admin-shared.css">
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: var(--scaffold-bg);
+      color: var(--text-primary);
+      opacity: 0;
+      transition: opacity .25s ease;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    body.ready { opacity: 1; }
+    .shell-frame-wrap {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      background: var(--scaffold-bg);
+    }
+    .shell-frame {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      border: 0;
+      display: block;
+      background: var(--scaffold-bg);
+    }
+    .shell-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-color);
+      margin-left: auto;
+      margin-right: 8px;
+    }
+    .shell-active-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-right: 4px;
+      white-space: nowrap;
+    }
+
+  </style>
+</head>
+<body>
+
+  <header class="appbar">
+    <a href="index.html" class="appbar-action" title="Home">
+      <span class="material-icons-outlined">home</span>
+    </a>
+    <span class="appbar-title">Mediterranea</span>
+    <span class="appbar-user shell-active-label" id="shellViewLabel"></span>
+    <button class="appbar-action active" data-view="dashboard" id="navDashboard" title="Dashboard">
+      <span class="material-icons-outlined">dashboard</span>
+    </button>
+    <button class="appbar-action" data-view="search" id="navSearch" title="Ricerca">
+      <span class="material-icons-outlined">search</span>
+    </button>
+    <button class="appbar-action" data-view="settings" id="navSettings" title="Impostazioni">
+      <span class="material-icons-outlined">settings</span>
+    </button>
+    <span class="shell-divider" aria-hidden="true"></span>
+    <button class="appbar-action" id="shellSignOutBtn" title="Esci">
+      <span class="material-icons-outlined">logout</span>
+    </button>
+  </header>
+
+  <main class="shell-frame-wrap">
+    <iframe class="shell-frame" id="adminFrame" title="Area amministratore" src="about:blank"></iframe>
+  </main>
+
+  <input type="date" id="shellHistoryPicker" aria-hidden="true"
+    style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0;">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="js/common-ui.js"></script>
+  <script src="js/admin-shared.js"></script>
+  <script src="js/admin-shell.js"></script>
+</body>
+</html>

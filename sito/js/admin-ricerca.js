@@ -565,7 +565,7 @@
     =========================================================== */
     async function handleSignOut() {
       await signOutAdmin();
-      window.location.href = 'admin.html';
+      window.location.href = 'admin-shell.html?view=dashboard';
     }
 
     /* ===========================================================
