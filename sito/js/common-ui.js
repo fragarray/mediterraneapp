@@ -1,5 +1,6 @@
 ﻿window.CodexUi = (() => {
   let snackTimer = null;
+  const validationFocusTimers = new WeakMap();
 
   function showSnackbar(message, isError = false, options = {}) {
     const el = document.getElementById(options.id || 'snackbar');
@@ -8,6 +9,58 @@
     el.className = 'snackbar visible ' + (isError ? 'error' : 'success');
     clearTimeout(snackTimer);
     snackTimer = setTimeout(() => el.classList.remove('visible'), options.duration || 4500);
+  }
+
+  function flashValidationTarget(target) {
+    if (!target) return;
+
+    document.querySelectorAll('.form-group.validation-focus')
+      .forEach(group => group.classList.remove('validation-focus'));
+
+    const existingTimer = validationFocusTimers.get(target);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    target.classList.remove('validation-focus');
+    void target.offsetWidth;
+    target.classList.add('validation-focus');
+
+    const timer = window.setTimeout(() => {
+      target.classList.remove('validation-focus');
+      validationFocusTimers.delete(target);
+    }, 1400);
+
+    validationFocusTimers.set(target, timer);
+  }
+
+  function scrollToFirstInvalidField(root = document) {
+    const invalidGroup = root.querySelector('.form-group.has-error');
+    if (!invalidGroup) return false;
+
+    const focusable = invalidGroup.querySelector(
+      'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+    ) || invalidGroup;
+    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    flashValidationTarget(invalidGroup);
+    invalidGroup.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'center',
+      inline: 'nearest',
+    });
+
+    if (focusable !== invalidGroup && typeof focusable.focus === 'function') {
+      window.requestAnimationFrame(() => {
+        try {
+          focusable.focus({ preventScroll: true });
+        } catch (error) {
+          focusable.focus();
+        }
+      });
+    }
+
+    return true;
   }
 
   function escHtml(str) {
@@ -114,6 +167,7 @@
     birthPlaceAndDateLabel,
     openLightbox,
     loadThemeAndReady,
+    scrollToFirstInvalidField,
   };
 })();
 

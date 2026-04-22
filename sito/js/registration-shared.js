@@ -1,4 +1,4 @@
-const { showSnackbar, loadThemeAndReady } = CodexUi;
+const { showSnackbar, loadThemeAndReady, scrollToFirstInvalidField } = CodexUi;
 
 function initRegistrationPage(config) {
   preserveLanguageQuery(config);
@@ -37,6 +37,7 @@ function initRegistrationPage(config) {
     }
 
     if (!valid) {
+      scrollToFirstInvalidField(document);
       showSnackbar(config.messages.invalidFields, true);
       return;
     }
@@ -87,7 +88,8 @@ function initRegistrationPage(config) {
       document.getElementById('registrationForm').reset();
       signature.clear();
       optOut.reset();
-      document.querySelectorAll('.form-group.has-error').forEach(g => g.classList.remove('has-error'));
+      document.querySelectorAll('.form-group.has-error, .form-group.validation-focus')
+        .forEach(g => g.classList.remove('has-error', 'validation-focus'));
 
       const tesseraInput = document.getElementById('numeroTessera');
       tesseraInput.value = isLegacyFlow ? fixedMembershipNumber : config.messages.defaultMembershipValue;
@@ -237,7 +239,7 @@ function initOptOut(config) {
     group.classList.add('opted-out');
     flagSetter(true);
     input.value = '';
-    group.classList.remove('has-error');
+    group.classList.remove('has-error', 'validation-focus');
     input.tabIndex = -1;
   }
 
@@ -304,6 +306,9 @@ function initOptOut(config) {
 function setError(id, show) {
   const group = document.getElementById(id).closest('.form-group');
   group.classList.toggle('has-error', show);
+  if (!show) {
+    group.classList.remove('validation-focus');
+  }
 }
 
 function validateRequired(id) {

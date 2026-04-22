@@ -121,6 +121,43 @@ body.ready {
   display: block;
 }
 
+.form-group.has-error input:focus,
+.form-group.has-error select:focus,
+.form-group.has-error textarea:focus,
+.form-group.validation-focus input,
+.form-group.validation-focus select,
+.form-group.validation-focus textarea {
+  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.14);
+}
+
+.form-group.validation-focus input,
+.form-group.validation-focus select,
+.form-group.validation-focus textarea {
+  animation: validation-pulse 1.2s ease-out 1;
+}
+
+@keyframes validation-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.24);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(198, 40, 40, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-group.validation-focus input,
+  .form-group.validation-focus select,
+  .form-group.validation-focus textarea {
+    animation: none;
+  }
+}
+
 .btn-filled,
 .btn-outlined,
 .btn-ghost {

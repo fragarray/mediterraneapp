@@ -1,4 +1,4 @@
-const { showSnackbar: showLookupSnackbar, loadThemeAndReady } = CodexUi;
+const { showSnackbar: showLookupSnackbar, loadThemeAndReady, scrollToFirstInvalidField } = CodexUi;
 
 function initAlreadyMemberPage(config) {
   loadThemeAndReady();
@@ -12,9 +12,11 @@ function initAlreadyMemberPage(config) {
 
     if (!raw || Number.isNaN(num) || num <= 0) {
       group.classList.add('has-error');
+      scrollToFirstInvalidField(document);
       return;
     }
     group.classList.remove('has-error');
+    group.classList.remove('validation-focus');
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
