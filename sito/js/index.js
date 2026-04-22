@@ -2,9 +2,160 @@
     /* ======== Lightbox ======== */
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = document.getElementById('lightboxImg');
-    const { openLightbox, loadThemeAndReady } = CodexUi;
+    const { loadThemeAndReady } = CodexUi;
 
-    lightbox.addEventListener('click', () => lightbox.classList.remove('active'));
+    let carouselImageUrls = [];
+    let lightboxCurrentIndex = 0;
+    let lightboxPointerId = null;
+    let lightboxStartX = 0;
+    let lightboxStartY = 0;
+    let lightboxDragActive = false;
+    let lightboxSuppressNextClick = false;
+    const LIGHTBOX_ACTIVATION_PX = 8;
+    const LIGHTBOX_SETTLE_RATIO = 0.18;
+
+    lightboxImg.draggable = false;
+    lightboxImg.addEventListener('dragstart', function(event) {
+      event.preventDefault();
+    });
+
+    function normalizeLightboxIndex(idx) {
+      if (!carouselImageUrls.length) return 0;
+      const length = carouselImageUrls.length;
+      return ((idx % length) + length) % length;
+    }
+
+    function resetLightboxDragState() {
+      if (lightboxPointerId !== null) {
+        try {
+          if (lightbox.hasPointerCapture(lightboxPointerId)) {
+            lightbox.releasePointerCapture(lightboxPointerId);
+          }
+        } catch { /* noop */ }
+      }
+
+      lightbox.classList.remove('is-dragging');
+      lightboxPointerId = null;
+      lightboxDragActive = false;
+      lightboxStartX = 0;
+      lightboxStartY = 0;
+    }
+
+    function clearLightboxClickSuppression() {
+      lightboxSuppressNextClick = false;
+    }
+
+    function suppressLightboxNextClick() {
+      lightboxSuppressNextClick = true;
+    }
+
+    function closeLightbox() {
+      resetLightboxDragState();
+      clearLightboxClickSuppression();
+      lightbox.classList.remove('active');
+    }
+
+    function preloadLightboxImage(idx) {
+      if (carouselImageUrls.length <= 1) return;
+      const normalized = normalizeLightboxIndex(idx);
+      const image = new Image();
+      image.src = carouselImageUrls[normalized];
+    }
+
+    function showLightboxImage(idx) {
+      if (!carouselImageUrls.length) return;
+
+      lightboxCurrentIndex = normalizeLightboxIndex(idx);
+      lightboxImg.src = carouselImageUrls[lightboxCurrentIndex];
+      lightboxImg.alt = 'Immagine ' + (lightboxCurrentIndex + 1) + ' di ' + carouselImageUrls.length;
+
+      preloadLightboxImage(lightboxCurrentIndex + 1);
+      preloadLightboxImage(lightboxCurrentIndex - 1);
+    }
+
+    function openCarouselLightbox(idx) {
+      if (!carouselImageUrls.length) return;
+
+      clearLightboxClickSuppression();
+      resetLightboxDragState();
+      showLightboxImage(idx);
+      lightbox.classList.add('active');
+    }
+
+    lightbox.addEventListener('click', function(event) {
+      if (lightboxSuppressNextClick) {
+        event.preventDefault();
+        event.stopPropagation();
+        clearLightboxClickSuppression();
+        return;
+      }
+
+      closeLightbox();
+    });
+
+    lightbox.addEventListener('pointerdown', function(event) {
+      if (carouselImageUrls.length <= 1) return;
+      if (event.button !== undefined && event.button !== 0) return;
+      if (lightboxPointerId !== null) return;
+
+      lightboxPointerId = event.pointerId;
+      lightboxStartX = event.clientX;
+      lightboxStartY = event.clientY;
+      lightboxDragActive = false;
+
+      try {
+        lightbox.setPointerCapture(lightboxPointerId);
+      } catch { /* noop */ }
+    });
+
+    lightbox.addEventListener('pointermove', function(event) {
+      if (lightboxPointerId !== event.pointerId) return;
+
+      const deltaX = event.clientX - lightboxStartX;
+      const deltaY = event.clientY - lightboxStartY;
+
+      if (!lightboxDragActive) {
+        if (Math.abs(deltaX) < LIGHTBOX_ACTIVATION_PX && Math.abs(deltaY) < LIGHTBOX_ACTIVATION_PX) {
+          return;
+        }
+
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          return;
+        }
+
+        lightboxDragActive = true;
+        lightbox.classList.add('is-dragging');
+      }
+
+      event.preventDefault();
+    });
+
+    lightbox.addEventListener('pointerup', function(event) {
+      if (lightboxPointerId !== event.pointerId) return;
+
+      const deltaX = event.clientX - lightboxStartX;
+      const swipeThreshold = Math.max(window.innerWidth * LIGHTBOX_SETTLE_RATIO, 64);
+
+      if (lightboxDragActive && Math.abs(deltaX) >= swipeThreshold && carouselImageUrls.length > 1) {
+        showLightboxImage(lightboxCurrentIndex + (deltaX < 0 ? 1 : -1));
+      }
+
+      if (lightboxDragActive) {
+        suppressLightboxNextClick();
+      }
+
+      resetLightboxDragState();
+    });
+
+    lightbox.addEventListener('pointercancel', function(event) {
+      if (lightboxPointerId !== event.pointerId) return;
+
+      if (lightboxDragActive) {
+        suppressLightboxNextClick();
+      }
+
+      resetLightboxDragState();
+    });
 
     /* ======== Carousel ======== */
     const carouselWrapper = document.getElementById('carouselWrapper');
@@ -257,6 +408,7 @@
 
     function renderCarousel(settings) {
       const urls = settings.image_urls || [];
+      carouselImageUrls = urls.slice();
       if (!urls.length) return;
 
       const height      = Math.min(Math.max(Number(settings.widget_height)   || 230, 140), 520);
@@ -279,7 +431,7 @@
       const allUrls = urls.length > 1 ? [...urls, ...urls, ...urls] : urls;
 
       carouselTrack.innerHTML = '';
-      allUrls.forEach(function(url) {
+      allUrls.forEach(function(url, index) {
         const slide = document.createElement('div');
         slide.className = 'carousel-slide';
         slide.style.flex   = '0 0 ' + (carouselFraction * 100) + '%';
@@ -291,7 +443,9 @@
         img.alt = 'Immagine carosello';
         img.draggable = false;
         img.addEventListener('dragstart', function(event) { event.preventDefault(); });
-        img.addEventListener('click', function() { openLightbox(url); });
+        img.addEventListener('click', function() {
+          openCarouselLightbox(urls.length > 1 ? index % urls.length : 0);
+        });
         img.onerror = function() { this.alt = 'Immagine non disponibile'; };
 
         slide.appendChild(img);

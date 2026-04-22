@@ -278,7 +278,15 @@ body.ready {
   z-index: 4000;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lightbox.is-dragging {
+  cursor: grabbing;
 }
 
 .lightbox.active {
@@ -290,4 +298,7 @@ body.ready {
   max-height: 90vh;
   object-fit: contain;
   border-radius: 8px;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
