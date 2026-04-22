@@ -109,6 +109,14 @@
     .carousel-viewport {
       overflow: hidden;
       width: 100%;
+      touch-action: pan-y;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .carousel-viewport.is-dragging {
+      cursor: grabbing;
     }
     .carousel-track {
       display: flex;
@@ -131,6 +139,8 @@
       object-fit: contain;
       cursor: pointer;
       display: block;
+      user-select: none;
+      -webkit-user-drag: none;
     }
 
     /* ---- Instagram ---- */

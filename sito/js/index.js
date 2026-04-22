@@ -8,6 +8,7 @@
 
     /* ======== Carousel ======== */
     const carouselWrapper = document.getElementById('carouselWrapper');
+    const carouselViewport = carouselWrapper.querySelector('.carousel-viewport');
     const carouselTrack   = document.getElementById('carouselTrack');
     const placeholder     = document.getElementById('carouselPlaceholder');
 
@@ -16,7 +17,19 @@
     let autoplayTimer = null;
     let carouselFraction = 1;
     let carouselEnlarge = true;
+    let carouselAutoplaySeconds = 4;
+    let dragPointerId = null;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let dragStartIndex = 0;
+    let dragStartTranslate = 0;
+    let dragTrackWidth = 1;
+    let dragOffsetPercent = 0;
+    let dragActive = false;
+    let suppressNextCarouselClick = false;
     const ENLARGE_FACTOR = 0.34;
+    const DRAG_ACTIVATION_PX = 8;
+    const DRAG_SETTLE_RATIO = 0.18;
 
     /* CenterPageEnlargeStrategy.zoom */
     function updateSlideScales() {
@@ -33,21 +46,48 @@
       });
     }
 
-    /* Sposta il track alla slide indicata.
-       animate=false => salto istantaneo (usato dopo transitionend per ricentrare). */
-    function goToSlide(idx, animate) {
+    function getSlideTranslatePercent(idx) {
+      const slideW = carouselFraction * 100;
+      const padOffset = (100 - slideW) / 2;
+      return idx * slideW - padOffset;
+    }
+
+    function normalizeCarouselIndex(idx) {
+      if (realCount <= 1) return idx;
+      const normalized = ((idx - realCount) % realCount + realCount) % realCount;
+      return realCount + normalized;
+    }
+
+    function getCurrentTranslateXPx() {
+      const transform = window.getComputedStyle(carouselTrack).transform;
+      if (!transform || transform === 'none') return 0;
+
+      const matrix3d = transform.match(/^matrix3d\((.+)\)$/);
+      if (matrix3d) {
+        const values = matrix3d[1].split(',').map(Number);
+        return values[12] || 0;
+      }
+
+      const matrix = transform.match(/^matrix\((.+)\)$/);
+      if (matrix) {
+        const values = matrix[1].split(',').map(Number);
+        return values[4] || 0;
+      }
+
+      return 0;
+    }
+
+    function applyTrackTransform(baseTranslatePercent, offsetPercent, animate) {
       if (animate === undefined) animate = true;
-      internalIndex = idx;
 
       if (!animate) {
         carouselTrack.style.transition = 'none';
+      } else {
+        carouselTrack.style.transition = '';
       }
 
-      const slideW   = carouselFraction * 100;
-      const padOffset = (100 - slideW) / 2;
-      const tx = internalIndex * slideW - padOffset;
-      carouselTrack.style.transform = 'translateX(' + (-tx) + '%)';
-      updateSlideScales();
+      const translatePercent = baseTranslatePercent - (offsetPercent || 0);
+      carouselTrack.style.transform = 'translateX(' + (-translatePercent) + '%)';
 
       if (!animate) {
         // forza reflow, poi ripristina la transizione CSS
@@ -56,15 +96,154 @@
       }
     }
 
+    /* Sposta il track alla slide indicata.
+       animate=false => salto istantaneo (usato dopo transitionend per ricentrare). */
+    function goToSlide(idx, animate) {
+      if (animate === undefined) animate = true;
+      internalIndex = idx;
+
+      applyTrackTransform(getSlideTranslatePercent(idx), 0, animate);
+      updateSlideScales();
+    }
+
     /* Dopo la transizione, se siamo su un clone saltiamo
        silenziosamente alla slide reale equivalente. */
-    carouselTrack.addEventListener('transitionend', function() {
+    carouselTrack.addEventListener('transitionend', function(event) {
+      if (event.target !== carouselTrack || event.propertyName !== 'transform') return;
       if (internalIndex < realCount) {
         goToSlide(internalIndex + realCount, false);
       } else if (internalIndex >= 2 * realCount) {
         goToSlide(internalIndex - realCount, false);
       }
     });
+
+    function getDragStepDelta() {
+      const slideW = carouselFraction * 100;
+      if (!slideW) return 0;
+
+      const rawSteps = -dragOffsetPercent / slideW;
+      if (Math.abs(rawSteps) < DRAG_SETTLE_RATIO) return 0;
+
+      return rawSteps > 0 ? Math.max(1, Math.round(rawSteps)) : Math.min(-1, Math.round(rawSteps));
+    }
+
+    function activateCarouselDrag() {
+      if (dragActive || dragPointerId === null) return;
+
+      dragTrackWidth = carouselTrack.getBoundingClientRect().width || 1;
+      const currentTranslatePx = getCurrentTranslateXPx();
+      dragStartTranslate = dragTrackWidth
+        ? (-currentTranslatePx / dragTrackWidth) * 100
+        : getSlideTranslatePercent(internalIndex);
+
+      dragActive = true;
+      carouselViewport.classList.add('is-dragging');
+      stopAutoplay();
+      applyTrackTransform(dragStartTranslate, 0, false);
+
+      try {
+        carouselViewport.setPointerCapture(dragPointerId);
+      } catch { /* noop */ }
+    }
+
+    function finishCarouselDrag(commitSlide) {
+      const wasDragging = dragActive;
+
+      if (dragPointerId !== null) {
+        try {
+          if (carouselViewport.hasPointerCapture(dragPointerId)) {
+            carouselViewport.releasePointerCapture(dragPointerId);
+          }
+        } catch { /* noop */ }
+      }
+
+      carouselViewport.classList.remove('is-dragging');
+      dragActive = false;
+
+      if (!wasDragging) {
+        dragPointerId = null;
+        dragOffsetPercent = 0;
+        return;
+      }
+
+      const targetIndex = commitSlide
+        ? normalizeCarouselIndex(dragStartIndex + getDragStepDelta())
+        : normalizeCarouselIndex(dragStartIndex);
+
+      suppressNextCarouselClick = commitSlide;
+      goToSlide(targetIndex, true);
+      dragPointerId = null;
+      dragOffsetPercent = 0;
+
+      if (realCount > 1) startAutoplay(carouselAutoplaySeconds);
+    }
+
+    carouselViewport.addEventListener('pointerdown', function(event) {
+      if (realCount <= 1) return;
+      if (event.button !== undefined && event.button !== 0) return;
+      if (dragPointerId !== null) return;
+
+      suppressNextCarouselClick = false;
+      dragPointerId = event.pointerId;
+      dragStartX = event.clientX;
+      dragStartY = event.clientY;
+      dragStartIndex = internalIndex;
+      dragOffsetPercent = 0;
+      dragActive = false;
+    });
+
+    carouselViewport.addEventListener('pointermove', function(event) {
+      if (dragPointerId !== event.pointerId) return;
+
+      const deltaX = event.clientX - dragStartX;
+      const deltaY = event.clientY - dragStartY;
+
+      if (!dragActive) {
+        if (Math.abs(deltaX) < DRAG_ACTIVATION_PX && Math.abs(deltaY) < DRAG_ACTIVATION_PX) {
+          return;
+        }
+
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          dragPointerId = null;
+          return;
+        }
+
+        activateCarouselDrag();
+      }
+
+      dragOffsetPercent = dragTrackWidth ? (deltaX / dragTrackWidth) * 100 : 0;
+      applyTrackTransform(dragStartTranslate, dragOffsetPercent, false);
+      event.preventDefault();
+    });
+
+    carouselViewport.addEventListener('pointerup', function(event) {
+      if (dragPointerId !== event.pointerId) return;
+
+      if (dragActive) {
+        finishCarouselDrag(true);
+      } else {
+        dragPointerId = null;
+        dragOffsetPercent = 0;
+      }
+    });
+
+    carouselViewport.addEventListener('pointercancel', function(event) {
+      if (dragPointerId !== event.pointerId) return;
+
+      if (dragActive) {
+        finishCarouselDrag(true);
+      } else {
+        dragPointerId = null;
+        dragOffsetPercent = 0;
+      }
+    });
+
+    carouselViewport.addEventListener('click', function(event) {
+      if (!suppressNextCarouselClick) return;
+      event.preventDefault();
+      event.stopPropagation();
+      suppressNextCarouselClick = false;
+    }, true);
 
     function startAutoplay(seconds) {
       stopAutoplay();
@@ -83,6 +262,8 @@
       const height      = Math.min(Math.max(Number(settings.widget_height)   || 230, 140), 520);
       const visible     = Math.min(Math.max(Number(settings.visible_items)   || 2,     1),   4);
       const autoplaySec = Math.min(Math.max(Number(settings.autoplay_seconds)|| 4,     1),  12);
+
+      carouselAutoplaySeconds = autoplaySec;
 
       carouselFraction = urls.length > 1
         ? Math.min(Math.max(1 / visible, 0.28), 1)
@@ -108,6 +289,8 @@
         const img = document.createElement('img');
         img.src = url;
         img.alt = 'Immagine carosello';
+        img.draggable = false;
+        img.addEventListener('dragstart', function(event) { event.preventDefault(); });
         img.addEventListener('click', function() { openLightbox(url); });
         img.onerror = function() { this.alt = 'Immagine non disponibile'; };
 
