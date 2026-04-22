@@ -34,6 +34,59 @@
     validationFocusTimers.set(target, timer);
   }
 
+  function getVisibleViewportBounds() {
+    const viewport = window.visualViewport;
+    if (viewport) {
+      return {
+        top: viewport.offsetTop,
+        bottom: viewport.offsetTop + viewport.height,
+      };
+    }
+
+    return {
+      top: 0,
+      bottom: window.innerHeight,
+    };
+  }
+
+  function ensureTargetVisible(target, behavior) {
+    if (!target) return false;
+
+    const rect = target.getBoundingClientRect();
+    const viewport = getVisibleViewportBounds();
+    const topGap = 24;
+    const bottomGap = 24;
+
+    let delta = 0;
+    if (rect.bottom > viewport.bottom - bottomGap) {
+      delta = rect.bottom - (viewport.bottom - bottomGap);
+    } else if (rect.top < viewport.top + topGap) {
+      delta = rect.top - (viewport.top + topGap);
+    }
+
+    if (delta !== 0) {
+      window.scrollBy({
+        top: delta,
+        behavior,
+      });
+      return true;
+    }
+
+    return false;
+  }
+
+  function scheduleViewportAwareAdjustment(target, prefersReducedMotion) {
+    const behavior = prefersReducedMotion ? 'auto' : 'smooth';
+    const delays = [0, 140, 320, 620];
+
+    delays.forEach((delay, index) => {
+      window.setTimeout(() => {
+        if (!document.contains(target)) return;
+        ensureTargetVisible(target, index === 0 ? behavior : 'auto');
+      }, delay);
+    });
+  }
+
   function scrollToFirstInvalidField(root = document) {
     const invalidGroup = root.querySelector('.form-group.has-error');
     if (!invalidGroup) return false;
@@ -59,6 +112,8 @@
         }
       });
     }
+
+    scheduleViewportAwareAdjustment(focusable, prefersReducedMotion);
 
     return true;
   }
