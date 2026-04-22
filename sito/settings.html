@@ -105,45 +105,53 @@
 
       <div class="card">
         <div class="card-title">Colore tema</div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;">Seleziona il colore seed dell'app e del sito.</p>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:18px;">
+          Scegli il seed principale dell'app e del sito. Il colore viene salvato pieno, senza opacità.
+        </p>
 
-        <div class="color-picker-wrap">
-          <input type="color" class="color-input-native" id="colorWheel" value="#2E7D32"
-                 oninput="onColorWheelChange(this.value)">
+        <div class="theme-color-editor">
+          <div class="theme-color-stage">
+            <div id="themeColorPicker" class="theme-color-picker"></div>
+          </div>
 
-          <div class="color-controls">
-            <div class="color-hex-row">
-              <label>HEX</label>
-              <input type="text" class="color-hex-input" id="colorHexInput" value="#2E7D32" maxlength="7"
-                     oninput="onHexInputChange(this.value)">
+          <div class="theme-color-sidebar">
+            <div class="theme-color-live">
+              <div class="theme-color-live-swatch" id="themeColorPreviewSwatch" style="background:#2E7D32;"></div>
+              <div>
+                <div class="theme-color-live-label">Colore attivo</div>
+                <div class="theme-color-live-value" id="themeColorValue">#2E7D32</div>
+                <div class="theme-color-live-note">Usato come seed dell'interfaccia.</div>
+              </div>
             </div>
-            <div class="color-alpha-row">
-              <label>Opacità</label>
-              <input type="range" id="colorAlpha" min="0" max="255" value="255"
-                     oninput="onAlphaChange(this.value)">
-              <span class="color-alpha-val" id="colorAlphaVal">100%</span>
+
+            <div class="theme-color-field">
+              <label for="colorHexInput">Valore HEX</label>
+              <div class="theme-color-input-row">
+                <input type="text" class="color-hex-input" id="colorHexInput" value="#2E7D32" maxlength="7"
+                       oninput="onHexInputChange(this.value)">
+                <button class="btn-filled theme-color-save-btn" id="saveColorBtn" onclick="saveThemeColor()">
+                  <span class="material-icons-outlined">palette</span> Salva
+                </button>
+              </div>
             </div>
-            <div class="color-preview-bar" id="colorPreviewBar" style="background:#2E7D32;"></div>
+
+            <div>
+              <p class="theme-color-presets-label">Preset rapidi</p>
+              <div class="theme-color-palette" id="colorPresets">
+                <button type="button" class="theme-color-swatch active" style="background:#2E7D32;" data-color="#2E7D32" title="Verde" aria-label="Verde" onclick="pickPreset(this)"></button>
+                <button type="button" class="theme-color-swatch" style="background:#1565C0;" data-color="#1565C0" title="Blu" aria-label="Blu" onclick="pickPreset(this)"></button>
+                <button type="button" class="theme-color-swatch" style="background:#6A1B9A;" data-color="#6A1B9A" title="Viola" aria-label="Viola" onclick="pickPreset(this)"></button>
+                <button type="button" class="theme-color-swatch" style="background:#9C2748;" data-color="#9C2748" title="Bordeaux" aria-label="Bordeaux" onclick="pickPreset(this)"></button>
+                <button type="button" class="theme-color-swatch" style="background:#EF6C00;" data-color="#EF6C00" title="Arancio" aria-label="Arancio" onclick="pickPreset(this)"></button>
+                <button type="button" class="theme-color-swatch" style="background:#00838F;" data-color="#00838F" title="Teal" aria-label="Teal" onclick="pickPreset(this)"></button>
+                <button type="button" class="theme-color-swatch" style="background:#AD1457;" data-color="#AD1457" title="Rosa" aria-label="Rosa" onclick="pickPreset(this)"></button>
+                <button type="button" class="theme-color-swatch" style="background:#4E342E;" data-color="#4E342E" title="Marrone" aria-label="Marrone" onclick="pickPreset(this)"></button>
+                <button type="button" class="theme-color-swatch" style="background:#37474F;" data-color="#37474F" title="Grigio" aria-label="Grigio" onclick="pickPreset(this)"></button>
+                <button type="button" class="theme-color-swatch" style="background:#F9A825;" data-color="#F9A825" title="Giallo" aria-label="Giallo" onclick="pickPreset(this)"></button>
+              </div>
+            </div>
           </div>
         </div>
-
-        <p style="font-size:11px;color:var(--text-secondary);margin:0 0 6px;">Preset rapidi</p>
-        <div class="color-presets" id="colorPresets">
-          <div class="color-preset" style="background:#2E7D32;" data-color="#2E7D32" title="Verde" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#1565C0;" data-color="#1565C0" title="Blu" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#6A1B9A;" data-color="#6A1B9A" title="Viola" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#9C2748;" data-color="#9C2748" title="Bordeaux" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#EF6C00;" data-color="#EF6C00" title="Arancio" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#00838F;" data-color="#00838F" title="Teal" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#AD1457;" data-color="#AD1457" title="Rosa" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#4E342E;" data-color="#4E342E" title="Marrone" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#37474F;" data-color="#37474F" title="Grigio" onclick="pickPreset(this)"></div>
-          <div class="color-preset" style="background:#F9A825;" data-color="#F9A825" title="Giallo" onclick="pickPreset(this)"></div>
-        </div>
-
-        <button class="btn-filled" id="saveColorBtn" style="margin-top:16px;" onclick="saveThemeColor()">
-          <span class="material-icons-outlined">palette</span> Salva colore
-        </button>
       </div>
 
       <div class="card">
@@ -201,6 +209,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="supabase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
   <script src="js/common-ui.js"></script>
   <script src="js/admin-shared.js"></script>
   <script src="js/admin-settings.js"></script>
