@@ -34,6 +34,168 @@ function normalizeThemeColorHex(value) {
   return `#${normalized.toUpperCase()}`;
 }
 
+function clampNumber(value, minimum, maximum) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function hexToRgb(value) {
+  const normalized = normalizeThemeColorHex(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const raw = normalized.slice(1);
+  return {
+    r: parseInt(raw.slice(0, 2), 16),
+    g: parseInt(raw.slice(2, 4), 16),
+    b: parseInt(raw.slice(4, 6), 16),
+  };
+}
+
+function rgbToHsl(r, g, b) {
+  const red = r / 255;
+  const green = g / 255;
+  const blue = b / 255;
+  const maximum = Math.max(red, green, blue);
+  const minimum = Math.min(red, green, blue);
+  const delta = maximum - minimum;
+  const lightness = (maximum + minimum) / 2;
+
+  if (delta === 0) {
+    return { h: 0, s: 0, l: lightness * 100 };
+  }
+
+  let hue = 0;
+  if (maximum === red) {
+    hue = ((green - blue) / delta) % 6;
+  } else if (maximum === green) {
+    hue = (blue - red) / delta + 2;
+  } else {
+    hue = (red - green) / delta + 4;
+  }
+
+  hue = Math.round(hue * 60);
+  if (hue < 0) {
+    hue += 360;
+  }
+
+  const saturation = delta / (1 - Math.abs(2 * lightness - 1));
+
+  return {
+    h: hue,
+    s: saturation * 100,
+    l: lightness * 100,
+  };
+}
+
+function hslToRgb(hue, saturation, lightness) {
+  const normalizedHue = ((hue % 360) + 360) % 360;
+  const sat = clampNumber(saturation, 0, 100) / 100;
+  const light = clampNumber(lightness, 0, 100) / 100;
+  const chroma = (1 - Math.abs(2 * light - 1)) * sat;
+  const hueSection = normalizedHue / 60;
+  const secondary = chroma * (1 - Math.abs((hueSection % 2) - 1));
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+
+  if (hueSection >= 0 && hueSection < 1) {
+    red = chroma;
+    green = secondary;
+  } else if (hueSection < 2) {
+    red = secondary;
+    green = chroma;
+  } else if (hueSection < 3) {
+    green = chroma;
+    blue = secondary;
+  } else if (hueSection < 4) {
+    green = secondary;
+    blue = chroma;
+  } else if (hueSection < 5) {
+    red = secondary;
+    blue = chroma;
+  } else {
+    red = chroma;
+    blue = secondary;
+  }
+
+  const match = light - chroma / 2;
+
+  return {
+    r: (red + match) * 255,
+    g: (green + match) * 255,
+    b: (blue + match) * 255,
+  };
+}
+
+function rgbToRgbaString(rgb, alpha) {
+  return `rgba(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)}, ${alpha.toFixed(2)})`;
+}
+
+function relativeLuminance(rgb) {
+  const toLinear = (channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+
+  return (
+    0.2126 * toLinear(rgb.r) +
+    0.7152 * toLinear(rgb.g) +
+    0.0722 * toLinear(rgb.b)
+  );
+}
+
+function updateThemeColorLiveSurface(hexValue) {
+  const liveCard = document.querySelector('.theme-color-live');
+  if (!liveCard) {
+    return;
+  }
+
+  const rgb = hexToRgb(hexValue);
+  if (!rgb) {
+    return;
+  }
+
+  const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+  const complementaryHue = (hsl.h + 180) % 360;
+  const saturation = clampNumber(hsl.s * 0.08 + 8, 8, 16);
+  const lightness = clampNumber(97 - (hsl.s * 0.02), 95.5, 98.2);
+  const startRgb = hslToRgb(complementaryHue, saturation, lightness);
+  const endRgb = hslToRgb(
+    complementaryHue,
+    clampNumber(saturation - 1.5, 7, 15),
+    clampNumber(lightness - 1.3, 94.5, 97.8),
+  );
+  const isBright = relativeLuminance(startRgb) > 0.82;
+  const foreground = isBright
+    ? 'rgba(15, 23, 42, 0.96)'
+    : 'rgba(255, 255, 255, 0.98)';
+  const muted = isBright
+    ? 'rgba(15, 23, 42, 0.72)'
+    : 'rgba(255, 255, 255, 0.74)';
+  const label = isBright
+    ? 'rgba(15, 23, 42, 0.66)'
+    : 'rgba(255, 255, 255, 0.66)';
+  const border = isBright
+    ? 'rgba(15, 23, 42, 0.18)'
+    : 'rgba(255, 255, 255, 0.28)';
+  const shadow = isBright
+    ? '0 16px 34px rgba(15, 23, 42, .12)'
+    : '0 16px 34px rgba(15, 23, 42, .16)';
+
+  liveCard.style.setProperty(
+    '--theme-color-live-bg',
+    `linear-gradient(135deg, ${rgbToRgbaString(startRgb, 1)}, ${rgbToRgbaString(endRgb, 1)})`,
+  );
+  liveCard.style.setProperty('--theme-color-live-fg', foreground);
+  liveCard.style.setProperty('--theme-color-live-note', muted);
+  liveCard.style.setProperty('--theme-color-live-label', label);
+  liveCard.style.setProperty('--theme-color-live-border', border);
+  liveCard.style.setProperty('--theme-color-live-shadow', shadow);
+}
+
 function ensureThemeColorPicker() {
   if (_themeColorPicker || typeof iro === 'undefined') {
     return;
@@ -86,6 +248,8 @@ function applyThemeColorSelection(hexValue, { syncPicker = true } = {}) {
   if (previewSwatch) {
     previewSwatch.style.background = normalized;
   }
+
+  updateThemeColorLiveSurface(normalized);
 
   const colorValue = document.getElementById('themeColorValue');
   if (colorValue) {

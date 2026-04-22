@@ -405,15 +405,20 @@
       gap: 12px;
       padding: 16px 18px;
       border-radius: 22px;
-      background: linear-gradient(135deg, rgba(15, 23, 42, .95), rgba(30, 41, 59, .88));
-      color: #fff;
-      box-shadow: 0 16px 34px rgba(15, 23, 42, .16);
+      background: var(
+        --theme-color-live-bg,
+        linear-gradient(135deg, rgba(250, 251, 252, .98), rgba(244, 246, 249, .98))
+      );
+      color: var(--theme-color-live-fg, #fff);
+      border: 1px solid var(--theme-color-live-border, rgba(255, 255, 255, .18));
+      box-shadow: var(--theme-color-live-shadow, 0 16px 34px rgba(15, 23, 42, .16));
+      transition: background .18s ease, color .18s ease, box-shadow .18s ease, border-color .18s ease;
     }
     .theme-color-live-swatch {
       width: 52px;
       height: 52px;
       border-radius: 18px;
-      border: 3px solid rgba(255, 255, 255, .24);
+      border: 3px solid var(--theme-color-live-border, rgba(255, 255, 255, .24));
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
       flex-shrink: 0;
       background: #2E7D32;
@@ -423,7 +428,7 @@
       font-weight: 700;
       letter-spacing: .08em;
       text-transform: uppercase;
-      color: rgba(255, 255, 255, .66);
+      color: var(--theme-color-live-label, rgba(255, 255, 255, .66));
     }
     .theme-color-live-value {
       margin-top: 2px;
@@ -431,11 +436,12 @@
       font-weight: 700;
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
       letter-spacing: .05em;
+      color: var(--theme-color-live-fg, #fff);
     }
     .theme-color-live-note {
       margin-top: 4px;
       font-size: 12px;
-      color: rgba(255, 255, 255, .72);
+      color: var(--theme-color-live-note, rgba(255, 255, 255, .72));
     }
     .theme-color-field {
       display: flex;
