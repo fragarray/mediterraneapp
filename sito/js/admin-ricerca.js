@@ -174,7 +174,7 @@
         const isDeleted  = normalizedStatus === 'deleted';
         const isPending  = normalizedStatus === 'pending';
 
-        // Build actions matching Flutter: approved→edit+pdf+archive, pending→pdf+archive+approve+reject, deleted→pdf only
+        // Build actions: approved→edit+pdf+archive, pending→pdf+archive+approve+reject, deleted→pdf only
         let actionsHtml = '';
         if (isApproved) {
           actionsHtml = `

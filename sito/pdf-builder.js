@@ -43,7 +43,7 @@ async function createMemberPdfDocument(member) {
   const logoImg = (typeof LOGO_BASE64 !== 'undefined') ? LOGO_BASE64 : null;
 
   // Header row: logo + text column
-  const logoW = 92; // 92pt like Flutter
+  const logoW = 92; // 92 pt
   const logoH = Math.round(logoW * 199 / 393); // maintain aspect ratio (393x199 px)
   const logoGap = 14;
   const headerTextX = logoImg ? marginL + logoW + logoGap : marginL;
@@ -67,7 +67,7 @@ async function createMemberPdfDocument(member) {
   const generatedAt = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   doc.text('Documento generato il ' + generatedAt, headerTextX, y + 14 + 3 + 11 + 11 + 10 + 20 + 4 + 11);
 
-  y += Math.max(logoH, 94) + 12; // 12pt gap after header (SizedBox(height:12))
+  y += Math.max(logoH, 94) + 12; // 12pt gap after header
 
   // Info cards in Wrap layout (width:255pt each, spacing:10, runSpacing:8)
   const registrationDate = member.created_at
@@ -87,12 +87,12 @@ async function createMemberPdfDocument(member) {
     ['Email',            member.email || '-'],
   ];
 
-  const cardW = 255;      // Flutter: SizedBox(width: 255)
-  const cardSpacing = 10; // Flutter: spacing: 10
-  const cardRunSpacing = 8; // Flutter: runSpacing: 8
-  const cardPadH = 8;     // Flutter: horizontal: 8
-  const cardPadV = 6;     // Flutter: vertical: 6
-  const cardRadius = 6;   // Flutter: borderRadius: 6
+  const cardW = 255;      // card width
+  const cardSpacing = 10; // spacing between cards
+  const cardRunSpacing = 8; // spacing between rows
+  const cardPadH = 8;     // horizontal padding
+  const cardPadV = 6;     // vertical padding
+  const cardRadius = 6;   // corner radius
   const labelFontSize = 9;
   const valueFontSize = 9;
   const cardH = cardPadV + labelFontSize + 2 + valueFontSize + cardPadV;
@@ -116,11 +116,11 @@ async function createMemberPdfDocument(member) {
     cx += cardW + cardSpacing;
   });
 
-  y = cy + cardH + 14; // 14pt gap (SizedBox(height:14))
+  y = cy + cardH + 14; // 14pt gap after cards
 
   // Signature row: "Firma del socio" left, signature box right
-  const sigBoxW = 150; // Flutter: width: 150
-  const sigBoxH = 62;  // Flutter: height: 62
+  const sigBoxW = 150; // signature box width
+  const sigBoxH = 62;  // signature box height
   const sigBoxX = W - marginR - sigBoxW;
   const sigBoxY = y;
 

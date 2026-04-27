@@ -120,7 +120,7 @@
     }
     .carousel-track {
       display: flex;
-      /* cubic-bezier matches Flutter Curves.fastOutSlowIn */
+      /* cubic-bezier easing used by the carousel */
       transition: transform 700ms cubic-bezier(0.4, 0, 0.2, 1);
       will-change: transform;
     }

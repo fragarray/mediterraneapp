@@ -40,7 +40,7 @@ async function getAppSetting(key) {
   } catch { return null; }
 }
 
-/* ---------- Chiavi utilizzate dall'app Flutter ---------- */
+/* ---------- Chiavi utilizzate dall'app ---------- */
 const SETTING_THEME_COLOR      = 'theme_seed_color';
 const SETTING_INSTAGRAM_URL    = 'instagram_profile_url';
 const SETTING_CAROUSEL_CONFIG  = 'landing_carousel_config';
@@ -200,7 +200,7 @@ async function submitLegacyMembershipRequest(data, signatureBlob) {
 function hexToRgb(hex) {
   const h = hex.replace('#', '');
   let r, g, b;
-  if (h.length === 8) {          // AARRGGBB (formato Flutter/ARGB)
+  if (h.length === 8) {          // AARRGGBB
     r = parseInt(h.substring(2, 4), 16);
     g = parseInt(h.substring(4, 6), 16);
     b = parseInt(h.substring(6, 8), 16);
