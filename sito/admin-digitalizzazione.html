@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0d1f0e">
   <title>Digitalizzazione – Mediterranea</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,13 +66,18 @@
         <p class="foto-state-desc">Verifica un numero tessera dal desktop<br>per attivare la fotocamera</p>
       </div>
 
-      <div class="foto-state" id="stateReady" style="display:none;">
-        <p class="foto-tessera-label">Tessera n°</p>
-        <div class="foto-tessera-num" id="fotoNumero">—</div>
-        <button class="foto-camera-btn" id="cameraBtn" type="button">
-          <span class="material-icons-outlined">photo_camera</span>
-          Scatta foto
-        </button>
+      <!-- Stato: pronto — fotocamera live (occupa tutto lo schermo) -->
+      <div id="stateReady" style="display:none;">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <canvas id="cameraCanvas" style="display:none;"></canvas>
+        <!-- Numero tessera in overlay top-left -->
+        <div class="foto-camera-num-badge">
+          <span>Tessera n°</span>
+          <strong id="fotoNumero">—</strong>
+        </div>
+        <!-- Pulsante di scatto (shutter) -->
+        <button class="foto-shutter-btn" id="captureBtn" type="button" aria-label="Scatta foto"></button>
+        <!-- Fallback: apre il file picker se getUserMedia non è disponibile -->
         <input type="file" id="mobileFileInput" accept="image/*" capture="environment"
                style="display:none;" aria-hidden="true">
       </div>

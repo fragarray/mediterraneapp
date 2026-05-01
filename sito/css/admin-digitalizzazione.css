@@ -804,3 +804,72 @@ body.mobile-mode .digit-page {
 
 .foto-icon-spin  { animation: spin 1s linear infinite; display: inline-block; }
 .foto-icon-pulse { animation: pulse-opacity 2.2s ease-in-out infinite; }
+
+/* ── Live camera viewfinder (stateReady) ─────────────────────── */
+/* Full-screen overlay — no page navigation, no reload risk       */
+#stateReady {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#cameraVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Tessera number badge — top-left, above the video */
+.foto-camera-num-badge {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  margin: calc(env(safe-area-inset-top, 0px) + 16px) 16px 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 8px 16px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 15px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.foto-camera-num-badge strong {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+/* Shutter button — centered at bottom */
+.foto-shutter-btn {
+  position: relative;
+  z-index: 1;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  border: 5px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25), 0 4px 24px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  margin-top: auto;
+  margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 44px);
+  flex-shrink: 0;
+  transition: transform .1s, background .1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.foto-shutter-btn:active {
+  transform: scale(0.86);
+  background: rgba(200, 200, 200, 0.92);
+}

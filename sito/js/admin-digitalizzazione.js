@@ -22,9 +22,7 @@
      MOBILE — fotocamera scanner
   ═══════════════════════════════════════════════════════════════ */
   async function runMobileMode(session) {
-    // On Android, opening the camera from inside an iframe causes the page to
-    // reload when the user returns (OS kills the WebView to free memory).
-    // Fix: if we are inside an iframe, break out to a full top-level page.
+    // If loaded inside the shell iframe, break out to top-level first.
     if (window.top !== window.self) {
       const standalone = window.location.href
         .replace(/[?&]embedded=1/, '')
@@ -35,23 +33,28 @@
 
     document.getElementById('mobileView').style.display = '';
     document.body.classList.add('mobile-mode');
+    // Prevent pinch-zoom interfering with the live viewfinder
+    document.querySelector('meta[name=viewport]').content =
+      'width=device-width, initial-scale=1.0, user-scalable=no';
 
-    const connDot       = document.getElementById('mobileConnDot');
-    const connLabel     = document.getElementById('mobileConnLabel');
-    const desktopBadge  = document.getElementById('mobileDesktopBadge');
-    const desktopLabel  = document.getElementById('mobileDesktopLabel');
-    const snackbar      = document.getElementById('snackbar');
-    const stateWaiting  = document.getElementById('stateWaiting');
-    const stateReady    = document.getElementById('stateReady');
-    const stateUpload   = document.getElementById('stateUploading');
-    const stateSent     = document.getElementById('stateSent');
-    const fotoNumero    = document.getElementById('fotoNumero');
-    const cameraBtn     = document.getElementById('cameraBtn');
-    const fileInput     = document.getElementById('mobileFileInput');
+    const connDot      = document.getElementById('mobileConnDot');
+    const connLabel    = document.getElementById('mobileConnLabel');
+    const desktopBadge = document.getElementById('mobileDesktopBadge');
+    const desktopLabel = document.getElementById('mobileDesktopLabel');
+    const snackbar     = document.getElementById('snackbar');
+    const stateWaiting = document.getElementById('stateWaiting');
+    const stateReady   = document.getElementById('stateReady');
+    const stateUpload  = document.getElementById('stateUploading');
+    const stateSent    = document.getElementById('stateSent');
+    const fotoNumero   = document.getElementById('fotoNumero');
+    const captureBtn   = document.getElementById('captureBtn');
+    const fallbackInput= document.getElementById('mobileFileInput');
+    const cameraVideo  = document.getElementById('cameraVideo');
+    const cameraCanvas = document.getElementById('cameraCanvas');
 
-    // sessionStorage key used to survive Android page-reload on camera return
     const STORAGE_KEY = 'digit_mobile_number';
     let currentNumber = null;
+    let videoStream   = null;
 
     function showSnack(msg, isError = false) {
       snackbar.textContent = msg;
@@ -71,62 +74,35 @@
       desktopBadge.classList.toggle('connected', connected);
     }
 
-    const channel = supabase.channel(`digit-${session.user.id}`);
+    /* ── getUserMedia camera — no page navigation, no reload risk ── */
+    async function startCamera() {
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width:  { ideal: 3840 },
+            height: { ideal: 2160 },
+          },
+          audio: false,
+        });
+        cameraVideo.srcObject = videoStream;
+        await cameraVideo.play();
+      } catch (err) {
+        // Permission denied or getUserMedia unavailable → fallback to file picker
+        showSnack('Impossibile aprire la fotocamera. Scegli il file manualmente.', true);
+        fallbackInput.click();
+      }
+    }
 
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const desktopOnline = Object.values(state).flat().some(p => p.role === 'desktop');
-        setDesktopPresence(desktopOnline);
-      })
-      .on('broadcast', { event: 'number_verified' }, ({ payload }) => {
-        currentNumber = String(payload.numero);
-        sessionStorage.setItem(STORAGE_KEY, currentNumber);
-        fotoNumero.textContent = currentNumber;
-        showState('stateReady');
-        if (navigator.vibrate) navigator.vibrate(100);
-      })
-      .on('broadcast', { event: 'form_reset' }, () => {
-        currentNumber = null;
-        sessionStorage.removeItem(STORAGE_KEY);
-        showState('stateWaiting');
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          connDot.classList.add('connected');
-          connLabel.textContent = 'Connesso';
-          await channel.track({ role: 'mobile' });
+    function stopCamera() {
+      if (videoStream) {
+        videoStream.getTracks().forEach(t => t.stop());
+        videoStream = null;
+        cameraVideo.srcObject = null;
+      }
+    }
 
-          // Restore state if the page reloaded mid-session (Android camera return)
-          const savedNum = sessionStorage.getItem(STORAGE_KEY);
-          if (savedNum) {
-            currentNumber = savedNum;
-            fotoNumero.textContent = currentNumber;
-            showState('stateReady');
-            showSnack('Numero ripristinato — riprova a scattare la foto.');
-          }
-
-          document.body.style.opacity = '1';
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          connDot.classList.remove('connected');
-          connLabel.textContent = 'Disconnesso';
-          setDesktopPresence(false);
-          document.body.style.opacity = '1';
-        }
-      });
-
-    cameraBtn.addEventListener('click', () => {
-      // Persist the number before handing control to the camera app.
-      // If Android kills the page while the camera is open, the number
-      // is recovered from sessionStorage when the page reloads.
-      if (currentNumber) sessionStorage.setItem(STORAGE_KEY, currentNumber);
-      fileInput.click();
-    });
-
-    fileInput.addEventListener('change', async () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-      fileInput.value = '';
+    async function uploadAndSend(file) {
       showState('stateUploading');
       try {
         const url = await uploadSchedaStorica(file);
@@ -141,7 +117,80 @@
       } catch (err) {
         showSnack(err.message || 'Errore durante il caricamento.', true);
         showState('stateReady');
+        await startCamera(); // restart stream for retry
       }
+    }
+
+    /* ── Realtime channel ─────────────────────────────────────── */
+    const channel = supabase.channel(`digit-${session.user.id}`);
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const desktopOnline = Object.values(state).flat().some(p => p.role === 'desktop');
+        setDesktopPresence(desktopOnline);
+      })
+      .on('broadcast', { event: 'number_verified' }, async ({ payload }) => {
+        currentNumber = String(payload.numero);
+        sessionStorage.setItem(STORAGE_KEY, currentNumber);
+        fotoNumero.textContent = currentNumber;
+        showState('stateReady');
+        await startCamera();
+        if (navigator.vibrate) navigator.vibrate(100);
+      })
+      .on('broadcast', { event: 'form_reset' }, () => {
+        currentNumber = null;
+        sessionStorage.removeItem(STORAGE_KEY);
+        stopCamera();
+        showState('stateWaiting');
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          connDot.classList.add('connected');
+          connLabel.textContent = 'Connesso';
+          await channel.track({ role: 'mobile' });
+
+          // Restore state after an unexpected page reload
+          const savedNum = sessionStorage.getItem(STORAGE_KEY);
+          if (savedNum) {
+            currentNumber = savedNum;
+            fotoNumero.textContent = currentNumber;
+            showState('stateReady');
+            await startCamera();
+            showSnack('Numero ripristinato — riprova a scattare la foto.');
+          }
+
+          document.body.style.opacity = '1';
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          connDot.classList.remove('connected');
+          connLabel.textContent = 'Disconnesso';
+          setDesktopPresence(false);
+          document.body.style.opacity = '1';
+        }
+      });
+
+    /* ── Shutter button: capture frame from live stream ───────── */
+    captureBtn.addEventListener('click', () => {
+      if (!videoStream) {
+        fallbackInput.click(); // no stream → file picker fallback
+        return;
+      }
+      cameraCanvas.width  = cameraVideo.videoWidth  || 1920;
+      cameraCanvas.height = cameraVideo.videoHeight || 1080;
+      cameraCanvas.getContext('2d').drawImage(cameraVideo, 0, 0);
+      stopCamera();
+      cameraCanvas.toBlob(async (blob) => {
+        const file = new File([blob], `scheda-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        await uploadAndSend(file);
+      }, 'image/jpeg', 0.92);
+    });
+
+    /* ── Fallback: file input (getUserMedia unavailable/denied) ── */
+    fallbackInput.addEventListener('change', async () => {
+      const file = fallbackInput.files[0];
+      if (!file) return;
+      fallbackInput.value = '';
+      await uploadAndSend(file);
     });
   }
 
