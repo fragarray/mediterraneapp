@@ -235,6 +235,7 @@ html.embedded-admin .digit-page {
 }
 
 .drop-clear-btn,
+.drop-crop-btn,
 .drop-zoom-btn {
   display: inline-flex;
   align-items: center;
@@ -252,9 +253,11 @@ html.embedded-admin .digit-page {
 }
 
 .drop-clear-btn:hover { background: rgba(198,40,40,0.25); color: #ff8a80; }
+.drop-crop-btn:hover  { background: rgba(255,255,255,0.12); color: #fff; }
 .drop-zoom-btn:hover  { background: rgba(255,255,255,0.12); color: #fff; }
 
 .drop-clear-btn .material-icons-outlined,
+.drop-crop-btn .material-icons-outlined,
 .drop-zoom-btn .material-icons-outlined { font-size: 17px; }
 
 /* ── Form column ─────────────────────────────────────────────── */
@@ -544,7 +547,94 @@ html.embedded-admin .digit-page {
   color: var(--seed);
   font-size: 16px;
 }
+/* ── Crop modal ──────────────────────────────────────────────── */
+.crop-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+}
 
+.crop-modal-inner {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  width: min(820px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+  box-shadow: 0 16px 64px rgba(0, 0, 0, 0.45);
+}
+
+.crop-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.crop-modal-header .material-icons-outlined {
+  font-size: 22px;
+  color: var(--seed);
+}
+
+.crop-modal-header h3 {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.crop-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background .12s, color .12s;
+  flex-shrink: 0;
+}
+
+.crop-modal-close:hover {
+  background: var(--seed-10);
+  color: var(--seed);
+}
+
+.crop-modal-close .material-icons-outlined { font-size: 20px; }
+
+.crop-modal-body {
+  flex: 1;
+  overflow: hidden;
+  background: #111;
+  min-height: 0;
+  max-height: calc(100vh - 180px);
+}
+
+.crop-modal-body img {
+  display: block;
+  max-width: 100%;
+}
+
+.crop-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
 /* ── Lightbox ────────────────────────────────────────────────── */
 .lightbox {
   display: none;

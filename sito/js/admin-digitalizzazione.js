@@ -486,6 +486,67 @@
     });
 
     clearImageBtn.addEventListener('click', e => { e.stopPropagation(); clearImage({ notifyMobile: true }); });
+
+    /* ── Crop modal ─────────────────────────────────────────────── */
+    const cropModal    = document.getElementById('cropModal');
+    const cropImg      = document.getElementById('cropImg');
+    const cropApplyBtn = document.getElementById('cropApplyBtn');
+    const cropImageBtn = document.getElementById('cropImageBtn');
+    let cropper = null;
+
+    function openCropModal() {
+      const src = previewObjectUrl || currentImageUrl;
+      if (!src) return;
+      cropImg.src = src;
+      cropModal.style.display = 'flex';
+      // Init Cropper after the image loads
+      cropImg.onload = () => {
+        if (cropper) { cropper.destroy(); cropper = null; }
+        cropper = new Cropper(cropImg, {
+          viewMode: 1,
+          autoCropArea: 0.9,
+          movable: true,
+          zoomable: true,
+          rotatable: true,
+          scalable: false,
+          guides: true,
+          background: true,
+        });
+      };
+    }
+
+    function closeCropModal() {
+      if (cropper) { cropper.destroy(); cropper = null; }
+      cropImg.src = '';
+      cropModal.style.display = 'none';
+    }
+
+    cropImageBtn.addEventListener('click', e => { e.stopPropagation(); openCropModal(); });
+
+    [document.getElementById('cropCancelBtn'), document.getElementById('cropCancelBtn2')]
+      .forEach(btn => btn.addEventListener('click', closeCropModal));
+
+    cropModal.addEventListener('click', e => {
+      if (e.target === cropModal) closeCropModal();
+    });
+
+    cropApplyBtn.addEventListener('click', () => {
+      if (!cropper) return;
+      cropApplyBtn.disabled = true;
+      cropApplyBtn.innerHTML = '<span class="material-icons-outlined spin">sync</span> Applicazione…';
+
+      const canvas = cropper.getCroppedCanvas({ maxWidth: 4096, maxHeight: 4096 });
+      canvas.toBlob(blob => {
+        // Replace current image with the cropped version
+        const ext  = currentImageFile ? (currentImageFile.name.split('.').pop() || 'jpg') : 'jpg';
+        const file = new File([blob], `scheda-ritagliata.${ext}`, { type: blob.type });
+        closeCropModal();
+        setImage(file);
+        showSnackbar('Ritaglio applicato. ✓');
+        cropApplyBtn.disabled = false;
+        cropApplyBtn.innerHTML = '<span class="material-icons-outlined">check</span> Applica ritaglio';
+      }, 'image/jpeg', 0.94);
+    });
     zoomImageBtn.addEventListener('click', e => {
       e.stopPropagation();
       const src = previewObjectUrl || currentImageUrl;

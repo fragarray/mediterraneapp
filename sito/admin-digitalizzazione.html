@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="css/common.css">
   <link rel="stylesheet" href="css/admin-shared.css">
   <link rel="stylesheet" href="css/admin-digitalizzazione.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1/dist/cropper.min.css">
 </head>
 <body>
 
@@ -129,6 +130,10 @@
           <button type="button" class="btn-ghost drop-clear-btn" id="clearImageBtn">
             <span class="material-icons-outlined">delete_outline</span>
             Rimuovi
+          </button>
+          <button type="button" class="btn-ghost drop-crop-btn" id="cropImageBtn">
+            <span class="material-icons-outlined">crop</span>
+            Ritaglia
           </button>
           <button type="button" class="btn-ghost drop-zoom-btn" id="zoomImageBtn">
             <span class="material-icons-outlined">zoom_in</span>
@@ -285,6 +290,29 @@
     </div>
   </main>
 
+  <!-- Modale di ritaglio immagine -->
+  <div class="crop-modal" id="cropModal" style="display:none;" role="dialog" aria-modal="true" aria-label="Ritaglia immagine">
+    <div class="crop-modal-inner">
+      <div class="crop-modal-header">
+        <span class="material-icons-outlined">crop</span>
+        <h3>Ritaglia scheda</h3>
+        <button type="button" class="crop-modal-close" id="cropCancelBtn" title="Annulla">
+          <span class="material-icons-outlined">close</span>
+        </button>
+      </div>
+      <div class="crop-modal-body">
+        <img id="cropImg" src="" alt="Immagine da ritagliare">
+      </div>
+      <div class="crop-modal-footer">
+        <button type="button" class="btn-outlined" id="cropCancelBtn2">Annulla</button>
+        <button type="button" class="btn-filled" id="cropApplyBtn">
+          <span class="material-icons-outlined">check</span>
+          Applica ritaglio
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Lightbox per anteprima ingrandita -->
   <div class="lightbox" id="lightbox">
     <img id="lightboxImg" src="" alt="Scheda ingrandita">
@@ -293,6 +321,7 @@
   <!-- Snackbar -->
   <div class="snackbar" id="snackbar"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/cropperjs@1/dist/cropper.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="supabase-config.js"></script>
   <script src="js/common-ui.js"></script>
