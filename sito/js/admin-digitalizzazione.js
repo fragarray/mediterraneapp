@@ -215,6 +215,7 @@
     let currentImageUrl  = null;
     let previewObjectUrl = null;
     let verifyState      = 'unverified';
+    let imageOriginMobile = false;  // true even after crop if original came from mobile
 
     /* ── DOM refs ───────────────────────────────────────────────── */
     document.getElementById('digitMain').style.display = '';
@@ -331,8 +332,9 @@
 
     function setImageFromUrl(url) {
       if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = null; }
-      currentImageFile = null;
-      currentImageUrl  = url;
+      currentImageFile  = null;
+      currentImageUrl   = url;
+      imageOriginMobile = true;
       imagePreview.src = url;
       imagePreview.style.display = 'block';
       dropHint.style.display = 'none';
@@ -342,10 +344,13 @@
     }
 
     function clearImage({ notifyMobile = false } = {}) {
-      const wasFromMobile = currentImageUrl !== null;
+      const wasFromMobile = imageOriginMobile;
+      // Exit crop mode first so no stale crop-active state remains
+      if (document.querySelector('.digit-col-image.crop-active')) exitCropMode();
       if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = null; }
-      currentImageFile = null;
-      currentImageUrl  = null;
+      currentImageFile  = null;
+      currentImageUrl   = null;
+      imageOriginMobile = false;
       imagePreview.src = '';
       imagePreview.style.display = 'none';
       dropHint.style.display = 'flex';
@@ -487,19 +492,19 @@
 
     clearImageBtn.addEventListener('click', e => { e.stopPropagation(); clearImage({ notifyMobile: true }); });
 
-    /* ── Crop modal ─────────────────────────────────────────────── */
-    const cropModal    = document.getElementById('cropModal');
-    const cropImg      = document.getElementById('cropImg');
-    const cropApplyBtn = document.getElementById('cropApplyBtn');
-    const cropImageBtn = document.getElementById('cropImageBtn');
+    /* ── Inline image crop ──────────────────────────────────────── */
+    const colImage      = document.querySelector('.digit-col-image');
+    const cropImg       = document.getElementById('cropImg');
+    const cropImageBtn  = document.getElementById('cropImageBtn');
+    const cropCancelBtn = document.getElementById('cropCancelInlineBtn');
+    const cropApplyBtn  = document.getElementById('cropApplyInlineBtn');
     let cropper = null;
 
-    function openCropModal() {
+    function enterCropMode() {
       const src = previewObjectUrl || currentImageUrl;
       if (!src) return;
       cropImg.src = src;
-      cropModal.style.display = 'flex';
-      // Init Cropper after the image loads
+      colImage.classList.add('crop-active');
       cropImg.onload = () => {
         if (cropper) { cropper.destroy(); cropper = null; }
         cropper = new Cropper(cropImg, {
@@ -513,38 +518,31 @@
           background: true,
         });
       };
+      if (cropImg.complete && cropImg.naturalWidth) cropImg.onload();
     }
 
-    function closeCropModal() {
+    function exitCropMode() {
       if (cropper) { cropper.destroy(); cropper = null; }
+      colImage.classList.remove('crop-active');
       cropImg.src = '';
-      cropModal.style.display = 'none';
     }
 
-    cropImageBtn.addEventListener('click', e => { e.stopPropagation(); openCropModal(); });
-
-    [document.getElementById('cropCancelBtn'), document.getElementById('cropCancelBtn2')]
-      .forEach(btn => btn.addEventListener('click', closeCropModal));
-
-    cropModal.addEventListener('click', e => {
-      if (e.target === cropModal) closeCropModal();
-    });
+    cropImageBtn.addEventListener('click', e => { e.stopPropagation(); enterCropMode(); });
+    cropCancelBtn.addEventListener('click', exitCropMode);
 
     cropApplyBtn.addEventListener('click', () => {
       if (!cropper) return;
       cropApplyBtn.disabled = true;
-      cropApplyBtn.innerHTML = '<span class="material-icons-outlined spin">sync</span> Applicazione…';
+      cropApplyBtn.innerHTML = '<span class="material-icons-outlined spin">sync</span> Applicazione\u2026';
 
-      const canvas = cropper.getCroppedCanvas({ maxWidth: 4096, maxHeight: 4096 });
-      canvas.toBlob(blob => {
-        // Replace current image with the cropped version
+      cropper.getCroppedCanvas({ maxWidth: 4096, maxHeight: 4096 }).toBlob(blob => {
         const ext  = currentImageFile ? (currentImageFile.name.split('.').pop() || 'jpg') : 'jpg';
         const file = new File([blob], `scheda-ritagliata.${ext}`, { type: blob.type });
-        closeCropModal();
+        exitCropMode();
         setImage(file);
-        showSnackbar('Ritaglio applicato. ✓');
+        showSnackbar('Ritaglio applicato. \u2713');
         cropApplyBtn.disabled = false;
-        cropApplyBtn.innerHTML = '<span class="material-icons-outlined">check</span> Applica ritaglio';
+        cropApplyBtn.innerHTML = '<span class="material-icons-outlined">check</span> Applica';
       }, 'image/jpeg', 0.94);
     });
     zoomImageBtn.addEventListener('click', e => {
