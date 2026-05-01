@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digitalizzazione – Mediterranea</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+
+  <script>
+    if (new URLSearchParams(window.location.search).get('embedded') === '1') {
+      document.documentElement.classList.add('embedded-admin');
+    }
+  </script>
+
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/admin-shared.css">
+  <link rel="stylesheet" href="css/admin-digitalizzazione.css">
+</head>
+<body>
+
+  <!-- AppBar (nascosta quando embedded) -->
+  <header class="appbar">
+    <a href="index.html" class="appbar-action" title="Home">
+      <span class="material-icons-outlined">home</span>
+    </a>
+    <span class="appbar-title">Mediterranea</span>
+    <a href="admin-shell.html?view=dashboard" class="appbar-action" title="Dashboard">
+      <span class="material-icons-outlined">dashboard</span>
+    </a>
+    <a href="admin-shell.html?view=digitizzazione" class="appbar-action active" title="Digitalizzazione">
+      <span class="material-icons-outlined">document_scanner</span>
+    </a>
+  </header>
+
+  <!-- Messaggio accesso negato (visibile solo se non autenticato) -->
+  <div id="authGuard" style="display:none;" class="auth-guard">
+    <span class="material-icons-outlined">lock</span>
+    <p>Accesso riservato agli amministratori.</p>
+    <a href="admin-shell.html?view=dashboard" class="btn-filled">Vai al login</a>
+  </div>
+
+  <!-- Contenuto principale -->
+  <main class="digit-page" id="digitMain" style="display:none;">
+    <div class="digit-layout">
+
+      <!-- Colonna sinistra: zona immagine -->
+      <div class="digit-col-image">
+        <div class="drop-zone" id="dropZone" tabindex="0" role="button"
+             aria-label="Zona caricamento scheda. Trascina, incolla con Ctrl+V o clicca per scegliere un file.">
+          <div class="drop-hint" id="dropHint">
+            <span class="material-icons-outlined drop-hint-icon">document_scanner</span>
+            <span class="drop-hint-title">Scheda di registrazione</span>
+            <span class="drop-hint-sub">Trascina il file qui</span>
+            <span class="drop-hint-sub">oppure <strong>Ctrl+V</strong> per incollare dallo scanner</span>
+            <span class="drop-hint-sub drop-hint-or">· o clicca per scegliere un file ·</span>
+          </div>
+          <img id="imagePreview" src="" alt="Anteprima scheda scansionata">
+        </div>
+
+        <div class="drop-toolbar">
+          <button type="button" class="btn-ghost drop-clear-btn" id="clearImageBtn">
+            <span class="material-icons-outlined">delete_outline</span>
+            Rimuovi
+          </button>
+          <button type="button" class="btn-ghost drop-zoom-btn" id="zoomImageBtn">
+            <span class="material-icons-outlined">zoom_in</span>
+            Ingrandisci
+          </button>
+        </div>
+
+        <input type="file" id="fileInput" accept="image/*" style="display:none;" aria-hidden="true">
+      </div>
+
+      <!-- Resize handle trascinabile -->
+      <div class="digit-resize-handle" id="digitResizeHandle" title="Trascina per ridimensionare"></div>
+
+      <!-- Colonna destra: form -->
+      <div class="digit-col-form">
+        <div class="card digit-form-card">
+          <h2 class="digit-form-title">
+            <span class="material-icons-outlined">history_edu</span>
+            Digitalizzazione tessera storica
+          </h2>
+          <p class="digit-form-desc">
+            Inserisci i dati leggibili dalla scheda cartacea. Solo i campi con
+            <span class="required-star">*</span> sono obbligatori.
+          </p>
+
+          <form id="digitForm" novalidate autocomplete="off">
+
+            <!-- Numero tessera -->
+            <div class="form-group" id="fg-numTessera">
+              <label for="numTessera">N° Tessera <span class="required-star">*</span></label>
+              <div class="num-tessera-row">
+                <div class="input-with-icon">
+                  <span class="material-icons-outlined">confirmation_number</span>
+                  <input type="number" id="numTessera" name="numTessera"
+                         inputmode="numeric" min="1" step="1" required>
+                </div>
+                <button type="button" class="btn-outlined digit-verify-btn" id="verificaBtn">
+                  <span class="material-icons-outlined" id="verificaBtnIcon">search</span>
+                  <span id="verificaBtnLabel">Verifica</span>
+                </button>
+              </div>
+              <span class="error-msg">Numero tessera obbligatorio</span>
+            </div>
+
+            <!-- Alert duplicato (visibile solo se tessera già presente) -->
+            <div class="dup-alert" id="dupAlert" style="display:none;">
+              <div class="dup-alert-header">
+                <span class="material-icons-outlined">block</span>
+                <strong>Tessera n° <span id="dupAlertNum"></span> già presente nel database</strong>
+              </div>
+              <table class="dup-alert-table" id="dupAlertTable"></table>
+            </div>
+
+            <!-- Nome + Cognome -->
+            <div class="digit-fields-row">
+              <div class="form-group" id="fg-nome">
+                <label for="nome">Nome <span class="required-star">*</span></label>
+                <input type="text" id="nome" name="nome" required disabled>
+                <span class="error-msg">Campo obbligatorio</span>
+              </div>
+              <div class="form-group" id="fg-cognome">
+                <label for="cognome">Cognome <span class="required-star">*</span></label>
+                <input type="text" id="cognome" name="cognome" required disabled>
+                <span class="error-msg">Campo obbligatorio</span>
+              </div>
+            </div>
+
+            <!-- Data di nascita -->
+            <div class="form-group" id="fg-dataNascita">
+              <label for="dataNascita">Data di nascita <span class="required-star">*</span></label>
+              <div class="input-with-icon">
+                <span class="material-icons-outlined">event</span>
+                <input type="text" id="dataNascita" name="dataNascita"
+                       placeholder="gg/mm/aaaa" inputmode="numeric" maxlength="10" required disabled>
+              </div>
+              <span class="error-msg">Usa il formato gg/mm/aaaa</span>
+            </div>
+
+            <!-- Luogo di nascita (opzionale) -->
+            <div class="form-group">
+              <label for="luogoNascita">
+                Luogo di nascita
+                <span class="optional-label">(facoltativo)</span>
+              </label>
+              <input type="text" id="luogoNascita" name="luogoNascita" disabled>
+            </div>
+
+            <!-- Residenza -->
+            <div class="form-group">
+              <label for="residenza">
+                Nazione di residenza
+                <span class="optional-label">(facoltativo)</span>
+              </label>
+              <input type="text" id="residenza" name="residenza" disabled>
+            </div>
+
+            <!-- Comune + CAP -->
+            <div class="digit-fields-row">
+              <div class="form-group">
+                <label for="comune">
+                  Comune
+                  <span class="optional-label">(facoltativo)</span>
+                </label>
+                <input type="text" id="comune" name="comune" disabled>
+              </div>
+              <div class="form-group">
+                <label for="cap">
+                  CAP
+                  <span class="optional-label">(facoltativo)</span>
+                </label>
+                <input type="text" id="cap" name="cap" inputmode="numeric" maxlength="10" disabled>
+              </div>
+            </div>
+
+            <!-- Telefono -->
+            <div class="form-group" id="fg-telefono">
+              <label for="telefono">
+                Telefono
+                <span class="optional-label">(facoltativo)</span>
+              </label>
+              <input type="tel" id="telefono" name="telefono" disabled>
+              <span class="error-msg">Numero non valido (8–15 cifre)</span>
+            </div>
+
+            <!-- Email -->
+            <div class="form-group" id="fg-email">
+              <label for="email">
+                Email
+                <span class="optional-label">(facoltativo)</span>
+              </label>
+              <input type="email" id="email" name="email" autocomplete="off" disabled>
+              <span class="error-msg">Indirizzo email non valido</span>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" class="btn-filled digit-submit-btn" id="submitBtn" disabled>
+              <span class="material-icons-outlined">save</span>
+              Salva e prossima
+            </button>
+
+          </form>
+
+          <!-- Contatore sessione -->
+          <div class="digit-counter" id="digitCounter">
+            <span class="material-icons-outlined">check_circle_outline</span>
+            <span>
+              <strong id="sessionCounter">0</strong> tessere digitalizzate in questa sessione
+            </span>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Lightbox per anteprima ingrandita -->
+  <div class="lightbox" id="lightbox">
+    <img id="lightboxImg" src="" alt="Scheda ingrandita">
+  </div>
+
+  <!-- Snackbar -->
+  <div class="snackbar" id="snackbar"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="js/common-ui.js"></script>
+  <script src="js/admin-shared.js"></script>
+  <script src="js/admin-digitalizzazione.js"></script>
+</body>
+</html>

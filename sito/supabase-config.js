@@ -667,3 +667,78 @@ async function deleteCarouselImageByPublicUrl(publicUrl) {
   if (error) throw new Error(`Eliminazione immagine fallita. ${error.message}`);
 }
 
+/* ================================================================
+   ADMIN: Upload scheda storica (Storage)
+   ================================================================ */
+
+/**
+ * Carica una scheda di registrazione cartacea nel bucket "firme",
+ * cartella "schede-storiche/".
+ * @param {File|Blob} file  – immagine della scheda (da scanner o file)
+ * @returns {Promise<string>} URL pubblico del file caricato
+ */
+async function uploadSchedaStorica(file) {
+  const rawExt = (file.name ? file.name.split('.').pop().toLowerCase() : '') || 'jpg';
+  const safeExt = /^(jpg|jpeg|png|gif|webp|bmp|tiff|tif)$/.test(rawExt) ? rawExt : 'jpg';
+  const path = `schede-storiche/${crypto.randomUUID()}.${safeExt}`;
+
+  const { error } = await supabase.storage
+    .from('firme')
+    .upload(path, file, { contentType: file.type || 'image/jpeg', upsert: false });
+
+  if (error) throw new Error(`Upload scheda fallito. ${error.message}`);
+
+  const { data } = supabase.storage.from('firme').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/* ================================================================
+   ADMIN: Inserimento diretto scheda storica (tabella soci)
+   ================================================================ */
+
+/**
+ * Recupera i dati completi di un socio dato il numero tessera.
+ * Restituisce null se non trovato.
+ */
+async function getSocioByNumeroTessera(numero) {
+  const { data, error } = await supabase
+    .from('soci')
+    .select('numero_tessera, nome, cognome, data_nascita, luogo_nascita, residenza, comune, cap, email, telefono, stato, created_at')
+    .eq('numero_tessera', String(numero))
+    .maybeSingle();
+  if (error) return null;
+  return data;
+}
+
+/**
+ * Inserisce direttamente nella tabella soci un record approvato
+ * corrispondente a una tessera cartacea storica.
+ * Usato dalla pagina di digitalizzazione admin (nessuna coda di approvazione).
+ * @param {Object} data – { numeroTessera, nome, cognome, dataNascita, luogoNascita, residenza, comune, cap, telefono, email }
+ * @param {File|Blob} imageFile – immagine scansionata della scheda cartacea
+ */
+async function submitAdminDigitalization(data, imageFile) {
+  // Client-side safety (UI should already have blocked this, but double-check)
+  const exists = await membershipNumberExists(String(data.numeroTessera));
+  if (exists) throw new Error(`La tessera n° ${data.numeroTessera} è già presente nel database. Operazione annullata.`);
+
+  const schedaUrl = await uploadSchedaStorica(imageFile);
+
+  // Uses RPC with SECURITY DEFINER to bypass RLS — same pattern of approve_member_with_membership_number
+  const { error } = await supabase.rpc('insert_scheda_storica', {
+    p_numero_tessera: String(data.numeroTessera),
+    p_nome:           data.nome,
+    p_cognome:        data.cognome,
+    p_data_nascita:   data.dataNascita,
+    p_luogo_nascita:  data.luogoNascita  || '–',
+    p_residenza:      data.residenza     || '–',
+    p_comune:         data.comune        || '–',
+    p_cap:            data.cap           || '00000',
+    p_email:          data.email         || 'no@mail.no',
+    p_telefono:       data.telefono      || '0000000000',
+    p_firma_url:      schedaUrl,
+  });
+
+  if (error) throw new Error(`Errore inserimento tessera storica. ${error.message}`);
+}
+

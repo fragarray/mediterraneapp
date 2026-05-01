@@ -10,11 +10,13 @@ const shellRouteMap = {
   dashboard: 'admin.html?embedded=1',
   search: 'admin-ricerca.html?embedded=1',
   settings: 'settings.html?embedded=1',
+  digitizzazione: 'admin-digitalizzazione.html?embedded=1',
 };
 const shellTitleMap = {
   dashboard: 'Dashboard',
   search: 'Ricerca',
   settings: 'Impostazioni',
+  digitizzazione: 'Digitalizzazione',
 };
 
 let shellCurrentView = 'dashboard';
