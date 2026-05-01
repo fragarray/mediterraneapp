@@ -15,31 +15,74 @@
   /* ── State ───────────────────────────────────────────────────── */
   let sessionCount     = 0;
   let currentImageFile = null;
+  let currentImageUrl  = null; // set when image comes from mobile camera
   let previewObjectUrl = null;
   // 'unverified' | 'free' | 'taken'
   let verifyState      = 'unverified';
 
   /* ── DOM refs ────────────────────────────────────────────────── */
-  const dropZone      = document.getElementById('dropZone');
-  const dropHint      = document.getElementById('dropHint');
-  const imagePreview  = document.getElementById('imagePreview');
-  const fileInput     = document.getElementById('fileInput');
-  const clearImageBtn = document.getElementById('clearImageBtn');
-  const zoomImageBtn  = document.getElementById('zoomImageBtn');
-  const dropToolbar   = document.querySelector('.drop-toolbar');
-  const form          = document.getElementById('digitForm');
-  const submitBtn     = document.getElementById('submitBtn');
-  const counterEl     = document.getElementById('sessionCounter');
-  const numInput      = document.getElementById('numTessera');
-  const verificaBtn   = document.getElementById('verificaBtn');
-  const verificaIcon  = document.getElementById('verificaBtnIcon');
-  const verificaLabel = document.getElementById('verificaBtnLabel');
-  const dupAlert      = document.getElementById('dupAlert');
-  const dupAlertNum   = document.getElementById('dupAlertNum');
-  const dupAlertTable = document.getElementById('dupAlertTable');
+  const dropZone        = document.getElementById('dropZone');
+  const dropHint        = document.getElementById('dropHint');
+  const imagePreview    = document.getElementById('imagePreview');
+  const fileInput       = document.getElementById('fileInput');
+  const clearImageBtn   = document.getElementById('clearImageBtn');
+  const zoomImageBtn    = document.getElementById('zoomImageBtn');
+  const dropToolbar     = document.querySelector('.drop-toolbar');
+  const form            = document.getElementById('digitForm');
+  const submitBtn       = document.getElementById('submitBtn');
+  const counterEl       = document.getElementById('sessionCounter');
+  const numInput        = document.getElementById('numTessera');
+  const verificaBtn     = document.getElementById('verificaBtn');
+  const verificaIcon    = document.getElementById('verificaBtnIcon');
+  const verificaLabel   = document.getElementById('verificaBtnLabel');
+  const dupAlert        = document.getElementById('dupAlert');
+  const dupAlertNum     = document.getElementById('dupAlertNum');
+  const dupAlertTable   = document.getElementById('dupAlertTable');
+  const mobileBadge     = document.getElementById('mobileBadge');
+  const mobileBadgeIcon = document.getElementById('mobileBadgeIcon');
+  const mobileBadgeText = document.getElementById('mobileBadgeText');
 
   /** All form fields that are locked until the number is verified as free */
   const FORM_FIELDS = ['nome','cognome','dataNascita','luogoNascita','residenza','comune','cap','telefono','email'];
+
+  /* ── Realtime channel (Broadcast + Presence) ─────────────────── */
+  // Scoped to the admin's user ID — different operators never interfere
+  const realtimeChannel = supabase.channel(`digit-${session.user.id}`);
+
+  realtimeChannel
+    .on('presence', { event: 'sync' }, () => {
+      const state = realtimeChannel.presenceState();
+      const mobileOnline = Object.values(state).flat().some(p => p.role === 'mobile');
+      updateMobileBadge(mobileOnline);
+    })
+    // Mobile has uploaded and sent back the image URL
+    .on('broadcast', { event: 'image_ready' }, ({ payload }) => {
+      if (payload?.url) {
+        setImageFromUrl(payload.url);
+        showSnackbar('Foto ricevuta dal dispositivo mobile. \u2713');
+      }
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await realtimeChannel.track({ role: 'desktop' });
+      }
+    });
+
+  function updateMobileBadge(connected) {
+    mobileBadge.classList.toggle('mobile-connected', connected);
+    if (connected) {
+      mobileBadgeIcon.textContent = 'smartphone';
+      mobileBadgeText.innerHTML   = '<strong>Fotocamera mobile connessa</strong> — premi Verifica per attivare';
+    } else {
+      mobileBadgeIcon.textContent = 'smartphone';
+      mobileBadgeText.innerHTML   = 'Apri <strong>admin-foto.html</strong> sul cellulare per usare la fotocamera';
+    }
+  }
+
+  /** Broadcast a message to connected mobile device (fire-and-forget) */
+  function broadcast(event, payload = {}) {
+    realtimeChannel.send({ type: 'broadcast', event, payload }).catch(() => {});
+  }
 
   /* ── Resize handle ───────────────────────────────────────────── */
   (function initResize() {
@@ -82,8 +125,24 @@
   function setImage(file) {
     if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
     currentImageFile = file;
+    currentImageUrl  = null;
     previewObjectUrl = URL.createObjectURL(file);
     imagePreview.src = previewObjectUrl;
+    imagePreview.style.display = 'block';
+    dropHint.style.display = 'none';
+    dropZone.classList.add('has-image');
+    dropZone.classList.remove('drop-error');
+    dropToolbar.classList.add('visible');
+  }
+
+  function setImageFromUrl(url) {
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+      previewObjectUrl = null;
+    }
+    currentImageFile = null;
+    currentImageUrl  = url;
+    imagePreview.src = url;
     imagePreview.style.display = 'block';
     dropHint.style.display = 'none';
     dropZone.classList.add('has-image');
@@ -97,6 +156,7 @@
       previewObjectUrl = null;
     }
     currentImageFile = null;
+    currentImageUrl  = null;
     imagePreview.src = '';
     imagePreview.style.display = 'none';
     dropHint.style.display = 'flex';
@@ -134,7 +194,7 @@
       numInput.readOnly = false;
     } else if (state === 'loading') {
       verificaIcon.textContent  = 'sync';
-      verificaLabel.textContent = 'Verifica…';
+      verificaLabel.textContent = 'Verifica\u2026';
       verificaBtn.classList.add('verify-loading');
       verificaBtn.disabled = true;
     } else if (state === 'free') {
@@ -145,10 +205,12 @@
       numInput.readOnly = true;
       dupAlert.style.display = 'none';
       unlockFields();
+      // Notify the mobile device
+      broadcast('number_verified', { numero: numInput.value.trim() });
       document.getElementById('nome').focus();
     } else if (state === 'taken') {
       verificaIcon.textContent  = 'block';
-      verificaLabel.textContent = 'Già presente';
+      verificaLabel.textContent = 'Gi\u00e0 presente';
       verificaBtn.classList.add('verify-taken');
       verificaBtn.disabled = false;
       numInput.readOnly = true;
@@ -159,9 +221,10 @@
 
   /* ── Verify click handler ────────────────────────────────────── */
   verificaBtn.addEventListener('click', async () => {
-    // If already verified (free or taken), clicking again resets
+    // Clicking again when already verified resets to allow changing number
     if (verifyState === 'free' || verifyState === 'taken') {
       numInput.readOnly = false;
+      clearImage();
       setVerifyState('unverified');
       numInput.focus();
       return;
@@ -179,13 +242,12 @@
     try {
       const socio = await getSocioByNumeroTessera(numRaw);
       if (socio) {
-        // Show duplicate alert with full member data
         dupAlertNum.textContent = numRaw;
         dupAlertTable.innerHTML = buildDupTable(socio);
         setVerifyState('taken');
       } else {
         setVerifyState('free');
-        showSnackbar(`Tessera n° ${numRaw} disponibile — compila i dati.`);
+        showSnackbar(`Tessera n\u00b0 ${numRaw} disponibile \u2014 compila i dati.`);
       }
     } catch (err) {
       setVerifyState('unverified');
@@ -195,29 +257,30 @@
 
   /** Build an HTML table with member data for the duplicate alert */
   function buildDupTable(s) {
-    const fmt = v => v && v !== '–' && v !== 'no@mail.no' && v !== '0000000000' ? v : '—';
-    const fmtDate = iso => iso ? iso.split('T')[0].split('-').reverse().join('/') : '—';
+    const fmt     = v => v && v !== '\u2013' && v !== 'no@mail.no' && v !== '0000000000' ? v : '\u2014';
+    const fmtDate = iso => iso ? iso.split('T')[0].split('-').reverse().join('/') : '\u2014';
     const rows = [
-      ['Nome',            fmt(s.nome)],
-      ['Cognome',         fmt(s.cognome)],
-      ['Data di nascita', fmtDate(s.data_nascita)],
-      ['Luogo di nascita',fmt(s.luogo_nascita)],
-      ['Residenza',       fmt(s.residenza)],
-      ['Comune',          fmt(s.comune)],
-      ['CAP',             fmt(s.cap)],
-      ['Telefono',        fmt(s.telefono)],
-      ['Email',           fmt(s.email)],
-      ['Stato',           s.stato || '—'],
-      ['Registrato il',   fmtDate(s.created_at)],
+      ['Nome',             fmt(s.nome)],
+      ['Cognome',          fmt(s.cognome)],
+      ['Data di nascita',  fmtDate(s.data_nascita)],
+      ['Luogo di nascita', fmt(s.luogo_nascita)],
+      ['Residenza',        fmt(s.residenza)],
+      ['Comune',           fmt(s.comune)],
+      ['CAP',              fmt(s.cap)],
+      ['Telefono',         fmt(s.telefono)],
+      ['Email',            fmt(s.email)],
+      ['Stato',            s.stato || '\u2014'],
+      ['Registrato il',    fmtDate(s.created_at)],
     ];
-    return rows.map(([k, v]) =>
-      `<tr><th>${k}</th><td>${v}</td></tr>`
-    ).join('');
+    return rows.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('');
   }
 
   /* ── Reset to unverified when number changes ─────────────────── */
   numInput.addEventListener('input', () => {
-    if (verifyState !== 'unverified') setVerifyState('unverified');
+    if (verifyState !== 'unverified') {
+      clearImage();
+      setVerifyState('unverified');
+    }
   });
 
   /* ── Drop-zone interactions ──────────────────────────────────── */
@@ -265,8 +328,9 @@
   clearImageBtn.addEventListener('click', e => { e.stopPropagation(); clearImage(); });
   zoomImageBtn.addEventListener('click', e => {
     e.stopPropagation();
-    if (previewObjectUrl) {
-      document.getElementById('lightboxImg').src = previewObjectUrl;
+    const src = previewObjectUrl || currentImageUrl;
+    if (src) {
+      document.getElementById('lightboxImg').src = src;
       document.getElementById('lightbox').classList.add('active');
     }
   });
@@ -331,7 +395,6 @@
   form.addEventListener('submit', async e => {
     e.preventDefault();
 
-    // Double-check: fields must be unlocked (i.e. number was verified as free)
     if (verifyState !== 'free') {
       showSnackbar('Verifica prima il numero tessera con il tasto "Verifica".', true);
       return;
@@ -345,7 +408,7 @@
     valid = validateEmailIfFilled('email')    & valid;
     valid = validatePhoneIfFilled('telefono') & valid;
 
-    if (!currentImageFile) {
+    if (!currentImageFile && !currentImageUrl) {
       dropZone.classList.add('drop-error');
       valid = false;
     }
@@ -360,7 +423,7 @@
     const numTessera = numInput.value.trim();
 
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="material-icons-outlined spin">sync</span> Salvataggio…';
+    submitBtn.innerHTML = '<span class="material-icons-outlined spin">sync</span> Salvataggio\u2026';
 
     try {
       await submitAdminDigitalization({
@@ -374,10 +437,13 @@
         cap:           val('cap'),
         telefono:      val('telefono'),
         email:         val('email').toLowerCase(),
-      }, currentImageFile);
+      }, currentImageFile, currentImageUrl);
 
       sessionCount++;
       counterEl.textContent = sessionCount;
+
+      // Tell mobile to return to waiting state
+      broadcast('form_reset');
 
       // Full reset
       form.reset();
@@ -386,7 +452,7 @@
       numInput.readOnly = false;
       setVerifyState('unverified');
 
-      showSnackbar(`Tessera n° ${numTessera} digitalizzata con successo. \u2713`);
+      showSnackbar(`Tessera n\u00b0 ${numTessera} digitalizzata con successo. \u2713`);
       numInput.focus();
 
     } catch (err) {

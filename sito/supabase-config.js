@@ -717,12 +717,20 @@ async function getSocioByNumeroTessera(numero) {
  * @param {Object} data – { numeroTessera, nome, cognome, dataNascita, luogoNascita, residenza, comune, cap, telefono, email }
  * @param {File|Blob} imageFile – immagine scansionata della scheda cartacea
  */
-async function submitAdminDigitalization(data, imageFile) {
+async function submitAdminDigitalization(data, imageFile, existingImageUrl = null) {
   // Client-side safety (UI should already have blocked this, but double-check)
   const exists = await membershipNumberExists(String(data.numeroTessera));
   if (exists) throw new Error(`La tessera n° ${data.numeroTessera} è già presente nel database. Operazione annullata.`);
 
-  const schedaUrl = await uploadSchedaStorica(imageFile);
+  // Accept either a pre-uploaded URL (from mobile device) or a local file to upload now
+  let schedaUrl;
+  if (existingImageUrl) {
+    schedaUrl = existingImageUrl;
+  } else if (imageFile) {
+    schedaUrl = await uploadSchedaStorica(imageFile);
+  } else {
+    throw new Error('Nessuna immagine fornita.');
+  }
 
   // Uses RPC with SECURITY DEFINER to bypass RLS — same pattern of approve_member_with_membership_number
   const { error } = await supabase.rpc('insert_scheda_storica', {

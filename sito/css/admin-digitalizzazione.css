@@ -70,6 +70,57 @@ html.embedded-admin .digit-page {
   min-height: 0;
 }
 
+/* ── Mobile presence bar ─────────────────────────────────────── */
+.mobile-presence-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 12px;
+  color: #666;
+  flex-shrink: 0;
+  transition: color .2s;
+  min-height: 30px;
+}
+
+.mobile-presence-bar.mobile-connected {
+  color: #81c784;
+}
+
+.mobile-presence-icon {
+  font-size: 15px !important;
+  flex-shrink: 0;
+}
+
+.mobile-presence-text {
+  flex: 1;
+}
+
+.mobile-presence-text strong {
+  font-weight: 600;
+}
+
+.mobile-presence-open {
+  color: inherit;
+  opacity: .55;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: opacity .15s;
+  text-decoration: none;
+}
+
+.mobile-presence-open:hover {
+  opacity: 1;
+}
+
+.mobile-presence-open .material-icons-outlined {
+  font-size: 14px !important;
+}
+
 /* ── Resize handle ───────────────────────────────────────────── */
 .digit-resize-handle {
   flex: 0 0 5px;
