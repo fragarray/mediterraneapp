@@ -72,9 +72,6 @@
     <button class="appbar-action" data-view="digitizzazione" id="navDigitizzazione" title="Digitalizzazione storico">
       <span class="material-icons-outlined">document_scanner</span>
     </button>
-    <a href="admin-foto.html" target="_blank" class="appbar-action" title="Apri fotocamera mobile (nuova scheda)">
-      <span class="material-icons-outlined">photo_camera</span>
-    </a>
     <button class="appbar-action" data-view="settings" id="navSettings" title="Impostazioni">
       <span class="material-icons-outlined">settings</span>
     </button>
@@ -86,7 +83,8 @@
   </header>
 
   <main class="shell-frame-wrap">
-    <iframe class="shell-frame" id="adminFrame" title="Area amministratore" src="about:blank"></iframe>
+    <iframe class="shell-frame" id="adminFrame" title="Area amministratore" src="about:blank"
+            allow="camera"></iframe>
   </main>
 
   <input type="date" id="shellHistoryPicker" aria-hidden="true"

@@ -42,7 +42,54 @@
     <a href="admin-shell.html?view=dashboard" class="btn-filled">Vai al login</a>
   </div>
 
-  <!-- Contenuto principale -->
+  <!-- Vista mobile: scanner fotocamera (mostrata da JS su smartphone/tablet) -->
+  <main id="mobileView" style="display:none;">
+    <div class="foto-statusbar">
+      <div class="foto-conn-indicator">
+        <span class="foto-conn-dot" id="mobileConnDot"></span>
+        <span id="mobileConnLabel">Connessione…</span>
+      </div>
+      <div class="foto-desktop-badge" id="mobileDesktopBadge">
+        <span class="material-icons-outlined">computer</span>
+        <span id="mobileDesktopLabel">Desktop non connesso</span>
+      </div>
+    </div>
+
+    <div class="foto-main-area">
+
+      <div class="foto-state" id="stateWaiting">
+        <span class="material-icons-outlined foto-big-icon foto-icon-pulse">hourglass_top</span>
+        <h1 class="foto-state-title">In attesa</h1>
+        <p class="foto-state-desc">Verifica un numero tessera dal desktop<br>per attivare la fotocamera</p>
+      </div>
+
+      <div class="foto-state" id="stateReady" style="display:none;">
+        <p class="foto-tessera-label">Tessera n°</p>
+        <div class="foto-tessera-num" id="fotoNumero">—</div>
+        <button class="foto-camera-btn" id="cameraBtn" type="button">
+          <span class="material-icons-outlined">photo_camera</span>
+          Scatta foto
+        </button>
+        <input type="file" id="mobileFileInput" accept="image/*" capture="environment"
+               style="display:none;" aria-hidden="true">
+      </div>
+
+      <div class="foto-state" id="stateUploading" style="display:none;">
+        <span class="material-icons-outlined foto-big-icon foto-icon-spin">sync</span>
+        <h1 class="foto-state-title">Invio in corso…</h1>
+        <p class="foto-state-desc">Caricamento immagine al server</p>
+      </div>
+
+      <div class="foto-state" id="stateSent" style="display:none;">
+        <span class="material-icons-outlined foto-big-icon foto-icon-ok">check_circle</span>
+        <h1 class="foto-state-title">Foto inviata!</h1>
+        <p class="foto-state-desc">Compila i dati sul desktop<br>per completare la digitalizzazione</p>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Contenuto principale (desktop) -->
   <main class="digit-page" id="digitMain" style="display:none;">
     <div class="digit-layout">
 
@@ -52,10 +99,7 @@
         <!-- Badge presenza mobile -->
         <div class="mobile-presence-bar" id="mobileBadge">
           <span class="material-icons-outlined mobile-presence-icon" id="mobileBadgeIcon">smartphone</span>
-          <span class="mobile-presence-text" id="mobileBadgeText">Apri <strong>admin-foto.html</strong> sul cellulare per usare la fotocamera</span>
-          <a href="admin-foto.html" target="_blank" class="mobile-presence-open" id="mobileBadgeLink" title="Apri pagina fotocamera">
-            <span class="material-icons-outlined">open_in_new</span>
-          </a>
+          <span class="mobile-presence-text" id="mobileBadgeText">Apri questa pagina sul <strong>cellulare o tablet</strong> per scattare le foto</span>
         </div>
 
         <div class="drop-zone" id="dropZone" tabindex="0" role="button"
