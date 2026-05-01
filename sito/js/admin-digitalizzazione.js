@@ -22,6 +22,17 @@
      MOBILE — fotocamera scanner
   ═══════════════════════════════════════════════════════════════ */
   async function runMobileMode(session) {
+    // On Android, opening the camera from inside an iframe causes the page to
+    // reload when the user returns (OS kills the WebView to free memory).
+    // Fix: if we are inside an iframe, break out to a full top-level page.
+    if (window.top !== window.self) {
+      const standalone = window.location.href
+        .replace(/[?&]embedded=1/, '')
+        .replace(/\?$/, '');
+      window.top.location.replace(standalone);
+      return;
+    }
+
     document.getElementById('mobileView').style.display = '';
     document.body.classList.add('mobile-mode');
 
@@ -38,6 +49,8 @@
     const cameraBtn     = document.getElementById('cameraBtn');
     const fileInput     = document.getElementById('mobileFileInput');
 
+    // sessionStorage key used to survive Android page-reload on camera return
+    const STORAGE_KEY = 'digit_mobile_number';
     let currentNumber = null;
 
     function showSnack(msg, isError = false) {
@@ -68,12 +81,14 @@
       })
       .on('broadcast', { event: 'number_verified' }, ({ payload }) => {
         currentNumber = String(payload.numero);
+        sessionStorage.setItem(STORAGE_KEY, currentNumber);
         fotoNumero.textContent = currentNumber;
         showState('stateReady');
         if (navigator.vibrate) navigator.vibrate(100);
       })
       .on('broadcast', { event: 'form_reset' }, () => {
         currentNumber = null;
+        sessionStorage.removeItem(STORAGE_KEY);
         showState('stateWaiting');
       })
       .subscribe(async (status) => {
@@ -81,6 +96,16 @@
           connDot.classList.add('connected');
           connLabel.textContent = 'Connesso';
           await channel.track({ role: 'mobile' });
+
+          // Restore state if the page reloaded mid-session (Android camera return)
+          const savedNum = sessionStorage.getItem(STORAGE_KEY);
+          if (savedNum) {
+            currentNumber = savedNum;
+            fotoNumero.textContent = currentNumber;
+            showState('stateReady');
+            showSnack('Numero ripristinato — riprova a scattare la foto.');
+          }
+
           document.body.style.opacity = '1';
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           connDot.classList.remove('connected');
@@ -90,7 +115,13 @@
         }
       });
 
-    cameraBtn.addEventListener('click', () => fileInput.click());
+    cameraBtn.addEventListener('click', () => {
+      // Persist the number before handing control to the camera app.
+      // If Android kills the page while the camera is open, the number
+      // is recovered from sessionStorage when the page reloads.
+      if (currentNumber) sessionStorage.setItem(STORAGE_KEY, currentNumber);
+      fileInput.click();
+    });
 
     fileInput.addEventListener('change', async () => {
       const file = fileInput.files[0];
@@ -104,6 +135,7 @@
           event: 'image_ready',
           payload: { url, numero: currentNumber },
         });
+        sessionStorage.removeItem(STORAGE_KEY);
         showState('stateSent');
         if (navigator.vibrate) navigator.vibrate([100, 50, 200]);
       } catch (err) {
