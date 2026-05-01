@@ -144,6 +144,15 @@
         stopCamera();
         showState('stateWaiting');
       })
+      // Desktop removed the photo taken by this device: reopen camera for a retake
+      .on('broadcast', { event: 'image_removed' }, async () => {
+        if (currentNumber) {
+          showState('stateReady');
+          await startCamera();
+          showSnack('Foto rimossa dal desktop — scatta di nuovo.');
+          if (navigator.vibrate) navigator.vibrate(80);
+        }
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           connDot.classList.add('connected');
@@ -332,7 +341,8 @@
       dropToolbar.classList.add('visible');
     }
 
-    function clearImage() {
+    function clearImage({ notifyMobile = false } = {}) {
+      const wasFromMobile = currentImageUrl !== null;
       if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = null; }
       currentImageFile = null;
       currentImageUrl  = null;
@@ -342,6 +352,8 @@
       dropZone.classList.remove('has-image', 'drop-error');
       dropToolbar.classList.remove('visible');
       fileInput.value = '';
+      // Tell mobile to reopen camera if the removed image came from it
+      if (notifyMobile && wasFromMobile) broadcast('image_removed');
     }
 
     /* ── Field lock / unlock ────────────────────────────────────── */
@@ -473,7 +485,7 @@
       }
     });
 
-    clearImageBtn.addEventListener('click', e => { e.stopPropagation(); clearImage(); });
+    clearImageBtn.addEventListener('click', e => { e.stopPropagation(); clearImage({ notifyMobile: true }); });
     zoomImageBtn.addEventListener('click', e => {
       e.stopPropagation();
       const src = previewObjectUrl || currentImageUrl;

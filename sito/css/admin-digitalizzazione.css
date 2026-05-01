@@ -161,7 +161,7 @@ html.embedded-admin .digit-page {
 }
 
 .drop-zone.drag-over {
-  background: rgba(46, 125, 50, 0.18);
+  background: var(--seed-10);
 }
 
 .drop-zone.drop-error {
@@ -443,9 +443,9 @@ html.embedded-admin .digit-page {
 }
 
 .digit-verify-btn.verify-free {
-  border-color: #2E7D32;
-  color: #2E7D32;
-  background: rgba(46,125,50,.07);
+  border-color: var(--seed);
+  color: var(--seed);
+  background: var(--seed-10);
 }
 
 .digit-verify-btn.verify-taken {
@@ -595,7 +595,7 @@ html.embedded-admin .digit-page {
 }
 
 .snackbar.error  { background: var(--error); }
-.snackbar.success { background: #2E7D32; }
+.snackbar.success { background: var(--seed); }
 
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 800px) {
@@ -704,7 +704,7 @@ body.mobile-mode .digit-page {
 
 .foto-conn-dot.connected {
   background: var(--seed);
-  box-shadow: 0 0 7px rgba(46, 125, 50, .45);
+  box-shadow: 0 0 7px var(--seed-10);
 }
 
 .foto-desktop-badge {
@@ -724,7 +724,7 @@ body.mobile-mode .digit-page {
 
 .foto-desktop-badge.connected {
   color: var(--seed);
-  border-color: rgba(46, 125, 50, .35);
+  border-color: var(--seed-10);
 }
 
 /* Main area */
