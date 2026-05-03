@@ -241,7 +241,7 @@
     const mobileBadgeIcon = document.getElementById('mobileBadgeIcon');
     const mobileBadgeText = document.getElementById('mobileBadgeText');
 
-    const FORM_FIELDS = ['nome','cognome','dataNascita','luogoNascita','residenza','comune','cap','telefono','email'];
+    const FORM_FIELDS = ['nome','cognome','dataNascita','dataAssociazione','luogoNascita','residenza','comune','cap','telefono','email'];
 
     /* ── Realtime channel ───────────────────────────────────────── */
     const realtimeChannel = supabase.channel(`digit-${session.user.id}`);
@@ -572,15 +572,19 @@
     if (lightbox) lightbox.addEventListener('click', () => lightbox.classList.remove('active'));
 
     /* ── Date formatter gg/mm/aaaa ─────────────────────────────── */
-    document.getElementById('dataNascita').addEventListener('input', function () {
-      let digits = this.value.replace(/\D/g, '').slice(0, 8);
-      let fmt = '';
-      for (let i = 0; i < digits.length; i++) {
-        fmt += digits[i];
-        if ((i === 1 || i === 3) && i !== digits.length - 1) fmt += '/';
-      }
-      this.value = fmt;
-    });
+    function addDateFormatter(fieldId) {
+      document.getElementById(fieldId).addEventListener('input', function () {
+        let digits = this.value.replace(/\D/g, '').slice(0, 8);
+        let fmt = '';
+        for (let i = 0; i < digits.length; i++) {
+          fmt += digits[i];
+          if ((i === 1 || i === 3) && i !== digits.length - 1) fmt += '/';
+        }
+        this.value = fmt;
+      });
+    }
+    addDateFormatter('dataNascita');
+    addDateFormatter('dataAssociazione');
 
     /* ── Validation helpers ─────────────────────────────────────── */
     function setFieldError(id, show) {
@@ -639,12 +643,13 @@
       }
 
       let valid = true;
-      valid = validateRequired('numTessera')    & valid;
-      valid = validateRequired('nome')          & valid;
-      valid = validateRequired('cognome')       & valid;
-      valid = validateDate('dataNascita')       & valid;
-      valid = validateEmailIfFilled('email')    & valid;
-      valid = validatePhoneIfFilled('telefono') & valid;
+      valid = validateRequired('numTessera')       & valid;
+      valid = validateRequired('nome')             & valid;
+      valid = validateRequired('cognome')          & valid;
+      valid = validateDate('dataNascita')          & valid;
+      valid = validateDate('dataAssociazione')     & valid;
+      valid = validateEmailIfFilled('email')       & valid;
+      valid = validatePhoneIfFilled('telefono')    & valid;
 
       if (!currentImageFile && !currentImageUrl) {
         dropZone.classList.add('drop-error');
@@ -664,16 +669,17 @@
 
       try {
         await submitAdminDigitalization({
-          numeroTessera: numTessera,
-          nome:          sanitize(val('nome')),
-          cognome:       sanitize(val('cognome')),
-          dataNascita:   dateToIso(val('dataNascita')),
-          luogoNascita:  sanitize(val('luogoNascita')),
-          residenza:     sanitize(val('residenza')),
-          comune:        sanitize(val('comune')),
-          cap:           val('cap'),
-          telefono:      val('telefono'),
-          email:         val('email').toLowerCase(),
+          numeroTessera:    numTessera,
+          nome:             sanitize(val('nome')),
+          cognome:          sanitize(val('cognome')),
+          dataNascita:      dateToIso(val('dataNascita')),
+          dataAssociazione: dateToIso(val('dataAssociazione')),
+          luogoNascita:     sanitize(val('luogoNascita')),
+          residenza:        sanitize(val('residenza')),
+          comune:           sanitize(val('comune')),
+          cap:              val('cap'),
+          telefono:         val('telefono'),
+          email:            val('email').toLowerCase(),
         }, currentImageFile, currentImageUrl);
 
         sessionCount++;

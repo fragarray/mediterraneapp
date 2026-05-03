@@ -762,7 +762,7 @@ async function getSocioByNumeroTessera(numero) {
  * Inserisce direttamente nella tabella soci un record approvato
  * corrispondente a una tessera cartacea storica.
  * Usato dalla pagina di digitalizzazione admin (nessuna coda di approvazione).
- * @param {Object} data – { numeroTessera, nome, cognome, dataNascita, luogoNascita, residenza, comune, cap, telefono, email }
+ * @param {Object} data – { numeroTessera, nome, cognome, dataNascita, dataAssociazione, luogoNascita, residenza, comune, cap, telefono, email }
  * @param {File|Blob} imageFile – immagine scansionata della scheda cartacea
  */
 async function submitAdminDigitalization(data, imageFile, existingImageUrl = null) {
@@ -793,6 +793,7 @@ async function submitAdminDigitalization(data, imageFile, existingImageUrl = nul
     p_email:          data.email         || 'no@mail.no',
     p_telefono:       data.telefono      || '0000000000',
     p_firma_url:      schedaUrl,
+    p_created_at:     data.dataAssociazione + 'T00:00:00.000Z',
   });
 
   if (error) throw new Error(`Errore inserimento tessera storica. ${error.message}`);
