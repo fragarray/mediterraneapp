@@ -52,6 +52,41 @@
       margin-right: 4px;
       white-space: nowrap;
     }
+    .backup-reminder-bar {
+      background: #FFF8E1;
+      border-bottom: 1px solid #FFE082;
+      color: #5D4037;
+      font-size: 13px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .backup-reminder-bar .material-icons-outlined {
+      font-size: 18px;
+      color: #F9A825;
+      flex-shrink: 0;
+    }
+    .backup-reminder-bar a {
+      color: var(--seed);
+      font-weight: 600;
+      text-decoration: underline;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .backup-reminder-bar-close {
+      margin-left: auto;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #8D6E63;
+      display: flex;
+      align-items: center;
+      padding: 2px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .backup-reminder-bar-close:hover { background: rgba(0,0,0,.06); }
 
   </style>
 </head>
@@ -81,6 +116,16 @@
       <span class="material-icons-outlined">logout</span>
     </button>
   </header>
+
+  <!-- Promemoria backup (mostrato solo se scaduto) -->
+  <div class="backup-reminder-bar" id="backupReminderBar" style="display:none;">
+    <span class="material-icons-outlined">backup</span>
+    <span id="backupReminderText">È ora di generare un backup del database.</span>
+    <a onclick="shellNavigate('settings')">Vai alle Impostazioni →</a>
+    <button class="backup-reminder-bar-close" id="backupReminderClose" title="Chiudi per oggi">
+      <span class="material-icons-outlined" style="font-size:18px;">close</span>
+    </button>
+  </div>
 
   <main class="shell-frame-wrap">
     <iframe class="shell-frame" id="adminFrame" title="Area amministratore" src="about:blank"

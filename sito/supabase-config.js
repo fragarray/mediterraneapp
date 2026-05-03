@@ -46,6 +46,8 @@ const SETTING_INSTAGRAM_URL    = 'instagram_profile_url';
 const SETTING_CAROUSEL_CONFIG  = 'landing_carousel_config';
 const SETTING_MEMBERSHIP_START = 'membership_start_number';
 const SETTING_APPROVED_LIMIT   = 'admin_approved_table_limit';
+const SETTING_BACKUP_INTERVAL  = 'backup_interval_days';
+const SETTING_LAST_BACKUP      = 'last_backup_date';
 
 /* ================================================================
    Verifica numero tessera legacy
@@ -668,6 +670,36 @@ async function deleteCarouselImageByPublicUrl(publicUrl) {
 }
 
 /* ================================================================
+   ADMIN: Elenca tutti i file in una cartella dello Storage (paginato)
+   ================================================================ */
+
+/**
+ * Lista ricorsiva di tutti i file in una cartella del bucket "firme".
+ * Gestisce la paginazione automaticamente (Supabase restituisce max 100 file
+ * per chiamata per default, qui usiamo limit=1000 per minimizzare le chiamate).
+ * @param {string} folder – cartella (es. "schede-storiche")
+ * @returns {Promise<Array<{name: string, folder: string}>>}
+ */
+async function listAllStorageFiles(folder) {
+  const PAGE_SIZE = 1000;
+  const results = [];
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase.storage
+      .from('firme')
+      .list(folder, { limit: PAGE_SIZE, offset, sortBy: { column: 'name', order: 'asc' } });
+    if (error) throw new Error(`Errore lista storage (${folder}): ${error.message}`);
+    const files = (data || []).filter(f => f.id != null); // esclude sottocartelle fittizie
+    for (const f of files) {
+      results.push({ name: f.name, folder });
+    }
+    if ((data || []).length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+  return results;
+}
+
+/* ================================================================
    ADMIN: Upload scheda storica (Storage)
    ================================================================ */
 
@@ -690,6 +722,22 @@ async function uploadSchedaStorica(file) {
 
   const { data } = supabase.storage.from('firme').getPublicUrl(path);
   return data.publicUrl;
+}
+
+/**
+ * Elimina un file temporaneo di scheda storica dallo Storage tramite URL pubblico.
+ * Accetta solo path sotto "schede-storiche/" per evitare eliminazioni accidentali.
+ * @param {string} publicUrl – URL pubblico restituito da uploadSchedaStorica
+ * @returns {Promise<void>}
+ */
+async function deleteSchedaStoricaByUrl(publicUrl) {
+  if (!publicUrl) return;
+  const prefix = `${SUPABASE_URL}/storage/v1/object/public/firme/`;
+  if (!publicUrl.startsWith(prefix)) return;
+  const objectPath = publicUrl.slice(prefix.length).split('?')[0]; // strip query string if any
+  if (!objectPath.startsWith('schede-storiche/')) return;
+  const { error } = await supabase.storage.from('firme').remove([objectPath]);
+  if (error) throw new Error(`Eliminazione scheda temporanea fallita: ${error.message}`);
 }
 
 /* ================================================================

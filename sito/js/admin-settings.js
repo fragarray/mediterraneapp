@@ -280,15 +280,28 @@ function applyThemeColorSelection(hexValue, { syncPicker = true } = {}) {
 
 async function loadSettingsValues() {
   try {
-    const [start, instagram, colorHex, carouselRaw] = await Promise.all([
+    const [start, instagram, colorHex, carouselRaw, backupInterval, lastBackup] = await Promise.all([
       getAppSetting(SETTING_MEMBERSHIP_START),
       getAppSetting(SETTING_INSTAGRAM_URL),
       getAppSetting(SETTING_THEME_COLOR),
       getAppSetting(SETTING_CAROUSEL_CONFIG),
+      getAppSetting(SETTING_BACKUP_INTERVAL),
+      getAppSetting(SETTING_LAST_BACKUP),
     ]);
 
     if (start) document.getElementById('membershipStartInput').value = start;
     if (instagram) document.getElementById('instagramInput').value = instagram;
+
+    if (backupInterval) document.getElementById('backupIntervalInput').value = backupInterval;
+    const lastBackupLabel = document.getElementById('lastBackupLabel');
+    if (lastBackupLabel) {
+      if (lastBackup) {
+        const [y, m, d] = lastBackup.split('-');
+        lastBackupLabel.textContent = `${d}/${m}/${y}`;
+      } else {
+        lastBackupLabel.textContent = 'mai';
+      }
+    }
 
     ensureThemeColorPicker();
 
@@ -576,5 +589,272 @@ async function saveCarouselConfig() {
     settingsShowSnackbar('Configurazione carosello salvata.');
   } catch (e) {
     settingsShowSnackbar(e.message || 'Salvataggio fallito.', true);
+  }
+}
+
+/* ================================================================
+   Backup interval
+   ================================================================ */
+
+async function saveBackupInterval() {
+  const val = document.getElementById('backupIntervalInput').value.trim();
+  const n = parseInt(val, 10);
+  if (!val || isNaN(n) || n < 1) {
+    settingsShowSnackbar('Inserisci un numero di giorni valido (minimo 1).', true);
+    return;
+  }
+  const btn = document.getElementById('saveBackupIntervalBtn');
+  btn.disabled = true;
+  try {
+    await saveAppSetting(SETTING_BACKUP_INTERVAL, String(n));
+    settingsShowSnackbar('Intervallo promemoria salvato.');
+  } catch (e) {
+    settingsShowSnackbar(e.message || 'Salvataggio fallito.', true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ================================================================
+   Backup generation
+   ================================================================ */
+
+function _setBackupProgress(label, pct) {
+  const wrap = document.getElementById('backupProgressWrap');
+  const bar  = document.getElementById('backupProgressBar');
+  const pctEl = document.getElementById('backupProgressPct');
+  const lblEl = document.getElementById('backupProgressLabel');
+  if (!wrap) return;
+  wrap.style.display = '';
+  if (bar)   bar.style.width = `${pct}%`;
+  if (pctEl) pctEl.textContent = `${Math.round(pct)}%`;
+  if (lblEl) lblEl.textContent = label;
+}
+
+function _hideBackupProgress() {
+  const wrap = document.getElementById('backupProgressWrap');
+  if (wrap) wrap.style.display = 'none';
+}
+
+async function generateBackup() {
+  if (typeof JSZip === 'undefined') {
+    settingsShowSnackbar('JSZip non disponibile. Ricarica la pagina e riprova.', true);
+    return;
+  }
+
+  const btn = document.getElementById('generateBackupBtn');
+  btn.disabled = true;
+
+  try {
+    _setBackupProgress('Recupero dati…', 0);
+
+    // 1. Fetch DB tables in parallel (full scan, no limit)
+    const [sociResult, legacyResult, settingsResult] = await Promise.all([
+      supabase.from('soci').select('*').order('created_at', { ascending: true }),
+      supabase.from('legacy_membership_requests').select('*').order('created_at', { ascending: true }),
+      supabase.from('app_settings').select('*'),
+    ]);
+
+    if (sociResult.error) throw new Error(`Errore lettura soci: ${sociResult.error.message}`);
+    if (legacyResult.error) throw new Error(`Errore lettura legacy: ${legacyResult.error.message}`);
+    if (settingsResult.error) throw new Error(`Errore lettura impostazioni: ${settingsResult.error.message}`);
+
+    _setBackupProgress('Lista file storage…', 10);
+
+    // 2. List all storage files across the three folders
+    const [firmeFiles, schedeFiles, landingFiles] = await Promise.all([
+      listAllStorageFiles(''),            // root of bucket (direct files, e.g. firme PNG)
+      listAllStorageFiles('schede-storiche'),
+      listAllStorageFiles('landing'),
+    ]);
+
+    // Root-level files are actual signature PNGs stored directly in the bucket root
+    const allFiles = [
+      ...firmeFiles.map(f => ({ path: f.name,                  storageKey: f.name })),
+      ...schedeFiles.map(f => ({ path: `schede-storiche/${f.name}`, storageKey: `schede-storiche/${f.name}` })),
+      ...landingFiles.map(f => ({ path: `landing/${f.name}`,   storageKey: `landing/${f.name}` })),
+    ];
+
+    const totalSteps = allFiles.length + 3; // 3 for DB tables
+    let done = 0;
+
+    const zip = new JSZip();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const rootFolder = `mediterranea-backup-${todayStr}`;
+
+    // 3. Add DB JSON files
+    zip.file(`${rootFolder}/data/soci.json`,                        JSON.stringify(sociResult.data,    null, 2));
+    zip.file(`${rootFolder}/data/legacy_membership_requests.json`,  JSON.stringify(legacyResult.data,  null, 2));
+    zip.file(`${rootFolder}/data/app_settings.json`,                JSON.stringify(settingsResult.data, null, 2));
+    done += 3;
+    _setBackupProgress('Download immagini…', Math.round((done / totalSteps) * 85));
+
+    // 4. Download storage files and add to zip (with concurrency limit to avoid flooding)
+    const CONCURRENCY = 4;
+    for (let i = 0; i < allFiles.length; i += CONCURRENCY) {
+      const batch = allFiles.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(async (f) => {
+        try {
+          const { data: blob, error } = await supabase.storage
+            .from('firme')
+            .download(f.storageKey);
+          if (!error && blob) {
+            zip.file(`${rootFolder}/storage/${f.path}`, blob);
+          }
+        } catch (_) {
+          // File non scaricabile: salta senza interrompere tutto il backup
+        }
+        done++;
+        _setBackupProgress(
+          `Download immagini… (${done - 3}/${allFiles.length})`,
+          Math.round((done / totalSteps) * 85),
+        );
+      }));
+    }
+
+    _setBackupProgress('Generazione ZIP…', 90);
+
+    // 5. Generate ZIP blob
+    const zipBlob = await zip.generateAsync(
+      { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+      (meta) => {
+        _setBackupProgress('Compressione…', 90 + meta.percent * 0.09);
+      },
+    );
+
+    _setBackupProgress('Download…', 99);
+
+    // 6. Trigger download
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mediterranea-backup-${todayStr}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // 7. Save last backup date
+    const isoToday = new Date().toISOString().slice(0, 10);
+    await saveAppSetting(SETTING_LAST_BACKUP, isoToday);
+    const lastBackupLabel = document.getElementById('lastBackupLabel');
+    if (lastBackupLabel) {
+      const [y, m, d] = isoToday.split('-');
+      lastBackupLabel.textContent = `${d}/${m}/${y}`;
+    }
+
+    _setBackupProgress('Completato!', 100);
+    settingsShowSnackbar('Backup generato e scaricato.');
+    setTimeout(_hideBackupProgress, 3000);
+
+  } catch (e) {
+    _hideBackupProgress();
+    settingsShowSnackbar(e.message || 'Errore durante il backup.', true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ================================================================
+   Backup restore
+   ================================================================ */
+
+async function restoreBackup(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  input.value = '';
+
+  if (typeof JSZip === 'undefined') {
+    settingsShowSnackbar('JSZip non disponibile. Ricarica la pagina e riprova.', true);
+    return;
+  }
+
+  const label = document.getElementById('restoreBackupLabel');
+  if (label) label.style.pointerEvents = 'none';
+
+  try {
+    _setBackupProgress('Lettura archivio…', 0);
+
+    const zip = await JSZip.loadAsync(file);
+
+    // Detect root folder name inside ZIP
+    const zipFiles = Object.keys(zip.files);
+    const rootDir = zipFiles.find(k => zip.files[k].dir && !k.slice(0, -1).includes('/'));
+    const root = rootDir || '';
+
+    // --- Restore DB tables ---
+    _setBackupProgress('Ripristino dati…', 10);
+
+    const tableMap = [
+      { file: `${root}data/soci.json`,                       table: 'soci' },
+      { file: `${root}data/legacy_membership_requests.json`, table: 'legacy_membership_requests' },
+      { file: `${root}data/app_settings.json`,               table: 'app_settings' },
+    ];
+
+    for (const { file: zipPath, table } of tableMap) {
+      const entry = zip.file(zipPath);
+      if (!entry) continue;
+      const text = await entry.async('string');
+      const rows = JSON.parse(text);
+      if (!Array.isArray(rows) || !rows.length) continue;
+
+      // Upsert in chunks of 200 to avoid payload limits
+      const CHUNK = 200;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const conflictCol = table === 'app_settings' ? 'key' : 'id';
+        const { error } = await supabase.from(table).upsert(chunk, { onConflict: conflictCol });
+        if (error) throw new Error(`Ripristino tabella ${table} fallito: ${error.message}`);
+      }
+    }
+
+    _setBackupProgress('Ripristino immagini…', 40);
+
+    // --- Restore Storage files ---
+    const storageEntries = zipFiles.filter(k =>
+      !zip.files[k].dir && k.includes(`${root}storage/`),
+    );
+
+    const total = storageEntries.length;
+    let done = 0;
+
+    const CONCURRENCY = 3;
+    for (let i = 0; i < storageEntries.length; i += CONCURRENCY) {
+      const batch = storageEntries.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(async (zipKey) => {
+        try {
+          const blob = await zip.file(zipKey).async('blob');
+          // storageKey is the path inside the bucket (strip root + "storage/")
+          const storageKey = zipKey.slice(`${root}storage/`.length);
+          const ext = storageKey.split('.').pop().toLowerCase();
+          const mimeMap = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+                            gif: 'image/gif', webp: 'image/webp' };
+          const contentType = mimeMap[ext] || 'application/octet-stream';
+          const { error } = await supabase.storage
+            .from('firme')
+            .upload(storageKey, blob, { contentType, upsert: true });
+          if (error) {
+            console.warn(`Upload storage fallito per ${storageKey}: ${error.message}`);
+          }
+        } catch (err) {
+          console.warn(`Errore ripristino file: ${err.message}`);
+        }
+        done++;
+        _setBackupProgress(
+          `Ripristino immagini… (${done}/${total})`,
+          40 + Math.round((done / Math.max(total, 1)) * 55),
+        );
+      }));
+    }
+
+    _setBackupProgress('Completato!', 100);
+    settingsShowSnackbar('Ripristino completato.');
+    setTimeout(_hideBackupProgress, 3000);
+
+  } catch (e) {
+    _hideBackupProgress();
+    settingsShowSnackbar(e.message || 'Errore durante il ripristino.', true);
+  } finally {
+    if (label) label.style.pointerEvents = '';
   }
 }

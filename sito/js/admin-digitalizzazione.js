@@ -318,10 +318,15 @@
 
     /* ── Image handling ─────────────────────────────────────────── */
     function setImage(file) {
+      // If replacing a mobile-uploaded temp file, delete it from Storage
+      if (imageOriginMobile && currentImageUrl) {
+        deleteSchedaStoricaByUrl(currentImageUrl).catch(() => {});
+      }
       if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
-      currentImageFile = file;
-      currentImageUrl  = null;
-      previewObjectUrl = URL.createObjectURL(file);
+      currentImageFile  = file;
+      currentImageUrl   = null;
+      imageOriginMobile = false;
+      previewObjectUrl  = URL.createObjectURL(file);
       imagePreview.src = previewObjectUrl;
       imagePreview.style.display = 'block';
       dropHint.style.display = 'none';
@@ -331,6 +336,10 @@
     }
 
     function setImageFromUrl(url) {
+      // If replacing an existing mobile temp file with a new one, delete the old one
+      if (imageOriginMobile && currentImageUrl) {
+        deleteSchedaStoricaByUrl(currentImageUrl).catch(() => {});
+      }
       if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = null; }
       currentImageFile  = null;
       currentImageUrl   = url;
@@ -343,8 +352,9 @@
       dropToolbar.classList.add('visible');
     }
 
-    function clearImage({ notifyMobile = false } = {}) {
+    function clearImage({ notifyMobile = false, skipStorageDelete = false } = {}) {
       const wasFromMobile = imageOriginMobile;
+      const tempUrl = currentImageUrl;
       // Exit crop mode first so no stale crop-active state remains
       if (document.querySelector('.digit-col-image.crop-active')) exitCropMode();
       if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = null; }
@@ -357,6 +367,10 @@
       dropZone.classList.remove('has-image', 'drop-error');
       dropToolbar.classList.remove('visible');
       fileInput.value = '';
+      // Delete the orphaned temp file from Storage (unless it was already saved to DB)
+      if (!skipStorageDelete && wasFromMobile && tempUrl) {
+        deleteSchedaStoricaByUrl(tempUrl).catch(() => {});
+      }
       // Tell mobile to reopen camera if the removed image came from it
       if (notifyMobile && wasFromMobile) broadcast('image_removed');
     }
@@ -666,7 +680,7 @@
         counterEl.textContent = sessionCount;
         broadcast('form_reset');
         form.reset();
-        clearImage();
+        clearImage({ skipStorageDelete: true }); // image is now saved in DB — do NOT delete it
         document.querySelectorAll('.form-group.has-error').forEach(g => g.classList.remove('has-error'));
         numInput.readOnly = false;
         setVerifyState('unverified');

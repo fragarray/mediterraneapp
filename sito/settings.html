@@ -202,6 +202,55 @@
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-title">Backup &amp; Ripristino</div>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:18px;">
+          Genera un archivio ZIP contenente tutti i dati (soci, richieste, impostazioni) e le immagini
+          (firme, schede storiche, carosello). Puoi ricaricare il backup su un nuovo progetto Supabase.
+        </p>
+
+        <!-- Intervallo promemoria -->
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px;">
+          <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+            <label for="backupIntervalInput">Promemoria ogni (giorni)</label>
+            <input type="number" id="backupIntervalInput" min="1" max="365" placeholder="es. 30">
+          </div>
+          <button class="btn-filled" id="saveBackupIntervalBtn" onclick="saveBackupInterval()">
+            <span class="material-icons-outlined">save</span> Salva
+          </button>
+        </div>
+
+        <!-- Ultimo backup -->
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:18px;">
+          Ultimo backup: <strong id="lastBackupLabel">mai</strong>
+        </p>
+
+        <!-- Progress bar (nascosta di default) -->
+        <div id="backupProgressWrap" style="display:none;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:6px;">
+            <span id="backupProgressLabel">Preparazione…</span>
+            <span id="backupProgressPct">0%</span>
+          </div>
+          <div style="background:var(--border-color);border-radius:4px;height:6px;overflow:hidden;">
+            <div id="backupProgressBar" style="height:100%;width:0%;background:var(--seed);border-radius:4px;transition:width .3s ease;"></div>
+          </div>
+        </div>
+
+        <!-- Pulsanti -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn-filled" id="generateBackupBtn" onclick="generateBackup()">
+            <span class="material-icons-outlined">backup</span>
+            Genera backup
+          </button>
+          <label class="btn-outlined" style="cursor:pointer;" id="restoreBackupLabel">
+            <span class="material-icons-outlined">restore</span>
+            Ripristina backup
+            <input type="file" id="restoreBackupInput" accept=".zip" style="display:none;"
+                   onchange="restoreBackup(this)">
+          </label>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -210,6 +259,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="supabase-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
   <script src="js/common-ui.js"></script>
   <script src="js/admin-shared.js"></script>
   <script src="js/admin-settings.js"></script>

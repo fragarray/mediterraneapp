@@ -149,4 +149,53 @@ window.addEventListener('popstate', event => {
 
   const initialView = shellNormalizeView(new URLSearchParams(window.location.search).get('view'));
   shellNavigate(initialView, { replaceHistory: true });
+
+  // Check backup reminder after navigation is set up
+  await checkBackupReminder();
 })();
+
+async function checkBackupReminder() {
+  try {
+    const [intervalRaw, lastBackupRaw] = await Promise.all([
+      getAppSetting(SETTING_BACKUP_INTERVAL),
+      getAppSetting(SETTING_LAST_BACKUP),
+    ]);
+
+    const intervalDays = parseInt(intervalRaw, 10);
+    if (!intervalDays || intervalDays < 1) return; // reminder not configured
+
+    // Don't show if already dismissed today (stored in sessionStorage)
+    const dismissedToday = sessionStorage.getItem('backup_reminder_dismissed');
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (dismissedToday === todayStr) return;
+
+    let daysSinceLast = Infinity;
+    if (lastBackupRaw) {
+      const last = new Date(lastBackupRaw + 'T00:00:00');
+      const now  = new Date();
+      daysSinceLast = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+    }
+
+    if (daysSinceLast < intervalDays) return;
+
+    const bar  = document.getElementById('backupReminderBar');
+    const text = document.getElementById('backupReminderText');
+    const closeBtn = document.getElementById('backupReminderClose');
+    if (!bar) return;
+
+    if (lastBackupRaw) {
+      const [y, m, d] = lastBackupRaw.split('-');
+      text.textContent = `Ultimo backup: ${d}/${m}/${y} — sono passati ${daysSinceLast} giorni (intervallo: ${intervalDays}). È ora di generare un nuovo backup.`;
+    } else {
+      text.textContent = `Nessun backup ancora registrato. Si consiglia di generarne uno ora.`;
+    }
+    bar.style.display = 'flex';
+
+    closeBtn.addEventListener('click', () => {
+      bar.style.display = 'none';
+      sessionStorage.setItem('backup_reminder_dismissed', todayStr);
+    });
+  } catch (_) {
+    // Reminder non bloccante: non fare nulla in caso di errore
+  }
+}
