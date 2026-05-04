@@ -119,8 +119,11 @@ async function createMemberPdfDocument(member) {
   y = cy + cardH + 14; // 14pt gap after cards
 
   // Signature row: "Firma del socio" left, signature box right
-  const sigBoxW = 150; // signature box width
-  const sigBoxH = 62;  // signature box height
+  // For digitized cards (schede storiche) the stored image is a full card scan,
+  // so use a larger box (double size) to keep the content legible.
+  const isSchedaStorica = typeof member.firma_url === 'string' && member.firma_url.includes('schede-storiche/');
+  const sigBoxW = isSchedaStorica ? 300 : 150; // signature box width
+  const sigBoxH = isSchedaStorica ? 124 : 62;  // signature box height
   const sigBoxX = W - marginR - sigBoxW;
   const sigBoxY = y;
 
@@ -143,7 +146,26 @@ async function createMemberPdfDocument(member) {
           reader.onload = () => resolve(reader.result);
           reader.readAsDataURL(sigBlob);
         });
-        doc.addImage(sigData, 'PNG', sigBoxX + 6, sigBoxY + 6, sigBoxW - 12, sigBoxH - 12);
+        // Detect format from data URL so JPEG scans are handled correctly
+        const imgFormat = /^data:image\/jpe?g/i.test(sigData) ? 'JPEG' : 'PNG';
+        // Load image to get natural dimensions, then apply contain-fit (preserve aspect ratio)
+        const imgDims = await new Promise(resolve => {
+          const img = new Image();
+          img.onload  = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+          img.onerror = () => resolve(null);
+          img.src = sigData;
+        });
+        const maxW = sigBoxW - 12;
+        const maxH = sigBoxH - 12;
+        let drawW = maxW, drawH = maxH;
+        if (imgDims && imgDims.w > 0 && imgDims.h > 0) {
+          const scale = Math.min(maxW / imgDims.w, maxH / imgDims.h);
+          drawW = imgDims.w * scale;
+          drawH = imgDims.h * scale;
+        }
+        const drawX = sigBoxX + 6 + (maxW - drawW) / 2;
+        const drawY = sigBoxY + 6 + (maxH - drawH) / 2;
+        doc.addImage(sigData, imgFormat, drawX, drawY, drawW, drawH);
       }
     } catch (_) {
       doc.setFontSize(8);
