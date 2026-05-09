@@ -116,6 +116,7 @@ function applyLegacyTexts(config, membershipNumber) {
   document.getElementById('introTesseraNote').textContent = config.legacy.introTesseraNote;
   document.getElementById('numeroTessera').value = membershipNumber;
   document.getElementById('numeroTesseraHelper').textContent = config.legacy.membershipHelper;
+  document.getElementById('numeroTesseraGroup').style.display = '';
   document.getElementById('dataRegTesseraGroup').style.display = '';
 }
 
