@@ -24,11 +24,7 @@ function initRegistrationPage(config) {
     let valid = true;
     valid = validateRequired('nome') & valid;
     valid = validateRequired('cognome') & valid;
-    valid = validateRequired('luogoNascita') & valid;
     valid = validateDate('dataNascita') & valid;
-    valid = validateRequired('residenza') & valid;
-    valid = validateRequired('comune') & valid;
-    valid = validateCap('cap') & valid;
     if (!optOut.getPhone()) valid = validatePhone('telefono') & valid;
     if (!optOut.getEmail()) valid = validateEmail('email') & valid;
 

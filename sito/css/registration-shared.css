@@ -3,6 +3,11 @@ body {
   background-color: var(--scaffold-bg);
 }
 
+.required-star {
+  color: var(--error);
+  font-weight: 700;
+}
+
 .appbar {
   padding: 12px 20px;
   background: transparent;
