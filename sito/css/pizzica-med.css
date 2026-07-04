@@ -205,7 +205,26 @@ body {
   opacity: 0.85;
 }
 
-/* No font size overrides for desktop – identical to mobile */
+/* Desktop: scale text proportionally with viewport width */
+@media (min-width: 768px) {
+  .hero-content {
+    padding: 20px 24px 44px;
+  }
+  .hero-title {
+    /* 1.75rem at 768px → up to 3.2rem at 1280px */
+    font-size: clamp(1.75rem, 4vw, 3.2rem);
+    margin-bottom: 8px;
+    line-height: 1.05;
+  }
+  .hero-subtitle {
+    /* 0.9rem at 768px → up to 1.25rem at 1280px */
+    font-size: clamp(0.9rem, 1.5vw, 1.25rem);
+    margin-bottom: 16px;
+  }
+  .hero-chips      { gap: 8px; }
+  .hero-chip       { padding: 6px 16px; font-size: clamp(11.5px, 1.1vw, 14px); gap: 6px; }
+  .hero-chip .material-icons-outlined { font-size: clamp(13px, 1.2vw, 16px); }
+}
 
 /* ── Info bar ── */
 .info-bar {
