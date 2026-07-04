@@ -21,15 +21,25 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  /* Uniform horizontal padding = 16px on mobile */
-  padding: 10px 16px;
-  gap: 6px;
+  /*
+   * Mobile: the image starts at 80px from the top
+   * (space = (containerH - imageH) / 2 = (65.6vw+160px - 65.6vw) / 2 = 80px).
+   * Setting height:80px + align-items:center centers logo & lang exactly
+   * in that 80px gap, with uniform 16px horizontal padding.
+   */
+  height: 80px;
+  padding: 0 16px;
+  gap: 8px;
   z-index: 20;
   background: transparent;
+  align-items: center;
 }
 
 @media (min-width: 768px) {
-  .appbar { padding: 14px 24px; }
+  .appbar {
+    height: auto;
+    padding: 14px 24px;
+  }
 }
 
 .appbar-title {
