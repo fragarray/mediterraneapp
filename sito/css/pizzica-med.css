@@ -123,9 +123,12 @@ body {
 /* Desktop: cap hero height on very wide screens to avoid 1100px+ heroes */
 @media (min-width: 960px) {
   .hero {
-    max-height: 680px;
-    /* Once capped, keep image centered within the box */
-    background-position: center 30%;
+    /* Desktop: shorter hero, image shifted down to cut the sky/top */
+    height: 420px;
+    min-height: 0;
+    max-height: 420px;
+    background-size: 100% auto;
+    background-position: center 55%;
   }
 }
 
