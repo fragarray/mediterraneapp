@@ -3,6 +3,13 @@
    Public booking page styles
    ============================================================ */
 
+/* ── Theme override: warm crimson palette (from the poster) ── */
+:root {
+  --seed:         #8B1A2C;
+  --seed-light:   rgba(139,26,44,0.05);
+  --seed-10:      rgba(139,26,44,0.10);
+}
+
 /* ── Body ── */
 body {
   background: var(--scaffold-bg);
@@ -74,7 +81,7 @@ body {
 .hero {
   position: relative;
   min-height: 440px;
-  background: url('../img/pizzica-hero.jpg') center 20% / cover no-repeat;
+  background: url('../img/pizzica-hero.jpg') center 10% / cover no-repeat;
   background-color: #1c0a0a;
 }
 
