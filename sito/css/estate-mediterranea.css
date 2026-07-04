@@ -21,10 +21,15 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  padding: 14px 20px;
+  /* Uniform horizontal padding = 16px on mobile */
+  padding: 10px 16px;
   gap: 6px;
   z-index: 20;
   background: transparent;
+}
+
+@media (min-width: 768px) {
+  .appbar { padding: 14px 24px; }
 }
 
 .appbar-title {
@@ -37,11 +42,13 @@ body {
 
 /* Mobile: mostra logo, nascondi testo */
 .appbar-logo-mobile {
-  height: 32px;
+  height: 30px;
   border-radius: 7px;
   object-fit: contain;
   filter: drop-shadow(0 1px 4px rgba(0,0,0,0.5));
-  flex: 1;
+  /* Stick to left, push lang-switcher to right */
+  margin-right: auto;
+  flex-shrink: 0;
 }
 
 .appbar-title {
@@ -145,7 +152,8 @@ body {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 20px 24px 36px;
+  /* Match appbar horizontal padding on mobile */
+  padding: 16px 16px 28px;
   color: #fff;
 }
 
@@ -523,24 +531,36 @@ body {
 }
 
 /* ── Price note ── */
+/* ── Price note – row layout ── */
 .price-note {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 16px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
   background: #F4F6F3;
   border-radius: 10px;
-  margin-top: 12px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.5;
+  margin-top: 14px;
 }
 
-.price-note .material-icons-outlined {
+.price-note-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.price-note-row.price-note-main {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.price-note-row .material-icons-outlined {
   font-size: 18px;
   color: var(--seed);
   flex-shrink: 0;
-  margin-top: 1px;
 }
 
 /* ── Submit button ── */
