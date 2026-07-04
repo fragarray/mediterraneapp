@@ -106,7 +106,7 @@ body {
 
 .hero-content {
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
   right: 0;
   z-index: 1;
@@ -114,7 +114,7 @@ body {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 20px 24px 44px;
+  padding: 56px 24px 24px;
   color: #fff;
 }
 
@@ -184,7 +184,7 @@ body {
 
 /* ── Info bar ── */
 .info-bar {
-  background: var(--seed);
+  background: #8B1A2C;
   color: #fff;
   padding: 13px 20px;
   text-align: center;
