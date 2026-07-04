@@ -35,6 +35,28 @@ body {
   flex: 1;
 }
 
+/* Mobile: mostra logo, nascondi testo */
+.appbar-logo-mobile {
+  height: 32px;
+  border-radius: 7px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,0.5));
+  flex: 1;
+}
+
+.appbar-title {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .appbar-logo-mobile {
+    display: none;
+  }
+  .appbar-title {
+    display: block;
+  }
+}
+
 .appbar-link {
   color: rgba(255,255,255,0.92);
 }
@@ -80,17 +102,19 @@ body {
 /* ── Hero ── */
 .hero {
   position: relative;
+  /* Use individual properties so background-color is NOT reset by shorthand */
+  background-image: url('../img/pizzica-hero.jpg');
+  background-repeat: no-repeat;
   background-color: #1c0a0a;
-  /* Mobile: 100% width, no horizontal cropping – altezza proporzionale all'immagine (744/1132)
-     + 160px per il testo in overlay in basso */
-  background: url('../img/pizzica-hero.jpg') top center / 100% auto no-repeat;
+  /* Mobile: full width, no horizontal crop, vertically centered */
+  background-size: 100% auto;
+  background-position: center center;
   min-height: 0;
   height: calc(65.6vw + 160px);
 }
 
 @media (min-width: 768px) {
   .hero {
-    /* Desktop: cover classico, posizione centrata in alto */
     background-size: cover;
     background-position: center 10%;
     height: auto;
