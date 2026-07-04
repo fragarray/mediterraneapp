@@ -157,25 +157,6 @@ body {
   }
 }
 
-.hero-logo {
-  position: absolute;
-  top: 70px;
-  left: 20px;
-  height: 56px;
-  border-radius: 10px;
-  object-fit: contain;
-  filter: drop-shadow(0 2px 12px rgba(0,0,0,0.55));
-  z-index: 2;
-}
-
-@media (min-width: 768px) {
-  .hero-logo {
-    height: 72px;
-    top: 72px;
-    left: 28px;
-  }
-}
-
 .hero-title {
   font-size: clamp(2.4rem, 7vw, 4.2rem);
   font-weight: 700;
@@ -223,7 +204,7 @@ body {
 
 /* ── Info bar ── */
 .info-bar {
-  background: #8B1A2C;
+  background: #6B2D3A;
   color: #fff;
   padding: 13px 20px;
   text-align: center;
