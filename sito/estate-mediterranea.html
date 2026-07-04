@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pizzica Pizzica – Prenotazione | Mediterranea Lecce</title>
+  <meta name="description" content="Prenota il tuo posto per le serate Pizzica Pizzica: musica e danza tradizionale del Salento. Ogni lunedì, mercoledì e sabato a Palazzo dei Celestini, Lecce.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/estate-mediterranea.css">
+</head>
+<body>
+
+  <!-- AppBar (transparent, over hero) -->
+  <header class="appbar">
+    <span class="appbar-title">Mediterranea</span>
+    <div class="lang-switcher">
+      <span class="lang-btn active" aria-label="Italiano">
+        <span class="flag-circle"><img src="https://flagcdn.com/it.svg" alt="Italiano"></span>
+      </span>
+      <a href="estate-mediterranea-en.html" class="lang-btn" aria-label="English">
+        <span class="flag-circle"><img src="https://flagcdn.com/gb.svg" alt="English"></span>
+      </a>
+    </div>
+    <a href="index.html" class="appbar-link">
+      <span class="material-icons-outlined">home</span> Home
+    </a>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero" role="banner" aria-label="Pizzica Pizzica">
+    <div class="hero-content">
+      <img src="logopiccolo.png" alt="Associazione Mediterranea" class="hero-logo">
+      <h1 class="hero-title">Pizzica Pizzica</h1>
+      <p class="hero-subtitle">Musica e danza tradizionale del Salento</p>
+      <div class="hero-chips">
+        <span class="hero-chip">
+          <span class="material-icons-outlined">calendar_today</span>
+          Lun · Mer · Sab
+        </span>
+        <span class="hero-chip">
+          <span class="material-icons-outlined">schedule</span>
+          Ore 19:30
+        </span>
+        <span class="hero-chip">
+          <span class="material-icons-outlined">location_on</span>
+          Palazzo dei Celestini · Lecce
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Info bar -->
+  <div class="info-bar" role="note">
+    Ingresso €15 · calice di vino incluso
+    <span class="info-dimmed"> · air conditioned · tessera associativa inclusa · pagamento in loco</span>
+  </div>
+
+  <!-- Main -->
+  <main class="page-body">
+    <div class="page-container">
+
+      <!-- ── Date selection ── -->
+      <section aria-labelledby="datesHeading">
+        <h2 class="section-heading" id="datesHeading">Scegli una serata</h2>
+        <p class="section-subheading">Seleziona la data per cui desideri prenotare</p>
+        <div id="datesContainer">
+          <div class="dates-loader">Caricamento serate disponibili…</div>
+        </div>
+      </section>
+
+      <!-- ── Form placeholder (shown until a date is chosen) ── -->
+      <div id="formPlaceholder" class="form-placeholder" aria-live="polite">
+        <span class="material-icons-outlined" aria-hidden="true">event_seat</span>
+        <p>Seleziona una serata qui sopra per procedere con la prenotazione</p>
+      </div>
+
+      <!-- ── Booking form (hidden until date selected) ── -->
+      <section id="formSection" class="form-section" aria-labelledby="formHeading">
+        <h2 class="section-heading" id="formHeading">Completa la prenotazione</h2>
+        <div class="selected-date-banner" aria-live="polite">
+          <span class="material-icons-outlined" aria-hidden="true">event</span>
+          <span id="selectedDateLabel">–</span>
+        </div>
+
+        <div class="form-card">
+          <form id="bookingForm" novalidate>
+
+            <div class="fields-grid">
+
+              <div class="field-half form-group">
+                <label for="nome">Nome <span class="required-star" aria-hidden="true">*</span></label>
+                <input type="text" id="nome" name="nome" autocomplete="given-name" required>
+                <span class="error-msg" role="alert">Nome obbligatorio</span>
+              </div>
+
+              <div class="field-half form-group">
+                <label for="cognome">Cognome <span class="required-star" aria-hidden="true">*</span></label>
+                <input type="text" id="cognome" name="cognome" autocomplete="family-name" required>
+                <span class="error-msg" role="alert">Cognome obbligatorio</span>
+              </div>
+
+              <div class="field-half form-group">
+                <label for="email">Email <span class="required-star" aria-hidden="true">*</span></label>
+                <input type="email" id="email" name="email" autocomplete="email" required>
+                <span class="error-msg" role="alert">Email non valida</span>
+              </div>
+
+              <div class="field-half form-group">
+                <label for="telefono">Telefono <span class="required-star" aria-hidden="true">*</span></label>
+                <input type="tel" id="telefono" name="telefono" autocomplete="tel" required>
+                <span class="error-msg" role="alert">Telefono obbligatorio</span>
+              </div>
+
+              <div class="field-half form-group">
+                <label for="numPosti">Numero di posti <span class="required-star" aria-hidden="true">*</span></label>
+                <input type="number" id="numPosti" name="num_posti" min="1" value="1" required>
+                <span class="error-msg" role="alert">Inserisci un numero valido (min. 1)</span>
+              </div>
+
+              <div class="field-full form-group">
+                <label for="note">Note (preferenze alimentari, richieste speciali…)</label>
+                <textarea id="note" name="note" rows="3" placeholder="Facoltativo…"></textarea>
+              </div>
+
+            </div><!-- /fields-grid -->
+
+            <div class="price-note">
+              <span class="material-icons-outlined" aria-hidden="true">info</span>
+              Il pagamento di <strong>€15 a persona</strong> (calice di vino incluso, tessera associativa inclusa) si effettua direttamente in loco la sera dell'evento.
+            </div>
+
+            <button type="submit" class="btn-submit" id="submitBtn">
+              <span class="material-icons-outlined" aria-hidden="true">check_circle</span>
+              <span id="submitBtnLabel">Prenota</span>
+            </button>
+
+          </form>
+        </div><!-- /form-card -->
+      </section>
+
+      <!-- ── Success state ── -->
+      <div id="successView" class="success-view" aria-live="polite">
+        <div class="success-icon" aria-hidden="true">
+          <span class="material-icons-outlined">check_circle</span>
+        </div>
+        <h2 class="success-title">Prenotazione confermata!</h2>
+        <p class="success-text" id="successText"></p>
+        <div class="success-detail" id="successDetail"></div>
+        <button class="btn-another" id="btnAnother">
+          <span class="material-icons-outlined" aria-hidden="true">add_circle_outline</span>
+          Prenota un'altra serata
+        </button>
+      </div>
+
+    </div><!-- /page-container -->
+  </main>
+
+  <div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="js/common-ui.js"></script>
+  <script src="js/estate-mediterranea-shared.js"></script>
+  <script src="js/estate-mediterranea.js"></script>
+</body>
+</html>

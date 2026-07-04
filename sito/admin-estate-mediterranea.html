@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Pizzica Pizzica – Mediterranea</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/admin-shared.css">
+  <link rel="stylesheet" href="css/admin-estate-mediterranea.css">
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════
+       LOGIN VIEW
+  ══════════════════════════════════════════ -->
+  <div id="loginView">
+    <div class="login-wrap">
+      <div class="login-card">
+        <img src="logopiccolo.png" alt="Mediterranea" class="login-logo">
+        <h1>Accesso admin</h1>
+        <p class="login-sub">Gestione serate Pizzica Pizzica</p>
+        <form id="loginForm" novalidate>
+          <div class="form-group">
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" autocomplete="username" required>
+            <span class="error-msg">Email obbligatoria</span>
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" autocomplete="current-password" required>
+            <span class="error-msg">Password obbligatoria</span>
+          </div>
+          <button type="submit" class="btn-filled full" id="loginBtn">
+            <span class="material-icons-outlined">lock_open</span>
+            Accedi
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       MAIN VIEW (post-login)
+  ══════════════════════════════════════════ -->
+  <div id="mainView" style="display:none">
+
+    <!-- AppBar -->
+    <header class="appbar">
+      <a href="admin.html" class="appbar-action" title="Admin principale">
+        <span class="material-icons-outlined">arrow_back</span>
+      </a>
+      <span class="appbar-title">Pizzica Pizzica</span>
+      <span class="appbar-user" id="appbarUser"></span>
+      <button class="appbar-action" id="signOutBtn" title="Esci">
+        <span class="material-icons-outlined">logout</span>
+      </button>
+    </header>
+
+    <!-- Tab nav -->
+    <nav class="tab-nav" role="tablist">
+      <button class="tab-btn active" data-tab="bookings" role="tab" aria-selected="true">
+        <span class="material-icons-outlined">event_seat</span>
+        Prenotazioni
+      </button>
+      <button class="tab-btn" data-tab="events" role="tab" aria-selected="false">
+        <span class="material-icons-outlined">calendar_month</span>
+        Gestione Serate
+      </button>
+    </nav>
+
+    <!-- ─────────────────────────────────────
+         TAB: PRENOTAZIONI
+    ───────────────────────────────────── -->
+    <div id="tabBookings" class="page-body" role="tabpanel">
+
+      <!-- Filter & export -->
+      <div class="card">
+        <div class="toolbar-row">
+          <select id="eventSelector" aria-label="Seleziona serata">
+            <option value="">— Seleziona una serata —</option>
+          </select>
+          <button class="btn-outlined" id="exportCsvBtn">
+            <span class="material-icons-outlined">download</span>
+            Esporta CSV
+          </button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row">
+          <div class="stat-chip accent">
+            <span class="stat-chip-label">Posti prenotati</span>
+            <span class="stat-chip-value" id="statSeats">–</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-chip-label">Prenotazioni</span>
+            <span class="stat-chip-value" id="statBookings">–</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-chip-label">Cancellate</span>
+            <span class="stat-chip-value" id="statCancelled">–</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bookings table -->
+      <div class="card">
+        <div class="table-wrap">
+          <table id="bookingsTable">
+            <colgroup>
+              <col style="width:160px">
+              <col style="width:200px">
+              <col style="width:130px">
+              <col style="width:60px">
+              <col>
+              <col style="width:110px">
+              <col style="width:130px">
+              <col style="width:80px">
+            </colgroup>
+            <thead>
+              <tr>
+                <th data-col="cognome">Nominativo <span class="sort-icon material-icons-outlined"></span></th>
+                <th data-col="email">Email <span class="sort-icon material-icons-outlined"></span></th>
+                <th data-col="telefono">Telefono <span class="sort-icon material-icons-outlined"></span></th>
+                <th data-col="num_posti" title="Numero posti">N° <span class="sort-icon material-icons-outlined"></span></th>
+                <th data-col="note">Note <span class="sort-icon material-icons-outlined"></span></th>
+                <th data-col="stato">Stato <span class="sort-icon material-icons-outlined"></span></th>
+                <th data-col="created_at">Data prenot. <span class="sort-icon material-icons-outlined"></span></th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="bookingsTbody">
+              <tr><td colspan="8" class="empty-state">Seleziona una serata per vedere le prenotazioni.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /tabBookings -->
+
+    <!-- ─────────────────────────────────────
+         TAB: GESTIONE SERATE
+    ───────────────────────────────────── -->
+    <div id="tabEvents" class="page-body" style="display:none" role="tabpanel">
+
+      <!-- Add single date -->
+      <div class="card">
+        <h3 class="card-title">Aggiungi serata singola</h3>
+        <div class="add-date-row">
+          <input type="date" id="newDateInput" aria-label="Data nuova serata">
+          <button class="btn-filled" id="addDateBtn">
+            <span class="material-icons-outlined">add</span>
+            Aggiungi
+          </button>
+        </div>
+      </div>
+
+      <!-- Generate bulk dates -->
+      <div class="card">
+        <h3 class="card-title">Genera serate (Lunedì · Mercoledì · Sabato)</h3>
+        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px">
+          Genera automaticamente tutte le serate del calendario (Lun/Mer/Sab) per le settimane indicate. Le date già presenti verranno ignorate.
+        </p>
+        <div class="generate-row">
+          <div class="gen-field">
+            <label for="genFromDate">A partire da</label>
+            <input type="date" id="genFromDate">
+          </div>
+          <div class="gen-field">
+            <label for="genWeeks">Per quante settimane</label>
+            <input type="number" id="genWeeks" value="4" min="1" max="52" style="width:90px">
+          </div>
+          <button class="btn-filled" id="generateDatesBtn">
+            <span class="material-icons-outlined">auto_fix_high</span>
+            Genera
+          </button>
+        </div>
+      </div>
+
+      <!-- Events table -->
+      <div class="card">
+        <h3 class="card-title">Serate inserite</h3>
+        <div class="table-wrap">
+          <table id="eventsTable">
+            <colgroup>
+              <col style="width:200px">
+              <col style="width:80px">
+              <col style="width:110px">
+              <col>
+              <col style="width:120px">
+              <col style="width:130px">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Ora</th>
+                <th>Stato</th>
+                <th>Note</th>
+                <th>Creata il</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="eventsTbody">
+              <tr><td colspan="6" class="empty-state">Caricamento…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /tabEvents -->
+
+  </div><!-- /mainView -->
+
+  <!-- ══════════════════════════════════════════
+       CONFIRM DIALOG
+  ══════════════════════════════════════════ -->
+  <div id="confirmOverlay" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="confirm-card">
+      <h3 id="confirmTitle">Conferma</h3>
+      <p id="confirmText"></p>
+      <div class="confirm-btns">
+        <button class="btn-cancel-dialog" onclick="confirmResolve(false)">Annulla</button>
+        <button class="btn-confirm-ok" id="confirmOkBtn" onclick="confirmResolve(true)">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="js/common-ui.js"></script>
+  <script src="js/admin-estate-mediterranea.js"></script>
+</body>
+</html>

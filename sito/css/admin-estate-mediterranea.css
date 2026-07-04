@@ -1,0 +1,538 @@
+/* ============================================================
+   Admin Estate Mediterranea – Pizzica Pizzica
+   Admin booking management styles
+   ============================================================ */
+
+/* ── Login card ── */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: linear-gradient(to bottom, var(--seed-light), var(--scaffold-bg));
+}
+
+.login-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1px solid #e8e8e8;
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.login-card .login-logo {
+  height: 64px;
+  border-radius: 12px;
+  object-fit: contain;
+  margin-bottom: 20px;
+}
+
+.login-card h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.login-card .login-sub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.login-card .form-group {
+  width: 100%;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.login-card .form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.login-card .form-group input {
+  padding: 12px 14px;
+  font-size: 15px;
+  font-family: inherit;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--white);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  width: 100%;
+}
+
+.login-card .form-group input:focus {
+  border-color: var(--seed);
+  box-shadow: 0 0 0 2px var(--seed-10);
+}
+
+.login-card .form-group.has-error input {
+  border-color: var(--error);
+}
+
+.login-card .form-group .error-msg {
+  font-size: 12px;
+  color: var(--error);
+  display: none;
+}
+
+.login-card .form-group.has-error .error-msg {
+  display: block;
+}
+
+/* ── Tab navigation ── */
+.tab-nav {
+  display: flex;
+  gap: 2px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--white);
+}
+
+.tab-btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: 0;
+  transition: color .15s, border-color .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: auto;
+  width: auto;
+  margin-bottom: -1px;
+}
+
+.tab-btn:hover {
+  color: var(--seed);
+  background: none;
+}
+
+.tab-btn.active {
+  color: var(--seed);
+  border-bottom-color: var(--seed);
+  background: none;
+}
+
+.tab-btn .material-icons-outlined {
+  font-size: 18px;
+}
+
+/* ── Filter/toolbar row ── */
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.toolbar-row select {
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--white);
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+}
+
+.toolbar-row select:focus {
+  border-color: var(--seed);
+  box-shadow: 0 0 0 2px var(--seed-10);
+}
+
+/* ── Stats row ── */
+.stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stat-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 18px;
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  min-width: 120px;
+}
+
+.stat-chip.accent {
+  background: var(--seed-10);
+  border-color: var(--seed);
+}
+
+.stat-chip-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-secondary);
+}
+
+.stat-chip.accent .stat-chip-label {
+  color: var(--seed);
+}
+
+.stat-chip-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.stat-chip.accent .stat-chip-value {
+  color: var(--seed);
+}
+
+/* ── Generate dates card ── */
+.generate-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.generate-row .gen-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.generate-row label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.generate-row input[type="date"],
+.generate-row input[type="number"] {
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--white);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color .15s;
+}
+
+.generate-row input:focus {
+  border-color: var(--seed);
+  box-shadow: 0 0 0 2px var(--seed-10);
+}
+
+/* ── Buttons ── */
+.btn-filled {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--seed);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+  white-space: nowrap;
+}
+
+.btn-filled:hover:not(:disabled) {
+  background: #1b5e20;
+}
+
+.btn-filled:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.btn-filled .material-icons-outlined {
+  font-size: 18px;
+}
+
+.btn-filled.full {
+  width: 100%;
+  justify-content: center;
+  padding: 14px 18px;
+  font-size: 15px;
+  margin-top: 4px;
+}
+
+.btn-outlined {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background .15s, border-color .15s;
+  white-space: nowrap;
+}
+
+.btn-outlined:hover {
+  background: var(--seed-light);
+  border-color: var(--seed);
+  color: var(--seed);
+}
+
+.btn-outlined .material-icons-outlined {
+  font-size: 18px;
+}
+
+/* ── Toggle switch ── */
+.toggle-switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #ccc;
+  cursor: pointer;
+  transition: background .2s;
+}
+
+.toggle-track::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle-switch input:checked + .toggle-track {
+  background: var(--seed);
+}
+
+.toggle-switch input:checked + .toggle-track::before {
+  transform: translateX(16px);
+}
+
+.toggle-switch input:disabled + .toggle-track {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+/* ── Events table specific ── */
+.event-date-cell {
+  font-weight: 600;
+}
+
+.event-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.open-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.open-badge.open {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.open-badge.closed {
+  background: #F5F5F5;
+  color: #9E9E9E;
+}
+
+/* ── Add date inline form ── */
+.add-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.add-date-row input[type="date"] {
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--white);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color .15s;
+}
+
+.add-date-row input[type="date"]:focus {
+  border-color: var(--seed);
+  box-shadow: 0 0 0 2px var(--seed-10);
+}
+
+/* ── Detail modal (booking detail) ── */
+.modal-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-card h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.detail-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.detail-row .detail-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 110px;
+  flex-shrink: 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+/* ── Confirm dialog ── */
+.confirm-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 2100;
+}
+
+.confirm-overlay.active {
+  display: flex;
+}
+
+.confirm-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  max-width: 380px;
+  width: 100%;
+}
+
+.confirm-card h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.confirm-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.confirm-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-cancel-dialog {
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background .15s;
+}
+
+.btn-cancel-dialog:hover {
+  background: var(--seed-light);
+}
+
+.btn-confirm-ok {
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--error);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: opacity .15s;
+}
+
+.btn-confirm-ok:hover {
+  opacity: .88;
+}
