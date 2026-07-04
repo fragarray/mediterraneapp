@@ -119,16 +119,21 @@ body {
 }
 
 .hero-logo {
-  height: 60px;
-  border-radius: 12px;
+  position: absolute;
+  top: 70px;
+  left: 20px;
+  height: 56px;
+  border-radius: 10px;
   object-fit: contain;
-  margin-bottom: 16px;
   filter: drop-shadow(0 2px 12px rgba(0,0,0,0.55));
+  z-index: 2;
 }
 
 @media (min-width: 768px) {
   .hero-logo {
-    height: 80px;
+    height: 72px;
+    top: 72px;
+    left: 28px;
   }
 }
 
