@@ -1,7 +1,7 @@
 /* Estate Mediterranea – configurazione italiana */
 initEstateMediterranea({
   lang: 'it',
-  otherLangHref: 'estate-mediterranea-en.html',
+  otherLangHref: 'pizzica-med-en.html',
   days: ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'],
   monthsFull: ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'],
   timeLabel: 'ore 19:30',

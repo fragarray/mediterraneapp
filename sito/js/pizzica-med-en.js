@@ -1,7 +1,7 @@
 /* Estate Mediterranea – English configuration */
 initEstateMediterranea({
   lang: 'en',
-  otherLangHref: 'estate-mediterranea.html',
+  otherLangHref: 'pizzica-med.html',
   days: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
   monthsFull: ['January','February','March','April','May','June','July','August','September','October','November','December'],
   timeLabel: '7:30 PM',
