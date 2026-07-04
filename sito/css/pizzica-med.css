@@ -37,8 +37,8 @@ body {
 
 @media (min-width: 768px) {
   .appbar {
-    height: auto;
-    padding: 14px 24px;
+    /* Same centered bar, slightly more padding on wider screens */
+    padding: 0 24px;
   }
 }
 
@@ -50,28 +50,18 @@ body {
   flex: 1;
 }
 
-/* Mobile: mostra logo, nascondi testo */
+/* Logo visible everywhere, text always hidden */
 .appbar-logo-mobile {
   height: 30px;
   border-radius: 7px;
   object-fit: contain;
   filter: drop-shadow(0 1px 4px rgba(0,0,0,0.5));
-  /* Stick to left, push lang-switcher to right */
   margin-right: auto;
   flex-shrink: 0;
 }
 
 .appbar-title {
   display: none;
-}
-
-@media (min-width: 768px) {
-  .appbar-logo-mobile {
-    display: none;
-  }
-  .appbar-title {
-    display: block;
-  }
 }
 
 .appbar-link {
@@ -130,12 +120,12 @@ body {
   height: calc(65.6vw + 160px);
 }
 
-@media (min-width: 768px) {
+/* Desktop: cap hero height on very wide screens to avoid 1100px+ heroes */
+@media (min-width: 960px) {
   .hero {
-    background-size: cover;
-    background-position: center 10%;
-    height: auto;
-    min-height: 580px;
+    max-height: 680px;
+    /* Once capped, keep image centered within the box */
+    background-position: center 30%;
   }
 }
 
@@ -167,13 +157,7 @@ body {
   color: #fff;
 }
 
-@media (min-width: 768px) {
-  .hero-content {
-    top: 0;
-    bottom: auto;
-    padding: 56px 24px 24px;
-  }
-}
+/* Hero content stays at bottom on all screen sizes */
 
 /* ── Hero text – mobile first ── */
 .hero-title {
@@ -221,21 +205,7 @@ body {
   opacity: 0.85;
 }
 
-/* Desktop: dimensioni più generose */
-@media (min-width: 768px) {
-  .hero-title {
-    font-size: clamp(2.4rem, 5vw, 4rem);
-    line-height: 1.04;
-    margin-bottom: 8px;
-  }
-  .hero-subtitle {
-    font-size: clamp(1rem, 2vw, 1.25rem);
-    margin-bottom: 20px;
-  }
-  .hero-chips       { gap: 8px; }
-  .hero-chip        { padding: 6px 14px; font-size: 13px; }
-  .hero-chip .material-icons-outlined { font-size: 15px; }
-}
+/* No font size overrides for desktop – identical to mobile */
 
 /* ── Info bar ── */
 .info-bar {
@@ -249,16 +219,9 @@ body {
   line-height: 1.7;
 }
 
-/* Mobile: spezza in due righe leggibili */
+/* Always two lines on all screen sizes */
 .info-bar .info-main   { display: block; }
 .info-bar .info-dimmed { display: block; opacity: 0.78; font-weight: 400; font-size: 12px; }
-
-@media (min-width: 560px) {
-  .info-bar .info-main,
-  .info-bar .info-dimmed { display: inline; }
-  .info-bar { font-size: 14px; padding: 13px 20px; }
-  .info-bar .info-dimmed { font-size: inherit; }
-}
 
 /* ── Page body ── */
 .page-body {
@@ -281,14 +244,6 @@ body {
   gap: 20px;
 }
 
-@media (min-width: 560px) {
-  .page-container { gap: 28px; }
-}
-
-@media (min-width: 960px) {
-  .page-container { gap: 36px; }
-}
-
 /* ── Section headings ── */
 .section-heading {
   font-size: 18px;
@@ -296,18 +251,10 @@ body {
   margin-bottom: 2px;
 }
 
-@media (min-width: 560px) {
-  .section-heading { font-size: 20px; margin-bottom: 4px; }
-}
-
 .section-subheading {
   font-size: 13px;
   color: var(--text-secondary);
   margin-bottom: 14px;
-}
-
-@media (min-width: 560px) {
-  .section-subheading { font-size: 14px; margin-bottom: 18px; }
 }
 
 /* ── Date cards grid ── */
@@ -429,12 +376,7 @@ body {
   background: var(--white);
   border-radius: var(--radius-lg);
   border: 1px solid #e8e8e8;
-  /* Tighter on mobile */
   padding: 16px;
-}
-
-@media (min-width: 560px) {
-  .form-card { padding: 24px; }
 }
 
 .form-card .section-subtitle {
@@ -450,22 +392,12 @@ body {
   margin-bottom: 8px;
 }
 
-@media (min-width: 560px) {
-  .fields-grid { gap: 16px; }
-}
-
 .field-full {
   width: 100%;
 }
 
 .field-half {
   width: 100%;
-}
-
-@media (min-width: 560px) {
-  .field-half {
-    width: calc(50% - 8px);
-  }
 }
 
 .form-group {
@@ -623,17 +555,9 @@ body {
   color: var(--text-secondary);
 }
 
-@media (min-width: 560px) {
-  .form-placeholder { padding: 40px 24px; gap: 12px; }
-}
-
 .form-placeholder .material-icons-outlined {
   font-size: 40px;
   color: #d4d4d4;
-}
-
-@media (min-width: 560px) {
-  .form-placeholder .material-icons-outlined { font-size: 48px; }
 }
 
 .form-placeholder p {
