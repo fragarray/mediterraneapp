@@ -12,6 +12,12 @@ window.initEstateMediterranea = function (config) {
   let selectedEventId   = null;
   let currentEventPrice = 15.00;
   let capturedFormData  = null;
+  const DEFAULT_EVENT_PRICE = 15.00;
+
+  function normalizeEventPrice(value) {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : DEFAULT_EVENT_PRICE;
+  }
 
   // ── DOM refs ──────────────────────────────────────────────
   const datesContainer        = document.getElementById('datesContainer');
@@ -87,11 +93,12 @@ window.initEstateMediterranea = function (config) {
     }
     const cards = evts.map(ev => {
       const { weekday, day, month, year } = formatDateCard(ev.data);
+      const price = normalizeEventPrice(ev.prezzo);
       return `
         <button type="button" class="date-card"
           data-id="${esc(ev.id)}"
           data-date="${esc(ev.data)}"
-          data-price="${ev.prezzo != null ? parseFloat(ev.prezzo) : 15}"
+          data-price="${price}"
           aria-label="${esc(weekday)} ${day} ${esc(month)} ${year}">
           <span class="dc-weekday">${esc(weekday)}</span>
           <span class="dc-day">${day}</span>
@@ -100,9 +107,11 @@ window.initEstateMediterranea = function (config) {
     }).join('');
     datesContainer.innerHTML = `<div class="dates-grid">${cards}</div>`;
     datesContainer.querySelectorAll('.date-card').forEach(card => {
+      const price = normalizeEventPrice(card.dataset.price);
       card.addEventListener('click', () => onDateClick(
-        card.dataset.id, card.dataset.date,
-        card.dataset.price != null ? parseFloat(card.dataset.price) : 15
+        card.dataset.id,
+        card.dataset.date,
+        price
       ));
     });
   }
@@ -110,7 +119,7 @@ window.initEstateMediterranea = function (config) {
   // ── Select date ───────────────────────────────────────────
   function onDateClick(eventId, isoDate, price) {
     selectedEventId   = eventId;
-    currentEventPrice = price;
+    currentEventPrice = normalizeEventPrice(price);
     datesContainer.querySelectorAll('.date-card').forEach(c => {
       c.classList.toggle('selected', c.dataset.id === eventId);
     });
@@ -172,12 +181,17 @@ window.initEstateMediterranea = function (config) {
 
   function showPaymentStep() {
     const { numPosti } = capturedFormData;
-    const total = currentEventPrice * numPosti;
+    const price = Number.isFinite(currentEventPrice) ? currentEventPrice : DEFAULT_EVENT_PRICE;
+    const total = price * numPosti;
+    currentEventPrice = price;
 
     if (paymentDateLabel)  paymentDateLabel.textContent  = selectedDateLabel.textContent;
     if (payNumPosti)       payNumPosti.textContent        = numPosti;
-    if (payPricePerPerson) payPricePerPerson.textContent  = formatPrice(currentEventPrice);
+    if (payPricePerPerson) payPricePerPerson.textContent  = formatPrice(price);
     if (payTotal)          payTotal.textContent           = formatPrice(total);
+    if (document.getElementById('eventPriceNoteText')) {
+      document.getElementById('eventPriceNoteText').textContent = `${formatPrice(price)} a persona`;
+    }
 
     // Reset pay button state
     if (btnPayNow)    { btnPayNow.disabled = false; }

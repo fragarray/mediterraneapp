@@ -41,7 +41,8 @@ module.exports = async function handler(req, res) {
     if (!ev)                      return res.status(400).json({ error: 'Event not found' });
     if (!ev.prenotazioni_aperte)  return res.status(400).json({ error: 'Event bookings closed' });
 
-    const amount       = parseFloat(((ev.prezzo || 15) * numPosti).toFixed(2));
+    const price        = Number.isFinite(parseFloat(ev.prezzo)) ? parseFloat(ev.prezzo) : 15;
+    const amount       = parseFloat((price * numPosti).toFixed(2));
     const checkoutRef  = crypto.randomUUID();
     const validUntil   = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
