@@ -207,7 +207,9 @@ window.initEstateMediterranea = function (config) {
         .maybeSingle();
       if (error) throw error;
       const price = data && data.prezzo != null ? parseFloat(data.prezzo) : null;
-      return Number.isFinite(price) ? price : defaultEventPrice;
+      const finalPrice = Number.isFinite(price) ? price : defaultEventPrice;
+      console.info('[booking] loaded event price', { eventId, prezzo: data?.prezzo, finalPrice });
+      return finalPrice;
     } catch (err) {
       console.warn('[booking] could not load event price', err.message);
       return defaultEventPrice;
@@ -216,9 +218,7 @@ window.initEstateMediterranea = function (config) {
 
   async function showPaymentStep() {
     const { numPosti } = capturedFormData;
-    const price = Number.isFinite(currentEventPrice)
-      ? currentEventPrice
-      : await loadEventPrice(selectedEventId);
+    const price = await loadEventPrice(selectedEventId);
     const total = price * numPosti;
     currentEventPrice = price;
 
@@ -250,6 +250,7 @@ window.initEstateMediterranea = function (config) {
 
     const { nome, cognome, email, telefono, numPosti, note } = capturedFormData;
     const redirectBase = window.location.href.split('?')[0];
+    console.info('[payment] creating checkout', { selectedEventId, currentEventPrice, numPosti });
 
     try {
       const resp = await fetch('/api/sumup-create-checkout', {

@@ -48,6 +48,7 @@ module.exports = async function handler(req, res) {
         ? defaultPrice
         : 15;
     const amount       = parseFloat((eventPrice * numPosti).toFixed(2));
+    console.info('[sumup-create] checkout price', { eventId: b.evento_id, evPreco: ev.prezzo, defaultPrice, eventPrice, amount });
     const checkoutRef  = crypto.randomUUID();
     const validUntil   = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
