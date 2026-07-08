@@ -175,8 +175,10 @@
 
   function updateStats(rows) {
     const confirmed = rows.filter(r => r.stato === 'confermata');
+    const pending   = rows.filter(r => r.stato === 'pending_payment');
     $('statBookings').textContent  = confirmed.length;
     $('statSeats').textContent     = confirmed.reduce((sum, r) => sum + (r.num_posti || 0), 0);
+    $('statPending').textContent   = pending.length;
     $('statCancelled').textContent = rows.filter(r => r.stato === 'cancellata').length;
     const revenue = confirmed.reduce((sum, r) => sum + (parseFloat(r.importo_pagato) || 0), 0);
     $('statRevenue').textContent   = `€${revenue.toFixed(2)}`;
@@ -203,8 +205,16 @@
               : `<span class="badge badge-deleted">–</span>`
             }
           </td>
-          <td>          <span class="badge ${r.stato === 'confermata' ? 'badge-approved' : 'badge-deleted'}">
-            ${r.stato === 'confermata' ? 'Confermata' : 'Cancellata'}
+          <td>          <span class="badge ${
+            r.stato === 'confermata'     ? 'badge-approved' :
+            r.stato === 'pending_payment'? 'badge-pending'  :
+                                           'badge-deleted'
+          }">
+            ${
+              r.stato === 'confermata'      ? 'Confermata'   :
+              r.stato === 'pending_payment' ? 'Att. pagamento':
+                                              'Cancellata'
+            }
           </span>
         </td>
         <td style="color:var(--text-secondary);font-size:12px">${fmtDateTime(r.created_at)}</td>
