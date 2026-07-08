@@ -70,6 +70,10 @@
         <span class="material-icons-outlined">calendar_month</span>
         Gestione Serate
       </button>
+      <button class="tab-btn" data-tab="settings" role="tab" aria-selected="false">
+        <span class="material-icons-outlined">settings</span>
+        Impostazioni
+      </button>
     </nav>
 
     <!-- ─────────────────────────────────────
@@ -103,6 +107,10 @@
             <span class="stat-chip-label">Cancellate</span>
             <span class="stat-chip-value" id="statCancelled">–</span>
           </div>
+          <div class="stat-chip">
+            <span class="stat-chip-label">Incassato</span>
+            <span class="stat-chip-value" id="statRevenue">–</span>
+          </div>
         </div>
       </div>
 
@@ -133,7 +141,7 @@
               </tr>
             </thead>
             <tbody id="bookingsTbody">
-              <tr><td colspan="8" class="empty-state">Seleziona una serata per vedere le prenotazioni.</td></tr>
+              <tr><td colspan="9" class="empty-state">Seleziona una serata per vedere le prenotazioni.</td></tr>
             </tbody>
           </table>
         </div>
@@ -151,6 +159,7 @@
         <h3 class="card-title">Aggiungi serata singola</h3>
         <div class="add-date-row">
           <input type="date" id="newDateInput" aria-label="Data nuova serata">
+          <input type="number" id="newDatePrice" value="15" min="0" step="0.50" style="width:90px" aria-label="Prezzo serata (€)" title="Prezzo (\u20ac)" placeholder="€">
           <button class="btn-filled" id="addDateBtn">
             <span class="material-icons-outlined">add</span>
             Aggiungi
@@ -188,6 +197,7 @@
             <colgroup>
               <col style="width:200px">
               <col style="width:80px">
+              <col style="width:80px">
               <col style="width:110px">
               <col>
               <col style="width:120px">
@@ -197,6 +207,7 @@
               <tr>
                 <th>Data</th>
                 <th>Ora</th>
+                <th>Prezzo</th>
                 <th>Stato</th>
                 <th>Note</th>
                 <th>Creata il</th>
@@ -211,6 +222,47 @@
       </div>
 
     </div><!-- /tabEvents -->
+
+    <!-- ══════════════════════════════════════════
+         TAB: IMPOSTAZIONI
+    ══════════════════════════════════════════ -->
+    <div id="tabSettings" class="page-body" style="display:none" role="tabpanel">
+
+      <div class="card">
+        <h3 class="card-title">Configurazione PayPal</h3>
+        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px">
+          Inserisci il <strong>Client ID</strong> pubblico della tua app PayPal.
+          Lo trovi su <a href="https://developer.paypal.com" target="_blank" rel="noopener" style="color:var(--seed)">developer.paypal.com</a>
+          → App &amp; Credentials.
+        </p>
+        <div class="form-group" style="margin-bottom:16px">
+          <label for="paypalClientId">PayPal Client ID</label>
+          <input type="text" id="paypalClientId" placeholder="AaBbCc… (sandbox o live)" spellcheck="false">
+        </div>
+        <button class="btn-filled" id="savePaypalClientIdBtn">
+          <span class="material-icons-outlined">save</span>
+          Salva Client ID
+        </button>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h3 class="card-title">Prezzo predefinito per nuove serate</h3>
+        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px">
+          Valore applicato automaticamente quando si crea una serata senza specificare il prezzo.
+        </p>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="form-group" style="margin:0;flex:1;min-width:120px">
+            <label for="defaultPriceInput">Prezzo (€)</label>
+            <input type="number" id="defaultPriceInput" step="0.50" min="0" value="15.00">
+          </div>
+          <button class="btn-filled" id="saveDefaultPriceBtn">
+            <span class="material-icons-outlined">save</span>
+            Salva
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /tabSettings -->
 
   </div><!-- /mainView -->
 

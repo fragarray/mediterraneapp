@@ -1,3 +1,6 @@
 {
-  "outputDirectory": "sito"
+  "outputDirectory": "sito",
+  "functions": {
+    "api/*.js": { "maxDuration": 10 }
+  }
 }

@@ -15,6 +15,7 @@
   let sortAsc = false;
   let evSortKey = 'data';
   let evSortAsc = true;
+  let defaultPrice = 15.00;
 
   // ── DOM helpers ───────────────────────────────────────────
   const $  = id => document.getElementById(id);
@@ -41,6 +42,7 @@
     $('loginView').style.display = 'none';
     $('mainView').style.display  = '';
     $('appbarUser').textContent  = currentUser?.email || '';
+    loadSettingsValues();   // load defaultPrice + PayPal client ID silently
     loadEventsData();
   }
 
@@ -100,15 +102,17 @@
     document.querySelectorAll('.tab-btn[data-tab]').forEach(b => {
       b.classList.toggle('active', b.dataset.tab === tab);
     });
-    $('tabBookings').style.display = tab === 'bookings' ? '' : 'none';
-    $('tabEvents').style.display   = tab === 'events'   ? '' : 'none';
+    $('tabBookings').style.display = tab === 'bookings'  ? '' : 'none';
+    $('tabEvents').style.display   = tab === 'events'    ? '' : 'none';
+    $('tabSettings').style.display = tab === 'settings'  ? '' : 'none';
+    if (tab === 'settings') loadSettingsValues();
   }
 
   // ── Load events (used by both tabs) ───────────────────────
   async function loadEventsData() {
     const { data, error } = await supabase
       .from('pizzica_eventi')
-      .select('id, data, ora, luogo, prenotazioni_aperte, note, created_at')
+      .select('id, data, ora, luogo, prenotazioni_aperte, note, prezzo, created_at')
       .order('data', { ascending: true });
 
     if (error) {
@@ -155,7 +159,7 @@
   async function loadBookings(eventoId) {
     const { data, error } = await supabase
       .from('pizzica_prenotazioni')
-      .select('id, nome, cognome, email, telefono, num_posti, note, stato, created_at')
+      .select('id, nome, cognome, email, telefono, num_posti, note, stato, created_at, paypal_order_id, importo_pagato, payment_method')
       .eq('evento_id', eventoId)
       .order('created_at', { ascending: true });
 
@@ -171,16 +175,18 @@
 
   function updateStats(rows) {
     const confirmed = rows.filter(r => r.stato === 'confermata');
-    $('statBookings').textContent = confirmed.length;
-    $('statSeats').textContent    = confirmed.reduce((sum, r) => sum + (r.num_posti || 0), 0);
+    $('statBookings').textContent  = confirmed.length;
+    $('statSeats').textContent     = confirmed.reduce((sum, r) => sum + (r.num_posti || 0), 0);
     $('statCancelled').textContent = rows.filter(r => r.stato === 'cancellata').length;
+    const revenue = confirmed.reduce((sum, r) => sum + (parseFloat(r.importo_pagato) || 0), 0);
+    $('statRevenue').textContent   = `€${revenue.toFixed(2)}`;
   }
 
   function renderBookingsTable(rows) {
     const tbody = $('bookingsTbody');
 
     if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Nessuna prenotazione per questa serata.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="empty-state">Nessuna prenotazione per questa serata.</td></tr>`;
       return;
     }
 
@@ -192,8 +198,12 @@
         <td>${esc(r.telefono || '–')}</td>
         <td style="text-align:center;font-weight:700">${r.num_posti}</td>
         <td title="${esc(r.note || '')}">${esc(r.note || '–')}</td>
-        <td>
-          <span class="badge ${r.stato === 'confermata' ? 'badge-approved' : 'badge-deleted'}">
+        <td>            ${r.importo_pagato != null
+              ? `<span class="badge badge-approved">€${parseFloat(r.importo_pagato).toFixed(2)}</span>`
+              : `<span class="badge badge-deleted">–</span>`
+            }
+          </td>
+          <td>          <span class="badge ${r.stato === 'confermata' ? 'badge-approved' : 'badge-deleted'}">
             ${r.stato === 'confermata' ? 'Confermata' : 'Cancellata'}
           </span>
         </td>
@@ -275,7 +285,7 @@
   });
 
   function exportCsv(rows, eventLabel) {
-    const headers = ['Nome','Cognome','Email','Telefono','Posti','Note','Stato','Data prenotazione'];
+    const headers = ['Nome','Cognome','Email','Telefono','Posti','Note','Stato','Pagato (€)','Metodo pagamento','Data prenotazione'];
     const lines = rows.map(r => [
       csvCell(r.nome),
       csvCell(r.cognome),
@@ -284,6 +294,8 @@
       r.num_posti,
       csvCell(r.note || ''),
       csvCell(r.stato),
+      r.importo_pagato != null ? parseFloat(r.importo_pagato).toFixed(2) : '',
+      csvCell(r.payment_method || ''),
       csvCell(fmtDateTime(r.created_at)),
     ].join(';'));
 
@@ -322,6 +334,18 @@
       <tr data-id="${esc(ev.id)}">
         <td class="event-date-cell">${esc(formatDate(ev.data))}</td>
         <td>${esc(ev.ora?.slice(0,5) || '19:30')}</td>
+        <td>
+          <input type="number" class="price-inline-input" value="${parseFloat(ev.prezzo || 15).toFixed(2)}"
+            min="0" step="0.50" style="width:72px"
+            onchange="updateEventPrice('${esc(ev.id)}', this.value)"
+            title="Modifica prezzo">
+        </td>
+        <td>
+          <input type="number" class="price-inline-input" value="${parseFloat(ev.prezzo || 15).toFixed(2)}"
+            min="0" step="0.50" style="width:72px"
+            onchange="updateEventPrice('${esc(ev.id)}', this.value)"
+            title="Modifica prezzo">
+        </td>
         <td>
           <span class="open-badge ${ev.prenotazioni_aperte ? 'open' : 'closed'}">
             ${ev.prenotazioni_aperte ? 'Aperta' : 'Chiusa'}
@@ -404,6 +428,7 @@
     const todayIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
     if (date < todayIso) { showSnackbar('La data deve essere futura.', true); return; }
 
+    const priceVal = parseFloat($('newDatePrice')?.value) || defaultPrice;
     if (allEvents.find(e => e.data === date)) {
       showSnackbar('Questa data esiste già.', true);
       return;
@@ -414,13 +439,28 @@
       ora: '19:30',
       luogo: 'Mediterranea – Palazzo dei Celestini – Lecce',
       prenotazioni_aperte: true,
+      prezzo: priceVal,
     });
 
     if (error) { showSnackbar('Errore durante l\'inserimento.', true); return; }
-    input.value = '';
+    if ($('newDateInput')) $('newDateInput').value = '';
     showSnackbar('Serata aggiunta.');
     await loadEventsData();
   });
+
+  // updateEventPrice (called from table inline input)
+  window.updateEventPrice = async (id, newPriceStr) => {
+    const newPrice = parseFloat(newPriceStr);
+    if (isNaN(newPrice) || newPrice < 0) { showSnackbar('Prezzo non valido.', true); return; }
+    const { error } = await supabase
+      .from('pizzica_eventi')
+      .update({ prezzo: newPrice })
+      .eq('id', id);
+    if (error) { showSnackbar('Errore aggiornamento prezzo.', true); return; }
+    const ev = allEvents.find(e => e.id === id);
+    if (ev) ev.prezzo = newPrice;
+    showSnackbar(`Prezzo aggiornato: €${newPrice.toFixed(2)}`);
+  };
 
   // Generate dates (Mon/Wed/Sat)
   $('generateDatesBtn').addEventListener('click', async () => {
@@ -453,6 +493,7 @@
       ora: '19:30',
       luogo: 'Mediterranea – Palazzo dei Celestini – Lecce',
       prenotazioni_aperte: true,
+      prezzo: defaultPrice,
     }));
 
     const { error } = await supabase.from('pizzica_eventi').insert(rows);
@@ -477,6 +518,46 @@
     }
     return dates;
   }
+
+  // ── Settings tab ──────────────────────────────────────────
+  async function loadSettingsValues() {
+    try {
+      const [clientId, defPrice] = await Promise.all([
+        supabase.from('app_settings').select('value').eq('key','paypal_client_id').maybeSingle(),
+        supabase.from('app_settings').select('value').eq('key','pizzica_prezzo_default').maybeSingle(),
+      ]);
+
+      if ($('paypalClientId') && clientId.data?.value != null) {
+        $('paypalClientId').value = clientId.data.value;
+      }
+      if ($('defaultPriceInput') && defPrice.data?.value != null) {
+        $('defaultPriceInput').value = parseFloat(defPrice.data.value).toFixed(2);
+        defaultPrice = parseFloat(defPrice.data.value) || 15;
+      }
+    } catch(e) {
+      showSnackbar('Errore caricamento impostazioni.', true);
+    }
+  }
+
+  $('savePaypalClientIdBtn')?.addEventListener('click', async () => {
+    const val = $('paypalClientId').value.trim();
+    if (!val) { showSnackbar('Inserisci un Client ID valido.', true); return; }
+    const { error } = await supabase.from('app_settings')
+      .upsert({ key: 'paypal_client_id', value: val, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    if (error) { showSnackbar('Errore salvataggio.', true); return; }
+    showSnackbar('PayPal Client ID salvato.');
+  });
+
+  $('saveDefaultPriceBtn')?.addEventListener('click', async () => {
+    const val = parseFloat($('defaultPriceInput').value);
+    if (isNaN(val) || val < 0) { showSnackbar('Prezzo non valido.', true); return; }
+    defaultPrice = val;
+    const { error } = await supabase.from('app_settings')
+      .upsert({ key: 'pizzica_prezzo_default', value: val.toFixed(2), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    if (error) { showSnackbar('Errore salvataggio.', true); return; }
+    if ($('newDatePrice')) $('newDatePrice').value = val.toFixed(2);
+    showSnackbar(`Prezzo predefinito salvato: €${val.toFixed(2)}`);
+  });
 
   // ── Confirm dialog ────────────────────────────────────────
   function showConfirm(title, text, okLabel) {

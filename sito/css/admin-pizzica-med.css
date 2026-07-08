@@ -397,6 +397,26 @@
   color: #9E9E9E;
 }
 
+/* ── Inline price input in events table ── */
+.price-inline-input {
+  padding: 5px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color .15s;
+  width: 72px;
+  text-align: right;
+}
+
+.price-inline-input:focus {
+  border-color: var(--seed);
+  box-shadow: 0 0 0 2px var(--seed-10);
+}
+
 /* ── Add date inline form ── */
 .add-date-row {
   display: flex;

@@ -54,7 +54,7 @@
   <!-- Info bar -->
   <div class="info-bar" role="note">
     <span class="info-main">Ingresso €15 · calice di vino incluso</span>
-    <span class="info-dimmed"> · air conditioned · tessera associativa inclusa · pagamento in loco</span>
+    <span class="info-dimmed"> · air conditioned · tessera associativa inclusa · pagamento online sicuro</span>
   </div>
 
   <!-- Main -->
@@ -141,7 +141,7 @@
               </div>
               <div class="price-note-row">
                 <span class="material-icons-outlined" aria-hidden="true">payments</span>
-                Pagamento in loco la sera dell'evento
+                Pagamento online obbligatorio per confermare la prenotazione
               </div>
             </div>
 
@@ -152,6 +152,54 @@
 
           </form>
         </div><!-- /form-card -->
+      </section>
+
+      <!-- ── Payment step ── -->
+      <section id="paymentSection" class="payment-section" aria-labelledby="paymentHeading">
+        <h2 class="section-heading" id="paymentHeading">Pagamento</h2>
+        <div class="selected-date-banner" aria-live="polite">
+          <span class="material-icons-outlined" aria-hidden="true">event</span>
+          <span id="paymentDateLabel">–</span>
+        </div>
+        <div class="form-card payment-card">
+          <div class="payment-summary" role="region" aria-label="Riepilogo ordine">
+            <div class="pay-row">
+              <span class="material-icons-outlined" aria-hidden="true">event_seat</span>
+              <span>Posti prenotati</span>
+              <strong id="payNumPosti">–</strong>
+            </div>
+            <div class="pay-row">
+              <span class="material-icons-outlined" aria-hidden="true">euro</span>
+              <span>Prezzo a persona</span>
+              <strong id="payPricePerPerson">–</strong>
+            </div>
+            <div class="pay-row pay-total-row">
+              <span class="material-icons-outlined" aria-hidden="true">payments</span>
+              <span>Totale da pagare</span>
+              <strong id="payTotal">–</strong>
+            </div>
+          </div>
+
+          <div class="payment-timer-wrap" id="paymentTimerWrap" role="timer" aria-live="polite">
+            <span class="material-icons-outlined" aria-hidden="true">timer</span>
+            <span>Completa il pagamento entro</span>
+            <strong id="timerDisplay">10:00</strong>
+          </div>
+
+          <div id="timerExpiredMsg" class="timer-expired-msg" style="display:none" role="alert">
+            <span class="material-icons-outlined" aria-hidden="true">warning</span>
+            Tempo scaduto.
+            <button type="button" id="btnRestartBooking" class="link-btn">Ricomincia la prenotazione</button>
+          </div>
+
+          <p id="paypalLoadingMsg" class="paypal-loading">Caricamento sistema di pagamento…</p>
+          <div id="paypalButtonContainer" class="paypal-btn-container"></div>
+
+          <button type="button" class="btn-back-form" id="btnBackToForm">
+            <span class="material-icons-outlined" aria-hidden="true">arrow_back</span>
+            Torna al form
+          </button>
+        </div>
       </section>
 
       <!-- ── Success state ── -->
