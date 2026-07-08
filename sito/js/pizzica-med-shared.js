@@ -146,6 +146,10 @@ window.initEstateMediterranea = function (config) {
     paymentSection?.classList.remove('visible');
     formSection.classList.add('visible');
     selectedDateLabel.textContent = formatDateFull(isoDate);
+    const priceInfo = document.getElementById('selectedPriceInfo');
+    if (priceInfo) {
+      priceInfo.textContent = `${config.lang === 'en' ? 'Price per person:' : 'Prezzo a persona:'} ${formatPrice(currentEventPrice)} ${config.lang === 'en' ? '· paid entry from age 13 and up' : '· ingresso a pagamento dai 13 anni in su'}`;
+    }
     bookingForm.reset();
     clearErrors();
     formSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -290,6 +294,10 @@ window.initEstateMediterranea = function (config) {
     selectedEventId   = null;
     capturedFormData  = null;
     currentEventPrice = 15.00;
+    const priceInfo = document.getElementById('selectedPriceInfo');
+    if (priceInfo) {
+      priceInfo.textContent = '–';
+    }
     datesContainer.querySelectorAll('.date-card').forEach(c => c.classList.remove('selected'));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
