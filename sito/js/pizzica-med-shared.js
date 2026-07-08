@@ -12,11 +12,28 @@ window.initEstateMediterranea = function (config) {
   let selectedEventId   = null;
   let currentEventPrice = 15.00;
   let capturedFormData  = null;
+  let defaultEventPrice = 15.00;
   const DEFAULT_EVENT_PRICE = 15.00;
 
-  function normalizeEventPrice(value) {
+  function normalizeEventPrice(value, fallback = DEFAULT_EVENT_PRICE) {
     const parsed = parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : DEFAULT_EVENT_PRICE;
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  async function loadDefaultEventPrice() {
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'pizzica_prezzo_default')
+        .maybeSingle();
+      if (error) throw error;
+      const price = data && data.value ? parseFloat(data.value) : NaN;
+      defaultEventPrice = Number.isFinite(price) ? price : DEFAULT_EVENT_PRICE;
+    } catch (err) {
+      defaultEventPrice = DEFAULT_EVENT_PRICE;
+      console.warn('[booking] could not load default event price, using fallback', err.message);
+    }
   }
 
   // ── DOM refs ──────────────────────────────────────────────
@@ -68,6 +85,7 @@ window.initEstateMediterranea = function (config) {
 
   // ── Load events ───────────────────────────────────────────
   async function loadEvents() {
+    await loadDefaultEventPrice();
     const now = new Date();
     const todayIso = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
@@ -92,8 +110,8 @@ window.initEstateMediterranea = function (config) {
       return;
     }
     const cards = evts.map(ev => {
+      const price = normalizeEventPrice(ev.prezzo, defaultEventPrice);
       const { weekday, day, month, year } = formatDateCard(ev.data);
-      const price = normalizeEventPrice(ev.prezzo);
       return `
         <button type="button" class="date-card"
           data-id="${esc(ev.id)}"
@@ -107,7 +125,7 @@ window.initEstateMediterranea = function (config) {
     }).join('');
     datesContainer.innerHTML = `<div class="dates-grid">${cards}</div>`;
     datesContainer.querySelectorAll('.date-card').forEach(card => {
-      const price = normalizeEventPrice(card.dataset.price);
+      const price = normalizeEventPrice(card.dataset.price, defaultEventPrice);
       card.addEventListener('click', () => onDateClick(
         card.dataset.id,
         card.dataset.date,
@@ -179,9 +197,28 @@ window.initEstateMediterranea = function (config) {
     showPaymentStep();
   });
 
-  function showPaymentStep() {
+  async function loadEventPrice(eventId) {
+    if (!eventId) return defaultEventPrice;
+    try {
+      const { data, error } = await supabase
+        .from('pizzica_eventi')
+        .select('prezzo')
+        .eq('id', eventId)
+        .maybeSingle();
+      if (error) throw error;
+      const price = data && data.prezzo != null ? parseFloat(data.prezzo) : null;
+      return Number.isFinite(price) ? price : defaultEventPrice;
+    } catch (err) {
+      console.warn('[booking] could not load event price', err.message);
+      return defaultEventPrice;
+    }
+  }
+
+  async function showPaymentStep() {
     const { numPosti } = capturedFormData;
-    const price = Number.isFinite(currentEventPrice) ? currentEventPrice : DEFAULT_EVENT_PRICE;
+    const price = Number.isFinite(currentEventPrice)
+      ? currentEventPrice
+      : await loadEventPrice(selectedEventId);
     const total = price * numPosti;
     currentEventPrice = price;
 

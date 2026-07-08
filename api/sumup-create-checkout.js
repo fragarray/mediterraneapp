@@ -41,8 +41,13 @@ module.exports = async function handler(req, res) {
     if (!ev)                      return res.status(400).json({ error: 'Event not found' });
     if (!ev.prenotazioni_aperte)  return res.status(400).json({ error: 'Event bookings closed' });
 
-    const price        = Number.isFinite(parseFloat(ev.prezzo)) ? parseFloat(ev.prezzo) : 15;
-    const amount       = parseFloat((price * numPosti).toFixed(2));
+    const defaultPrice = await getDefaultPrice(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const eventPrice   = Number.isFinite(parseFloat(ev.prezzo))
+      ? parseFloat(ev.prezzo)
+      : Number.isFinite(defaultPrice)
+        ? defaultPrice
+        : 15;
+    const amount       = parseFloat((eventPrice * numPosti).toFixed(2));
     const checkoutRef  = crypto.randomUUID();
     const validUntil   = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
@@ -120,3 +125,27 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: err.message || 'Internal server error' });
   }
 };
+
+async function getDefaultPrice(supabaseUrl, serviceRoleKey) {
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/app_settings?key=eq.pizzica_prezzo_default&select=value`,
+      {
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+        },
+      }
+    );
+    if (!res.ok) throw new Error('Could not read default price');
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return DEFAULT_PRICE_FALLBACK;
+    const parsed = parseFloat(data[0].value);
+    return Number.isFinite(parsed) ? parsed : DEFAULT_PRICE_FALLBACK;
+  } catch (err) {
+    console.warn('[sumup-create] default price lookup failed', err.message);
+    return DEFAULT_PRICE_FALLBACK;
+  }
+}
+
+const DEFAULT_PRICE_FALLBACK = 15;
