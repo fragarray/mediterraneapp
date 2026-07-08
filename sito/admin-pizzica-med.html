@@ -229,19 +229,21 @@
     <div id="tabSettings" class="page-body" style="display:none" role="tabpanel">
 
       <div class="card">
-        <h3 class="card-title">Configurazione PayPal</h3>
+        <h3 class="card-title">Configurazione SumUp</h3>
         <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px">
-          Inserisci il <strong>Client ID</strong> pubblico della tua app PayPal.
-          Lo trovi su <a href="https://developer.paypal.com" target="_blank" rel="noopener" style="color:var(--seed)">developer.paypal.com</a>
-          → App &amp; Credentials.
+          Inserisci il <strong>Merchant Code</strong> del tuo account SumUp.
+          Lo trovi nella <a href="https://me.sumup.com/settings/account" target="_blank" rel="noopener" style="color:var(--seed)">dashboard SumUp</a> → Profilo / Impostazioni account.
+        </p>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
+          ⚠️ La <strong>API Key</strong> di SumUp (Personal Access Token) è sensibile e va impostata come variabile d\'ambiente <code>SUMUP_API_KEY</code> su Vercel.
         </p>
         <div class="form-group" style="margin-bottom:16px">
-          <label for="paypalClientId">PayPal Client ID</label>
-          <input type="text" id="paypalClientId" placeholder="AaBbCc… (sandbox o live)" spellcheck="false">
+          <label for="sumupMerchantCode">Merchant Code SumUp</label>
+          <input type="text" id="sumupMerchantCode" placeholder="es. MH4H92C7" spellcheck="false">
         </div>
-        <button class="btn-filled" id="savePaypalClientIdBtn">
+        <button class="btn-filled" id="saveSumupMerchantCodeBtn">
           <span class="material-icons-outlined">save</span>
-          Salva Client ID
+          Salva Merchant Code
         </button>
       </div>
 

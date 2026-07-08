@@ -180,20 +180,18 @@
             </div>
           </div>
 
-          <div class="payment-timer-wrap" id="paymentTimerWrap" role="timer" aria-live="polite">
-            <span class="material-icons-outlined" aria-hidden="true">timer</span>
-            <span>Completa il pagamento entro</span>
-            <strong id="timerDisplay">10:00</strong>
+          <div class="sumup-info-row">
+            <span class="material-icons-outlined" aria-hidden="true">lock</span>
+            <span>Pagamento sicuro gestito da <strong>SumUp</strong> – verrai reindirizzato alla pagina di pagamento.</span>
           </div>
 
-          <div id="timerExpiredMsg" class="timer-expired-msg" style="display:none" role="alert">
-            <span class="material-icons-outlined" aria-hidden="true">warning</span>
-            Tempo scaduto.
-            <button type="button" id="btnRestartBooking" class="link-btn">Ricomincia la prenotazione</button>
-          </div>
-
-          <p id="paypalLoadingMsg" class="paypal-loading">Caricamento sistema di pagamento…</p>
-          <div id="paypalButtonContainer" class="paypal-btn-container"></div>
+          <button type="button" id="btnPayNow" class="btn-pay-sumup">
+            <span id="payNowSpinner" class="pay-spinner" style="display:none" aria-hidden="true">
+              <span class="material-icons-outlined spin-slow">sync</span>
+            </span>
+            <span class="material-icons-outlined" aria-hidden="true">open_in_new</span>
+            <span id="payNowLabel">Paga con SumUp</span>
+          </button>
 
           <button type="button" class="btn-back-form" id="btnBackToForm">
             <span class="material-icons-outlined" aria-hidden="true">arrow_back</span>
@@ -201,6 +199,12 @@
           </button>
         </div>
       </section>
+
+      <!-- ── SumUp payment verification (shown on return from SumUp) ── -->
+      <div id="paymentVerifySection" class="payment-verify-section" style="display:none" role="status" aria-live="polite">
+        <span class="material-icons-outlined verify-spin" aria-hidden="true">sync</span>
+        <p id="verifyStatusText">Verifica pagamento in corso…</p>
+      </div>
 
       <!-- ── Success state ── -->
       <div id="successView" class="success-view" aria-live="polite">

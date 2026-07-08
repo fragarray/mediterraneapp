@@ -767,83 +767,97 @@ body {
   color: var(--seed);
 }
 
-/* Countdown timer */
-.payment-timer-wrap {
+/* ── SumUp info row ── */
+.sumup-info-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  background: #fff8e1;
-  border: 1px solid #ffe082;
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
   border-radius: 12px;
   padding: 12px 16px;
   margin-bottom: 20px;
   font-size: 14px;
-  color: #6d4c00;
+  color: #1b5e20;
 }
 
-.payment-timer-wrap .material-icons-outlined {
-  color: #f57c00;
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.payment-timer-wrap strong {
-  font-size: 18px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: .02em;
-  margin-left: auto;
-}
-
-/* Timer expired banner */
-.timer-expired-msg {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  background: #ffebee;
-  border: 1px solid #ffcdd2;
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin-bottom: 20px;
-  font-size: 14px;
-  color: #b71c1c;
-}
-
-.timer-expired-msg .material-icons-outlined {
+.sumup-info-row .material-icons-outlined {
   font-size: 18px;
   flex-shrink: 0;
+  margin-top: 1px;
 }
 
-.link-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--seed);
-  font-size: inherit;
-  font-weight: 600;
-  text-decoration: underline;
-  padding: 0;
-  font-family: inherit;
-}
-
-/* PayPal container */
-.paypal-btn-container {
-  min-height: 50px;
-  margin-bottom: 16px;
-}
-
-/* Loading message */
-.paypal-loading {
+/* SumUp pay button */
+.btn-pay-sumup {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 14px;
-  padding: 16px 0;
-  text-align: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 24px;
+  background: var(--seed);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 17px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: filter .15s;
+  margin-bottom: 16px;
+  touch-action: manipulation;
 }
+
+.btn-pay-sumup:hover    { filter: brightness(1.08); }
+.btn-pay-sumup:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.btn-pay-sumup .material-icons-outlined { font-size: 20px; }
+
+/* Loading spinner inside pay button */
+.pay-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Payment verification overlay */
+.payment-verify-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  text-align: center;
+  padding: 60px 24px;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1px solid #e8e8e8;
+  min-height: 240px;
+}
+
+.payment-verify-section p {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+.verify-spin {
+  font-size: 48px !important;
+  color: var(--seed);
+  display: block;
+  animation: spin-anim 1.2s linear infinite;
+}
+
+.spin-slow {
+  display: inline-block;
+  animation: spin-anim 1.5s linear infinite;
+}
+
+@keyframes spin-anim { to { transform: rotate(360deg); } }
 
 /* Back-to-form button */
 .btn-back-form {
@@ -867,6 +881,7 @@ body {
   background: var(--seed-10);
   color: var(--seed);
 }
+
 
 .btn-back-form .material-icons-outlined {
   font-size: 18px;

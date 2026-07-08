@@ -42,7 +42,7 @@
     $('loginView').style.display = 'none';
     $('mainView').style.display  = '';
     $('appbarUser').textContent  = currentUser?.email || '';
-    loadSettingsValues();   // load defaultPrice + PayPal client ID silently
+    loadSettingsValues();   // load defaultPrice + SumUp config silently
     loadEventsData();
   }
 
@@ -159,7 +159,7 @@
   async function loadBookings(eventoId) {
     const { data, error } = await supabase
       .from('pizzica_prenotazioni')
-      .select('id, nome, cognome, email, telefono, num_posti, note, stato, created_at, paypal_order_id, importo_pagato, payment_method')
+      .select('id, nome, cognome, email, telefono, num_posti, note, stato, created_at, payment_reference, importo_pagato, payment_method')
       .eq('evento_id', eventoId)
       .order('created_at', { ascending: true });
 
@@ -522,13 +522,13 @@
   // ── Settings tab ──────────────────────────────────────────
   async function loadSettingsValues() {
     try {
-      const [clientId, defPrice] = await Promise.all([
-        supabase.from('app_settings').select('value').eq('key','paypal_client_id').maybeSingle(),
+      const [merchantCode, defPrice] = await Promise.all([
+        supabase.from('app_settings').select('value').eq('key','sumup_merchant_code').maybeSingle(),
         supabase.from('app_settings').select('value').eq('key','pizzica_prezzo_default').maybeSingle(),
       ]);
 
-      if ($('paypalClientId') && clientId.data?.value != null) {
-        $('paypalClientId').value = clientId.data.value;
+      if ($('sumupMerchantCode') && merchantCode.data?.value != null) {
+        $('sumupMerchantCode').value = merchantCode.data.value;
       }
       if ($('defaultPriceInput') && defPrice.data?.value != null) {
         $('defaultPriceInput').value = parseFloat(defPrice.data.value).toFixed(2);
@@ -539,13 +539,13 @@
     }
   }
 
-  $('savePaypalClientIdBtn')?.addEventListener('click', async () => {
-    const val = $('paypalClientId').value.trim();
-    if (!val) { showSnackbar('Inserisci un Client ID valido.', true); return; }
+  $('saveSumupMerchantCodeBtn')?.addEventListener('click', async () => {
+    const val = $('sumupMerchantCode').value.trim();
+    if (!val) { showSnackbar('Inserisci un Merchant Code valido.', true); return; }
     const { error } = await supabase.from('app_settings')
-      .upsert({ key: 'paypal_client_id', value: val, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      .upsert({ key: 'sumup_merchant_code', value: val, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     if (error) { showSnackbar('Errore salvataggio.', true); return; }
-    showSnackbar('PayPal Client ID salvato.');
+    showSnackbar('SumUp Merchant Code salvato.');
   });
 
   $('saveDefaultPriceBtn')?.addEventListener('click', async () => {
