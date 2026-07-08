@@ -462,11 +462,16 @@
   window.updateEventPrice = async (id, newPriceStr) => {
     const newPrice = parseFloat(newPriceStr);
     if (isNaN(newPrice) || newPrice < 0) { showSnackbar('Prezzo non valido.', true); return; }
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from('pizzica_eventi')
       .update({ prezzo: newPrice })
-      .eq('id', id);
+      .eq('id', id)
+      .select('id');                          // se RLS blocca, returned array è vuoto
     if (error) { showSnackbar('Errore aggiornamento prezzo.', true); return; }
+    if (!updated || updated.length === 0) {
+      showSnackbar('Aggiornamento bloccato: aggiungi la policy UPDATE su pizzica_eventi in Supabase.', true);
+      return;
+    }
     const ev = allEvents.find(e => e.id === id);
     if (ev) ev.prezzo = newPrice;
     showSnackbar(`Prezzo aggiornato: €${newPrice.toFixed(2)}`);

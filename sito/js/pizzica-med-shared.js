@@ -91,7 +91,7 @@ window.initEstateMediterranea = function (config) {
         <button type="button" class="date-card"
           data-id="${esc(ev.id)}"
           data-date="${esc(ev.data)}"
-          data-price="${parseFloat(ev.prezzo || 15)}"
+          data-price="${ev.prezzo != null ? parseFloat(ev.prezzo) : 15}"
           aria-label="${esc(weekday)} ${day} ${esc(month)} ${year}">
           <span class="dc-weekday">${esc(weekday)}</span>
           <span class="dc-day">${day}</span>
@@ -101,7 +101,8 @@ window.initEstateMediterranea = function (config) {
     datesContainer.innerHTML = `<div class="dates-grid">${cards}</div>`;
     datesContainer.querySelectorAll('.date-card').forEach(card => {
       card.addEventListener('click', () => onDateClick(
-        card.dataset.id, card.dataset.date, parseFloat(card.dataset.price) || 15
+        card.dataset.id, card.dataset.date,
+        card.dataset.price != null ? parseFloat(card.dataset.price) : 15
       ));
     });
   }
