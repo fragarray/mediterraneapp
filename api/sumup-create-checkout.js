@@ -51,6 +51,10 @@ module.exports = async function handler(req, res) {
     console.info('[sumup-create] checkout price', { eventId: b.evento_id, evPreco: ev.prezzo, defaultPrice, eventPrice, amount });
     const checkoutRef  = crypto.randomUUID();
     const validUntil   = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const fullName     = [String(b.nome || '').trim(), String(b.cognome || '').trim()].filter(Boolean).join(' ');
+    const eventDate    = formatDescriptionDate(ev.data);
+    const postoLabel   = numPosti === 1 ? 'posto' : 'posti';
+    const description  = `Prenotazione Pizzica Pizzica – ${fullName || 'Prenotazione'} – ${eventDate} – ${numPosti} ${postoLabel}`;
 
     // Build redirect URL (client sends its own base URL)
     const safeBase = typeof redirectBase === 'string'
@@ -70,7 +74,7 @@ module.exports = async function handler(req, res) {
         amount,
         currency:      'EUR',
         merchant_code: SUMUP_MERCHANT_CODE,
-        description:   `Pizzica Pizzica – ${ev.data} × ${numPosti} posto/i`,
+        description,
         redirect_url:  redirectUrl,
         valid_until:   validUntil,
         hosted_checkout: { enabled: true },
@@ -126,6 +130,14 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: err.message || 'Internal server error' });
   }
 };
+
+function formatDescriptionDate(dateValue) {
+  if (typeof dateValue !== 'string') return 'Data non disponibile';
+  const match = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return dateValue;
+  const [, y, m, d] = match;
+  return `${d}/${m}/${y}`;
+}
 
 async function getDefaultPrice(supabaseUrl, serviceRoleKey) {
   try {
