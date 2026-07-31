@@ -91,8 +91,7 @@ window.initEstateMediterranea = function (config) {
 
     const { data, error } = await supabase
       .from('pizzica_eventi')
-      .select('id, data, ora, luogo, note, prezzo')
-      .eq('prenotazioni_aperte', true)
+      .select('id, data, ora, luogo, note, prezzo, sold_out, prenotazioni_aperte')
       .gte('data', todayIso)
       .order('data', { ascending: true });
 
@@ -100,7 +99,7 @@ window.initEstateMediterranea = function (config) {
       datesContainer.innerHTML = `<div class="dates-empty">${esc(s.loadError)}</div>`;
       return;
     }
-    events = data || [];
+    events = (data || []).filter(ev => ev.prenotazioni_aperte || Boolean(ev.sold_out));
     renderDates(events);
   }
 
@@ -112,30 +111,44 @@ window.initEstateMediterranea = function (config) {
     const cards = evts.map(ev => {
       const price = normalizeEventPrice(ev.prezzo, defaultEventPrice);
       const { weekday, day, month, year } = formatDateCard(ev.data);
+      const isSoldOut = Boolean(ev.sold_out);
       return `
-        <button type="button" class="date-card"
+        <button type="button" class="date-card${isSoldOut ? ' sold-out' : ''}"
           data-id="${esc(ev.id)}"
           data-date="${esc(ev.data)}"
           data-price="${price}"
-          aria-label="${esc(weekday)} ${day} ${esc(month)} ${year}">
+          data-sold-out="${isSoldOut ? '1' : '0'}"
+          ${isSoldOut ? 'disabled' : ''}
+          aria-label="${esc(weekday)} ${day} ${esc(month)} ${year}${isSoldOut ? ' · sold out' : ''}">
           <span class="dc-weekday">${esc(weekday)}</span>
           <span class="dc-day">${day}</span>
           <span class="dc-month">${esc(month)} ${year}</span>
+          <span class="dc-status">${isSoldOut ? 'Sold out' : 'Prenotabile'}</span>
         </button>`;
     }).join('');
     datesContainer.innerHTML = `<div class="dates-grid">${cards}</div>`;
     datesContainer.querySelectorAll('.date-card').forEach(card => {
       const price = normalizeEventPrice(card.dataset.price, defaultEventPrice);
+      const isSoldOut = card.dataset.soldOut === '1';
+      if (isSoldOut) return;
       card.addEventListener('click', () => onDateClick(
         card.dataset.id,
         card.dataset.date,
-        price
+        price,
+        false
       ));
     });
   }
 
   // ── Select date ───────────────────────────────────────────
-  function onDateClick(eventId, isoDate, price) {
+  function onDateClick(eventId, isoDate, price, isSoldOut = false) {
+    if (isSoldOut) {
+      showSnackbar(config.lang === 'en'
+        ? 'This evening is sold out and reservations are no longer available.'
+        : 'Questa serata è sold out e non accetta nuove prenotazioni.', true);
+      return;
+    }
+
     selectedEventId   = eventId;
     currentEventPrice = normalizeEventPrice(price);
     datesContainer.querySelectorAll('.date-card').forEach(c => {

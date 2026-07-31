@@ -112,7 +112,7 @@
   async function loadEventsData() {
     const { data, error } = await supabase
       .from('pizzica_eventi')
-      .select('id, data, ora, luogo, prenotazioni_aperte, note, prezzo, created_at')
+      .select('id, data, ora, luogo, prenotazioni_aperte, sold_out, note, prezzo, created_at')
       .order('data', { ascending: true });
 
     if (error) {
@@ -351,15 +351,14 @@
             title="Modifica prezzo">
         </td>
         <td>
-          <input type="number" class="price-inline-input" value="${parseFloat(ev.prezzo || 15).toFixed(2)}"
-            min="0" step="0.50" style="width:72px"
-            onchange="updateEventPrice('${esc(ev.id)}', this.value)"
-            title="Modifica prezzo">
-        </td>
-        <td>
-          <span class="open-badge ${ev.prenotazioni_aperte ? 'open' : 'closed'}">
-            ${ev.prenotazioni_aperte ? 'Aperta' : 'Chiusa'}
-          </span>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+            <span class="open-badge ${ev.prenotazioni_aperte ? 'open' : 'closed'}">
+              ${ev.prenotazioni_aperte ? 'Aperta' : 'Chiusa'}
+            </span>
+            <span class="open-badge ${ev.sold_out ? 'closed' : 'open'}">
+              ${ev.sold_out ? 'Sold out' : 'Prenotabile'}
+            </span>
+          </div>
         </td>
         <td>${esc(ev.note || '–')}</td>
         <td style="color:var(--text-secondary);font-size:12px">${esc(fmtDate(ev.created_at))}</td>
@@ -368,6 +367,11 @@
             <label class="toggle-switch" title="${ev.prenotazioni_aperte ? 'Chiudi prenotazioni' : 'Apri prenotazioni'}">
               <input type="checkbox" ${ev.prenotazioni_aperte ? 'checked' : ''}
                 onchange="toggleEventOpen('${esc(ev.id)}', this.checked)">
+              <span class="toggle-track"></span>
+            </label>
+            <label class="toggle-switch" title="${ev.sold_out ? 'Rimuovi sold out' : 'Segna sold out'}">
+              <input type="checkbox" ${ev.sold_out ? 'checked' : ''}
+                onchange="toggleEventSoldOut('${esc(ev.id)}', this.checked)">
               <span class="toggle-track"></span>
             </label>
             <button class="action-btn danger" title="Elimina serata" onclick="deleteEvent('${esc(ev.id)}')">
@@ -408,6 +412,26 @@
     populateEventSelector(allEvents);
     renderEventsTable(allEvents);
     showSnackbar(newVal ? 'Prenotazioni aperte.' : 'Prenotazioni chiuse.');
+  };
+
+  // Toggle sold out
+  window.toggleEventSoldOut = async (id, newVal) => {
+    const { error } = await supabase
+      .from('pizzica_eventi')
+      .update({ sold_out: newVal })
+      .eq('id', id);
+
+    if (error) {
+      showSnackbar('Errore nell\'aggiornamento sold out.', true);
+      await loadEventsData();
+      return;
+    }
+
+    const ev = allEvents.find(e => e.id === id);
+    if (ev) ev.sold_out = newVal;
+    populateEventSelector(allEvents);
+    renderEventsTable(allEvents);
+    showSnackbar(newVal ? 'Serata segnata come sold out.' : 'Serata rimossa da sold out.');
   };
 
   // Delete event

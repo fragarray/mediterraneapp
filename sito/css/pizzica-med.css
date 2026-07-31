@@ -351,6 +351,32 @@ body {
   text-transform: capitalize;
 }
 
+.date-card .dc-status {
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--seed);
+}
+
+.date-card.sold-out {
+  border-color: #c8b4b7;
+  background: #f7f0f1;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.date-card.sold-out .dc-day,
+.date-card.sold-out .dc-month,
+.date-card.sold-out .dc-weekday {
+  color: #7b6165;
+}
+
+.date-card.sold-out .dc-status {
+  color: #8b1a2c;
+}
+
 .dates-loader {
   padding: 28px;
   text-align: center;
