@@ -10,6 +10,7 @@
   let allEvents   = [];       // pizzica_eventi
   let bookings    = [];       // current event bookings
   let currentEventId = null;
+  let eventBookingCounts = {};
   let confirmResolver = null;
   let sortKey = 'created_at';
   let sortAsc = false;
@@ -121,9 +122,35 @@
     }
 
     allEvents = data || [];
+    await loadEventBookingCounts(allEvents);
     populateEventSelector(allEvents);
     renderEventsTable(allEvents);
     loadThemeAndReady({ readyClass: true });
+  }
+
+  async function loadEventBookingCounts(events) {
+    if (!events.length) {
+      eventBookingCounts = {};
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('pizzica_prenotazioni')
+      .select('evento_id, stato')
+      .in('evento_id', events.map(e => e.id))
+      .eq('stato', 'confermata');
+
+    if (error) {
+      eventBookingCounts = {};
+      return;
+    }
+
+    const counts = {};
+    (data || []).forEach(row => {
+      counts[row.evento_id] = (counts[row.evento_id] || 0) + 1;
+    });
+
+    eventBookingCounts = counts;
   }
 
   // ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ──
@@ -136,7 +163,8 @@
 
     sel.innerHTML = '<option value="">— Seleziona una serata —</option>' +
       events.map(ev => {
-        const label = formatDate(ev.data) + (ev.prenotazioni_aperte ? '' : ' (chiusa)');
+        const confirmedCount = eventBookingCounts[ev.id] || 0;
+        const label = formatDate(ev.data) + (ev.prenotazioni_aperte ? '' : ' (chiusa)') + ` (${confirmedCount})`;
         return `<option value="${esc(ev.id)}">${esc(label)}</option>`;
       }).join('');
 
@@ -276,6 +304,8 @@
 
     if (error) { showSnackbar('Errore durante la cancellazione.', true); return; }
     showSnackbar('Prenotazione cancellata.');
+    await loadEventBookingCounts(allEvents);
+    populateEventSelector(allEvents);
     await loadBookings(currentEventId);
   };
 
@@ -287,6 +317,8 @@
 
     if (error) { showSnackbar('Errore durante il ripristino.', true); return; }
     showSnackbar('Prenotazione ripristinata.');
+    await loadEventBookingCounts(allEvents);
+    populateEventSelector(allEvents);
     await loadBookings(currentEventId);
   };
 
