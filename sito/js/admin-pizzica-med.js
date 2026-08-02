@@ -136,7 +136,7 @@
 
     const { data, error } = await supabase
       .from('pizzica_prenotazioni')
-      .select('evento_id, stato')
+      .select('evento_id, stato, num_posti')
       .in('evento_id', events.map(e => e.id))
       .eq('stato', 'confermata');
 
@@ -147,7 +147,7 @@
 
     const counts = {};
     (data || []).forEach(row => {
-      counts[row.evento_id] = (counts[row.evento_id] || 0) + 1;
+      counts[row.evento_id] = (counts[row.evento_id] || 0) + (Number(row.num_posti) || 0);
     });
 
     eventBookingCounts = counts;
@@ -156,6 +156,13 @@
   // ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ──
   // TAB 1: PRENOTAZIONI
   // ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ──
+
+  function updateEventSelectorAppearance() {
+    const sel = $('eventSelector');
+    const selectedEvent = allEvents.find(e => e.id === sel.value);
+    const confirmedCount = selectedEvent ? (eventBookingCounts[selectedEvent.id] || 0) : 0;
+    sel.style.fontWeight = confirmedCount > 0 ? '700' : '';
+  }
 
   function populateEventSelector(events) {
     const sel = $('eventSelector');
@@ -173,9 +180,12 @@
     if (prevVal && events.find(e => e.id === prevVal)) {
       sel.value = prevVal;
     }
+
+    updateEventSelectorAppearance();
   }
 
   $('eventSelector').addEventListener('change', async () => {
+    updateEventSelectorAppearance();
     const id = $('eventSelector').value;
     currentEventId = id || null;
     if (!id) {
