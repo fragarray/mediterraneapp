@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tour Operator – Pizzica Pizzica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/admin-shared.css">
+  <link rel="stylesheet" href="css/admin-pizzica-med-tour-operators.css">
+</head>
+<body>
+  <div id="loginView" class="login-shell">
+    <div class="login-card">
+      <img src="logopiccolo.png" alt="Mediterranea" class="login-logo">
+      <h1>Accesso Tour Operator</h1>
+      <p class="login-sub">Inserimento prenotazioni Pizzica Pizzica</p>
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" autocomplete="username" required>
+          <span class="error-msg">Email obbligatoria</span>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" autocomplete="current-password" required>
+          <span class="error-msg">Password obbligatoria</span>
+        </div>
+        <button type="submit" class="btn-filled full" id="loginBtn">
+          <span class="material-icons-outlined">lock_open</span>
+          Accedi
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="mainView" style="display:none">
+    <header class="appbar">
+      <span class="appbar-title">Prenotazioni Tour Operator</span>
+      <button class="appbar-action" id="signOutBtn" title="Esci">
+        <span class="material-icons-outlined">logout</span>
+      </button>
+    </header>
+
+    <main class="page-body">
+      <div class="card">
+        <h2 class="card-title">Nuova prenotazione</h2>
+        <p class="card-sub">Seleziona una serata disponibile e inserisci i dati del tour operator. La prenotazione verrà registrata senza pagamento.</p>
+
+        <div class="form-group">
+          <label for="eventSelect">Serata</label>
+          <select id="eventSelect" required></select>
+        </div>
+
+        <div class="fields-grid">
+          <div class="form-group">
+            <label for="nome">Nome</label>
+            <input type="text" id="nome" required>
+          </div>
+          <div class="form-group">
+            <label for="cognome">Cognome</label>
+            <input type="text" id="cognome" required>
+          </div>
+          <div class="form-group">
+            <label for="nazionalita">Nazionalità</label>
+            <input type="text" id="nazionalita" required>
+          </div>
+          <div class="form-group">
+            <label for="numPosti">Numero posti</label>
+            <input type="number" id="numPosti" min="1" value="1" required>
+          </div>
+        </div>
+
+        <button type="button" class="btn-filled" id="submitBtn">
+          <span class="material-icons-outlined">save</span>
+          Salva prenotazione
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="js/common-ui.js"></script>
+  <script src="js/admin-pizzica-med-tour-operators.js"></script>
+</body>
+</html>

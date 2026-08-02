@@ -159,7 +159,7 @@
   async function loadBookings(eventoId) {
     const { data, error } = await supabase
       .from('pizzica_prenotazioni')
-      .select('id, nome, cognome, email, telefono, num_posti, note, stato, created_at, payment_reference, importo_pagato, payment_method')
+      .select('id, nome, cognome, email, telefono, nazionalita, num_posti, note, stato, created_at, payment_reference, importo_pagato, payment_method, booking_source')
       .eq('evento_id', eventoId)
       .order('created_at', { ascending: true });
 
@@ -195,9 +195,12 @@
     const sorted = sortBookings(rows);
     tbody.innerHTML = sorted.map(r => `
       <tr>
-        <td title="${esc(r.nome)} ${esc(r.cognome)}">${esc(r.nome)} ${esc(r.cognome)}</td>
-        <td><a href="mailto:${esc(r.email)}" style="color:var(--seed)">${esc(r.email)}</a></td>
-        <td>${esc(r.telefono || '–')}</td>
+        <td title="${esc(r.nome)} ${esc(r.cognome)}">
+          ${esc(r.nome)} ${esc(r.cognome)}
+          ${r.booking_source === 'tour_operator' ? '<span class="badge badge-pending" style="margin-left:6px">TO</span>' : ''}
+        </td>
+        <td>${r.email ? `<a href="mailto:${esc(r.email)}" style="color:var(--seed)">${esc(r.email)}</a>` : '–'}</td>
+        <td>${esc(r.telefono || r.nazionalita || '–')}</td>
         <td style="text-align:center;font-weight:700">${r.num_posti}</td>
         <td title="${esc(r.note || '')}">${esc(r.note || '–')}</td>
         <td>            ${r.importo_pagato != null
