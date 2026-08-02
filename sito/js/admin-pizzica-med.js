@@ -168,12 +168,20 @@
     const sel = $('eventSelector');
     const prevVal = sel.value;
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     sel.innerHTML = '<option value="">— Seleziona una serata —</option>' +
       events.map(ev => {
         const confirmedCount = eventBookingCounts[ev.id] || 0;
         const hasBookings = confirmedCount > 0;
+        const eventDate = new Date(ev.data + 'T00:00:00');
+        const isPast = eventDate < today;
         const label = formatDate(ev.data) + (ev.prenotazioni_aperte ? '' : ' (chiusa)') + ` (${confirmedCount})`;
-        const styleAttr = hasBookings ? ' style="font-weight:700"' : '';
+        const styleParts = [];
+        if (hasBookings) styleParts.push('font-weight:700');
+        if (isPast) styleParts.push('color:#8a8a8a');
+        const styleAttr = styleParts.length ? ` style="${styleParts.join(';')}"` : '';
         return `<option value="${esc(ev.id)}"${styleAttr}>${esc(label)}</option>`;
       }).join('');
 
