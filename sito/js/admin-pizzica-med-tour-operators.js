@@ -157,12 +157,12 @@
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="material-icons-outlined">hourglass_top</span> Salvataggio…';
 
-    const { error } = await supabase.from('pizzica_prenotazioni').insert({
+    const payload = {
       evento_id: eventId,
       nome,
       cognome,
-      email: null,
-      telefono: null,
+      email: '',
+      telefono: '',
       nazionalita,
       num_posti: numPosti,
       note: `Inserita da tour operator (${currentUser?.email || 'sconosciuto'})`,
@@ -170,14 +170,35 @@
       booking_source: 'tour_operator',
       importo_pagato: 0,
       payment_method: 'operator_manual',
-    });
+    };
+
+    let { error } = await supabase.from('pizzica_prenotazioni').insert(payload);
+
+    if (error && (error.code === '42703' || /column .* does not exist/i.test(error.message || ''))) {
+      const fallbackPayload = {
+        evento_id: eventId,
+        nome,
+        cognome,
+        email: '',
+        telefono: '',
+        num_posti: numPosti,
+        note: `Inserita da tour operator (${currentUser?.email || 'sconosciuto'})`,
+        stato: 'confermata',
+        importo_pagato: 0,
+        payment_method: 'operator_manual',
+      };
+      ({ error } = await supabase.from('pizzica_prenotazioni').insert(fallbackPayload));
+    }
 
     submitBtn.disabled = false;
     submitBtn.innerHTML = '<span class="material-icons-outlined">save</span> Salva prenotazione';
 
     if (error) {
       console.error('[tour-operator] insert error', error);
-      showSnackbar('Errore durante il salvataggio della prenotazione.', true);
+      const message = error.code === '42703' || /column .* does not exist/i.test(error.message || '')
+        ? 'Il database non ha ancora i campi richiesti. Esegui i comandi SQL per nazionalità e booking_source.'
+        : 'Errore durante il salvataggio della prenotazione.';
+      showSnackbar(message, true);
       return;
     }
 
