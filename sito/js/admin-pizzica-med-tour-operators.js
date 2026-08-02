@@ -147,6 +147,7 @@
     const cognome = $('cognome').value.trim();
     const nazionalita = $('nazionalita').value.trim();
     const numPosti = parseInt($('numPosti').value, 10);
+    const noteRaw = $('note').value.trim();
 
     if (!eventId || !nome || !cognome || !nazionalita || !Number.isInteger(numPosti) || numPosti < 1) {
       showSnackbar('Compila tutti i campi obbligatori.', true);
@@ -157,6 +158,10 @@
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="material-icons-outlined">hourglass_top</span> Salvataggio…';
 
+    const noteValue = noteRaw
+      ? `${noteRaw}\n[Tour Operator: ${currentUser?.email || 'sconosciuto'}]`
+      : `Inserita da tour operator (${currentUser?.email || 'sconosciuto'})`;
+
     const payload = {
       evento_id: eventId,
       nome,
@@ -165,7 +170,7 @@
       telefono: '',
       nazionalita,
       num_posti: numPosti,
-      note: `Inserita da tour operator (${currentUser?.email || 'sconosciuto'})`,
+      note: noteValue,
       stato: 'confermata',
       booking_source: 'tour_operator',
       importo_pagato: 0,
@@ -182,7 +187,7 @@
         email: '',
         telefono: '',
         num_posti: numPosti,
-        note: `Inserita da tour operator (${currentUser?.email || 'sconosciuto'})`,
+        note: noteValue,
         stato: 'confermata',
         importo_pagato: 0,
         payment_method: 'operator_manual',
@@ -209,6 +214,7 @@
     $('cognome').value = '';
     $('nazionalita').value = '';
     $('numPosti').value = '1';
+    $('note').value = '';
   });
 
   function formatDate(iso) {

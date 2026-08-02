@@ -10,10 +10,11 @@
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
   <link rel="stylesheet" href="css/common.css">
   <link rel="stylesheet" href="css/admin-shared.css">
+  <link rel="stylesheet" href="css/admin-pizzica-med.css">
   <link rel="stylesheet" href="css/admin-pizzica-med-tour-operators.css">
 </head>
 <body>
-  <div id="loginView" class="login-shell">
+  <div id="loginView" class="login-wrap">
     <div class="login-card">
       <img src="logopiccolo.png" alt="Mediterranea" class="login-logo">
       <h1>Accesso Tour Operator</h1>
@@ -72,6 +73,11 @@
             <label for="numPosti">Numero posti</label>
             <input type="number" id="numPosti" min="1" value="1" required>
           </div>
+        </div>
+
+        <div class="form-group field-full">
+          <label for="note">Note</label>
+          <textarea id="note" rows="4" placeholder="Aggiungi eventuali note o richieste speciali…"></textarea>
         </div>
 
         <button type="button" class="btn-filled" id="submitBtn">
