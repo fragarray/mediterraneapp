@@ -171,13 +171,15 @@ body.ready {
 }
 
 .btn-filled {
-  background: var(--seed);
+  background: linear-gradient(135deg, var(--seed) 0%, #3a8b3d 100%);
   color: var(--white);
   border: none;
+  box-shadow: 0 8px 18px rgba(46,125,50,0.16);
 }
 
 .btn-filled:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.06);
+  box-shadow: 0 10px 20px rgba(46,125,50,0.22);
 }
 
 .btn-filled:disabled {
@@ -187,9 +189,10 @@ body.ready {
 }
 
 .btn-outlined {
-  background: transparent;
+  background: rgba(255,255,255,0.85);
   color: var(--seed);
-  border: 1.5px solid var(--seed);
+  border: 1.5px solid rgba(46,125,50,0.22);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.03);
 }
 
 .btn-outlined:hover {
