@@ -166,8 +166,8 @@
         const confirmedCount = eventBookingCounts[ev.id] || 0;
         const hasBookings = confirmedCount > 0;
         const label = formatDate(ev.data) + (ev.prenotazioni_aperte ? '' : ' (chiusa)') + ` (${confirmedCount})`;
-        const labelMarkup = hasBookings ? `<strong>${esc(label)}</strong>` : esc(label);
-        return `<option value="${esc(ev.id)}">${labelMarkup}</option>`;
+        const styleAttr = hasBookings ? ' style="font-weight:700"' : '';
+        return `<option value="${esc(ev.id)}"${styleAttr}>${esc(label)}</option>`;
       }).join('');
 
     if (prevVal && events.find(e => e.id === prevVal)) {
