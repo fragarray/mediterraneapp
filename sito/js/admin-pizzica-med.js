@@ -164,8 +164,10 @@
     sel.innerHTML = '<option value="">— Seleziona una serata —</option>' +
       events.map(ev => {
         const confirmedCount = eventBookingCounts[ev.id] || 0;
+        const hasBookings = confirmedCount > 0;
         const label = formatDate(ev.data) + (ev.prenotazioni_aperte ? '' : ' (chiusa)') + ` (${confirmedCount})`;
-        return `<option value="${esc(ev.id)}">${esc(label)}</option>`;
+        const labelMarkup = hasBookings ? `<strong>${esc(label)}</strong>` : esc(label);
+        return `<option value="${esc(ev.id)}">${labelMarkup}</option>`;
       }).join('');
 
     if (prevVal && events.find(e => e.id === prevVal)) {
