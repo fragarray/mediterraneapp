@@ -349,6 +349,33 @@
     exportCsv(bookings, ev ? formatDate(ev.data) : 'serata');
   });
 
+  $('exportAllXlsxBtn').addEventListener('click', async () => {
+    if (!allEvents.length) { showSnackbar('Nessuna serata disponibile.', true); return; }
+
+    if (typeof XLSX === 'undefined') {
+      showSnackbar('Libreria Excel non disponibile. Ricarica la pagina e riprova.', true);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('pizzica_prenotazioni')
+      .select('id, evento_id, nome, cognome, email, telefono, nazionalita, num_posti, note, stato, created_at, payment_reference, importo_pagato, payment_method, booking_source')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      showSnackbar('Errore nel caricamento delle prenotazioni per l’export completo.', true);
+      return;
+    }
+
+    const rows = (data || []).filter(r => r.evento_id && allEvents.some(ev => ev.id === r.evento_id));
+    if (!rows.length) {
+      showSnackbar('Nessuna prenotazione con serata associata da esportare.', true);
+      return;
+    }
+
+    exportAllBookingsXlsx(rows, allEvents);
+  });
+
   function exportCsv(rows, eventLabel) {
     const headers = ['Nome','Cognome','Email','Telefono','Posti','Note','Stato','Pagato (€)','Metodo pagamento','Data prenotazione'];
     const lines = rows.map(r => [
@@ -372,6 +399,106 @@
     a.download = `prenotazioni_pizzica_${eventLabel.replace(/[^a-z0-9]/gi,'_')}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function exportAllBookingsXlsx(rows, events) {
+    const eventMap = new Map(events.map(ev => [ev.id, ev]));
+    const summaryRows = [];
+    const detailRows = rows.map(r => {
+      const ev = eventMap.get(r.evento_id) || {};
+      const isTourOperator = r.booking_source === 'tour_operator';
+      return {
+        'Data serata': ev.data ? formatDate(ev.data) : '–',
+        'Data ISO': ev.data || '',
+        'Ora': ev.ora?.slice(0,5) || '19:30',
+        'Nome': r.nome || '',
+        'Cognome': r.cognome || '',
+        'Email': r.email || '',
+        'Telefono': r.telefono || r.nazionalita || '',
+        'N° posti': Number(r.num_posti) || 0,
+        'Stato': normalizeBookingState(r.stato),
+        'Importo pagato (€)': r.importo_pagato != null ? Number(r.importo_pagato).toFixed(2) : '0.00',
+        'Metodo pagamento': r.payment_method || '',
+        'Source': normalizeBookingSource(r.booking_source),
+        'Tour operator': isTourOperator ? 'SÌ' : 'NO',
+        'Note': r.note || '',
+        'Data prenotazione': r.created_at ? fmtDateTime(r.created_at) : '',
+      };
+    });
+
+    const totalSeats = rows.reduce((sum, r) => sum + (Number(r.num_posti) || 0), 0);
+    const confirmed = rows.filter(r => r.stato === 'confermata');
+    const pending = rows.filter(r => r.stato === 'pending_payment');
+    const cancelled = rows.filter(r => r.stato === 'cancellata');
+    const tourRows = rows.filter(r => r.booking_source === 'tour_operator');
+    const totalRevenue = confirmed.reduce((sum, r) => sum + (Number(r.importo_pagato) || 0), 0);
+    const tourRevenue = tourRows.reduce((sum, r) => sum + (r.stato === 'confermata' ? (Number(r.importo_pagato) || 0) : 0), 0);
+
+    summaryRows.push(
+      ['RIEPILOGO PRENOTAZIONI PIZZICA'],
+      [],
+      ['Totale prenotazioni', rows.length],
+      ['Prenotazioni confermate', confirmed.length],
+      ['Prenotazioni in attesa pagamento', pending.length],
+      ['Prenotazioni cancellate', cancelled.length],
+      ['Posti prenotati', totalSeats],
+      ['Introiti totali (€)', totalRevenue.toFixed(2)],
+      ['Prenotazioni Tour Operator', tourRows.length],
+      ['Introiti Tour Operator (€)', tourRevenue.toFixed(2)],
+      ['Data export', new Date().toLocaleString('it-IT')],
+      [],
+      ['SERATA', 'Prenotazioni', 'Posti', 'Introiti (€)', 'Tour operator']
+    );
+
+    events.forEach(ev => {
+      const evRows = rows.filter(r => r.evento_id === ev.id);
+      const evConfirmed = evRows.filter(r => r.stato === 'confermata');
+      const evTourRows = evRows.filter(r => r.booking_source === 'tour_operator');
+      const evRevenue = evConfirmed.reduce((sum, r) => sum + (Number(r.importo_pagato) || 0), 0);
+      summaryRows.push([
+        ev.data ? formatDate(ev.data) : '–',
+        evRows.length,
+        evRows.reduce((sum, r) => sum + (Number(r.num_posti) || 0), 0),
+        evRevenue.toFixed(2),
+        evTourRows.length
+      ]);
+    });
+
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+    summarySheet['!cols'] = [
+      { wch: 24 }, { wch: 18 }, { wch: 14 }, { wch: 18 }, { wch: 16 }
+    ];
+
+    const detailSheet = XLSX.utils.json_to_sheet(detailRows);
+    detailSheet['!cols'] = [
+      { wch: 16 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 26 },
+      { wch: 16 }, { wch: 10 }, { wch: 15 }, { wch: 18 }, { wch: 16 }, { wch: 10 },
+      { wch: 28 }, { wch: 18 }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, summarySheet, 'Riepilogo');
+    XLSX.utils.book_append_sheet(wb, detailSheet, 'Prenotazioni');
+
+    const filename = `prenotazioni_pizzica_completo_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    showSnackbar('Export Excel completo generato.');
+  }
+
+  function normalizeBookingState(stato) {
+    switch (stato) {
+      case 'confermata': return 'Confermata';
+      case 'pending_payment': return 'Attesa pagamento';
+      case 'cancellata': return 'Cancellata';
+      default: return stato || '–';
+    }
+  }
+
+  function normalizeBookingSource(source) {
+    if (source === 'tour_operator') return 'Tour Operator';
+    if (source === 'website') return 'Sito web';
+    if (source === 'admin') return 'Admin';
+    return source || 'N/A';
   }
 
   function csvCell(val) {
