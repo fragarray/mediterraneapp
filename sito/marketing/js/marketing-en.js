@@ -1,0 +1,1 @@
+window.courseConfig={"slug":"marketing","lang":"en","defaultPrice":49,"venue":"Mediterranea · Lecce","time":"18:30"};

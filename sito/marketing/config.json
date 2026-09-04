@@ -1,0 +1,41 @@
+{
+  "slug": "marketing",
+  "visibility": "draft",
+  "name": {
+    "it": "Corso di Marketing",
+    "en": "Marketing Course"
+  },
+  "title": {
+    "it": "Corso di Marketing | Mediterranea",
+    "en": "Marketing Course | Mediterranea"
+  },
+  "meta": {
+    "it": "Scopri il corso di marketing di Mediterranea.",
+    "en": "Discover the Mediterranea marketing course."
+  },
+  "subtitle": {
+    "it": "Strategia, strumenti e idee per far crescere il tuo progetto",
+    "en": "Strategy, tools and ideas to grow your project"
+  },
+  "description": {
+    "it": "Un percorso pratico per comprendere il marketing, costruire una strategia e trasformare le idee in azioni misurabili.",
+    "en": "A practical course to understand marketing, build a strategy and turn ideas into measurable actions."
+  },
+  "heroImage": "",
+  "venue": "Mediterranea · Lecce",
+  "time": "18:30",
+  "currency": "EUR",
+  "defaultPrice": 49,
+  "capacity": 0,
+  "priceNote": {
+    "it": "Materiali didattici inclusi. Pagamento online sicuro.",
+    "en": "Teaching materials included. Secure online payment."
+  },
+  "consents": {
+    "privacy": true,
+    "terms": true,
+    "newsletter": false
+  },
+  "sessions": [],
+  "generatedAt": "2026-09-04T16:33:44.819Z"
+}
