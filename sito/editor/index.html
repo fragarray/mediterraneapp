@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Editor corsi | Mediterranea</title>
+  <meta name="description" content="Editor per generare pagine, admin, API e SQL dei corsi Mediterranea.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark"><span class="brand-dot"></span><span>Mediterranea</span><small>course studio</small></div>
+    <div class="topbar-actions">
+      <button class="button ghost" id="loadConfigButton" type="button">Carica configurazione</button>
+      <button class="button primary" id="generateButton" type="button">Genera pacchetto</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="intro">
+      <p class="eyebrow">EDITOR CORSI</p>
+      <h1>Un corso, tutti i file pronti.</h1>
+      <p class="intro-copy">Configura contenuti, calendario e prenotazioni. L’editor prepara pagina pubblica, admin dedicato, API SumUp e SQL Supabase senza modificare i file esistenti.</p>
+      <div class="status-line"><span class="status-dot"></span><span id="statusText">Bozza locale non ancora generata</span></div>
+    </section>
+
+    <form id="courseForm" class="editor-layout">
+      <div class="form-column">
+        <fieldset class="panel">
+          <legend><span>01</span> Identità</legend>
+          <div class="field-grid two">
+            <label>Nome italiano<input name="nameIt" value="Corso di Marketing" required></label>
+            <label>Nome inglese<input name="nameEn" value="Marketing Course" required></label>
+            <label>Slug tecnico<input name="slug" value="marketing" pattern="[a-z0-9_]+" required><small>Minuscole, numeri e underscore. Diventa il prefisso delle tabelle.</small></label>
+            <label>Stato<select name="visibility"><option value="draft">Bozza</option><option value="published">Pubblicato</option></select></label>
+          </div>
+          <div class="field-grid two">
+            <label>Titolo pagina italiano<input name="titleIt" value="Corso di Marketing | Mediterranea" required></label>
+            <label>Titolo pagina inglese<input name="titleEn" value="Marketing Course | Mediterranea" required></label>
+            <label>Meta description italiano<textarea name="metaIt" rows="2">Scopri il corso di marketing di Mediterranea.</textarea></label>
+            <label>Meta description inglese<textarea name="metaEn" rows="2">Discover the Mediterranea marketing course.</textarea></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="panel">
+          <legend><span>02</span> Contenuti</legend>
+          <div class="field-grid two">
+            <label>Sottotitolo italiano<input name="subtitleIt" value="Strategia, strumenti e idee per far crescere il tuo progetto"></label>
+            <label>Sottotitolo inglese<input name="subtitleEn" value="Strategy, tools and ideas to grow your project"></label>
+            <label>Descrizione italiana<textarea name="descriptionIt" rows="5">Un percorso pratico per comprendere il marketing, costruire una strategia e trasformare le idee in azioni misurabili.</textarea></label>
+            <label>Descrizione inglese<textarea name="descriptionEn" rows="5">A practical course to understand marketing, build a strategy and turn ideas into measurable actions.</textarea></label>
+          </div>
+          <div class="field-grid three">
+            <label>Immagine hero<input name="heroImage" placeholder="img/marketing-hero.jpg"></label>
+            <label>Luogo<input name="venue" value="Mediterranea · Lecce"></label>
+            <label>Orario<input name="time" value="18:30"></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="panel">
+          <legend><span>03</span> Prenotazioni e prezzi</legend>
+          <div class="field-grid three">
+            <label>Prezzo predefinito (€)<input name="defaultPrice" type="number" min="0" step="0.50" value="49.00" required></label>
+            <label>Posti massimi per sessione<input name="capacity" type="number" min="0" step="1" value="0"><small>0 = nessun limite.</small></label>
+            <label>Valuta<select name="currency"><option value="EUR">EUR (€)</option></select></label>
+          </div>
+          <div class="field-grid two">
+            <label>Nota prezzo italiana<textarea name="priceNoteIt" rows="3">Materiali didattici inclusi. Pagamento online sicuro.</textarea></label>
+            <label>Nota prezzo inglese<textarea name="priceNoteEn" rows="3">Teaching materials included. Secure online payment.</textarea></label>
+          </div>
+          <div class="check-row"><label class="check"><input name="privacyRequired" type="checkbox" checked><span>Richiedi accettazione privacy</span></label><label class="check"><input name="termsRequired" type="checkbox" checked><span>Richiedi accettazione termini</span></label><label class="check"><input name="newsletter" type="checkbox"><span>Mostra consenso newsletter</span></label></div>
+        </fieldset>
+
+        <fieldset class="panel">
+          <legend><span>04</span> Sessioni iniziali</legend>
+          <p class="panel-help">Queste righe vengono inserite nel SQL iniziale. Le date successive si gestiscono dall’admin dedicato generato.</p>
+          <div id="sessionsList" class="sessions-list"></div>
+          <button class="button secondary" id="addSessionButton" type="button">+ Aggiungi sessione</button>
+        </fieldset>
+      </div>
+
+      <aside class="preview-column">
+        <div class="preview-card">
+          <div class="preview-label">ANTEPRIMA</div>
+          <div class="preview-art" id="previewArt"><span>MARKETING</span></div>
+          <div class="preview-body"><p class="eyebrow">MEDITERRANEA · CORSO</p><h2 id="previewTitle">Corso di Marketing</h2><p id="previewSubtitle">Strategia, strumenti e idee per far crescere il tuo progetto</p><div class="preview-meta"><span id="previewVenue">Mediterranea · Lecce</span><span id="previewPrice">€49,00</span></div></div>
+        </div>
+        <div class="package-card"><div class="package-label">PACCHETTO GENERATO</div><ul id="fileList"><li>HTML pubblico IT / EN</li><li>Admin dedicato al corso</li><li>API checkout e verifica</li><li>SQL con tabelle separate</li><li>README di installazione</li></ul><button class="button primary full" id="downloadButton" type="button" disabled>Scarica file generati</button></div>
+      </aside>
+    </form>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <input id="configFile" type="file" accept="application/json" hidden>
+  <script src="editor.js"></script>
+</body>
+</html>
