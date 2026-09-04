@@ -88,12 +88,17 @@
           <div class="preview-art" id="previewArt"><span>MARKETING</span></div>
           <div class="preview-body"><p class="eyebrow">MEDITERRANEA · CORSO</p><h2 id="previewTitle">Corso di Marketing</h2><p id="previewSubtitle">Strategia, strumenti e idee per far crescere il tuo progetto</p><div class="preview-meta"><span id="previewVenue">Mediterranea · Lecce</span><span id="previewPrice">€49,00</span></div></div>
         </div>
-        <div class="package-card"><div class="package-label">PACCHETTO GENERATO</div><ul id="fileList"><li>HTML pubblico IT / EN</li><li>Admin dedicato al corso</li><li>API checkout e verifica</li><li>SQL con tabelle separate</li><li>README di installazione</li></ul><button class="button primary full" id="downloadButton" type="button" disabled>Scarica file generati</button></div>
+        <div class="package-card"><div class="package-label">PACCHETTO GENERATO</div><ul id="fileList"><li>ZIP con cartelle già organizzate</li><li>HTML pubblico IT / EN</li><li>Admin dedicato al corso</li><li>API checkout e verifica</li><li>SQL con tabelle separate</li></ul><button class="button primary full" id="downloadButton" type="button" disabled>Scarica ZIP</button><p class="package-note">Estrai lo ZIP nella root del progetto: i file finiranno in <code>sito/</code>, <code>sito/js/</code>, <code>sito/css/</code> e <code>api/</code>. Il SQL va eseguito separatamente in Supabase.</p></div>
       </aside>
     </form>
+    <section class="sql-panel panel" id="sqlPanel" hidden>
+      <div class="sql-heading"><div><p class="eyebrow">SUPABASE</p><h2>SQL pronto da eseguire</h2><p class="panel-help">Copia tutto il comando nell’SQL Editor di Supabase e premi Run. Non caricare questo file sul sito di hosting.</p></div><div class="sql-actions"><button class="button secondary" id="copySqlButton" type="button">Copia SQL</button><button class="button ghost" id="downloadSqlButton" type="button">Scarica SQL</button></div></div>
+      <textarea id="sqlPreview" class="sql-preview" readonly aria-label="Comandi SQL Supabase"></textarea>
+    </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <input id="configFile" type="file" accept="application/json" hidden>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="editor.js"></script>
 </body>
 </html>
