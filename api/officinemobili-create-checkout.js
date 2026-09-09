@@ -26,6 +26,10 @@ module.exports = async function handler(req, res) {
     const price = Number.parseFloat(edition.prezzo);
     if (!Number.isFinite(price)) throw new Error('Prezzo non configurato');
     const amount = Number((price * numPosti).toFixed(2));
+    const labRes = await fetch(`${SUPABASE_URL}/rest/v1/officinemobili_laboratori?id=eq.${encodeURIComponent(b.laboratorio_id)}&edizione_id=eq.${encodeURIComponent(edition.id)}&attivo=eq.true&select=nome`, { headers });
+    if (!labRes.ok) throw new Error('Impossibile leggere il laboratorio');
+    const [lab] = await labRes.json();
+    if (!lab) return res.status(400).json({ error: 'Laboratorio non disponibile' });
 
     const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/officinemobili_crea_prenotazione`, {
       method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
@@ -43,7 +47,7 @@ module.exports = async function handler(req, res) {
     const safeBase = typeof redirectBase === 'string' ? redirectBase.replace(/[<>"'`]/g, '').substring(0, 300) : `https://${req.headers.host}/officinemobili.html`;
     const sumupRes = await fetch('https://api.sumup.com/v0.1/checkouts', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SUMUP_API_KEY}` },
-      body: JSON.stringify({ checkout_reference: checkoutRef, amount, currency: 'EUR', merchant_code: SUMUP_MERCHANT_CODE, description: `Iscrizione Officine Mobili - ${String(b.nome).trim()} ${String(b.cognome).trim()}`, redirect_url: `${safeBase}?ref=${checkoutRef}`, valid_until: new Date(Date.now() + 10 * 60 * 1000).toISOString(), hosted_checkout: { enabled: true } }),
+      body: JSON.stringify({ checkout_reference: checkoutRef, amount, currency: 'EUR', merchant_code: SUMUP_MERCHANT_CODE, description: buildPaymentDescription(b.cognome, b.nome, lab.nome), redirect_url: `${safeBase}?ref=${checkoutRef}`, valid_until: new Date(Date.now() + 10 * 60 * 1000).toISOString(), hosted_checkout: { enabled: true } }),
     });
     if (!sumupRes.ok) throw new Error('Errore del provider di pagamento');
     const checkout = await sumupRes.json();
@@ -56,3 +60,7 @@ module.exports = async function handler(req, res) {
   }
 };
 function cors(res) { res.setHeader('Access-Control-Allow-Origin', '*'); res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS'); res.setHeader('Access-Control-Allow-Headers', 'Content-Type'); }
+function buildPaymentDescription(cognome, nome, laboratorio) {
+  const clean = value => String(value || '').trim().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '');
+  return `OfficineMobili-${clean(cognome).toUpperCase()}-${clean(nome).toUpperCase()}-${clean(laboratorio)}`.substring(0, 120);
+}
