@@ -19,6 +19,8 @@
     const { data: labs, error } = await supabase.from('officinemobili_laboratori').select('id,slug,nome,descrizione,capienza,attivo').eq('edizione_id', edition.id).eq('attivo', true).order('nome');
     if (error) return renderError('Impossibile caricare i laboratori.');
     state.labs = labs || [];
+    const availability = await loadAvailability();
+    state.labs = state.labs.map(lab => ({ ...lab, availability: availability[lab.id] || { remaining: lab.capienza, soldOut: false } }));
     renderLabs();
     $('bookingForm').addEventListener('submit', submitForm);
     $('btnPayNow').addEventListener('click', payNow);
@@ -34,8 +36,11 @@
   }
   function renderError(message) { $('labsContainer').innerHTML = `<div class="loading-state">${escapeHtml(message)}</div>`; }
   function renderLabs() {
-    $('labsContainer').innerHTML = state.labs.map(lab => `<article class="lab-card" data-id="${lab.id}" tabindex="0" role="button" aria-label="Scegli ${escapeHtml(lab.nome)}"><span class="material-icons-outlined lab-icon">school</span><h3>${escapeHtml(lab.nome)}</h3><p>${escapeHtml(lab.descrizione || '')}</p><span class="lab-seats">${lab.capienza} posti disponibili</span></article>`).join('');
-    document.querySelectorAll('.lab-card').forEach(card => { card.addEventListener('click', () => selectLab(card.dataset.id)); card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectLab(card.dataset.id); } }); });
+    $('labsContainer').innerHTML = state.labs.map(lab => { const soldOut = lab.availability.soldOut; return `<article class="lab-card${soldOut ? ' sold-out' : ''}" data-id="${lab.id}" tabindex="${soldOut ? '-1' : '0'}" role="button" aria-disabled="${soldOut}" aria-label="${escapeHtml(lab.nome)}${soldOut ? ' - completo' : ' - seleziona'}"><span class="material-icons-outlined lab-icon">school</span><h3>${escapeHtml(lab.nome)}</h3><p>${escapeHtml(lab.descrizione || '')}</p><span class="lab-seats${soldOut ? ' sold-out-badge' : ''}">${soldOut ? 'Completo' : 'Disponibile'}</span></article>`; }).join('');
+    document.querySelectorAll('.lab-card').forEach(card => { if (card.classList.contains('sold-out')) return; card.addEventListener('click', () => selectLab(card.dataset.id)); card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectLab(card.dataset.id); } }); });
+  }
+  async function loadAvailability() {
+    try { const response = await fetch('/api/officinemobili-availability'); if (!response.ok) throw new Error('availability'); const result = await response.json(); return result.availability || {}; } catch { return {}; }
   }
   function selectLab(id) {
     state.selectedLab = state.labs.find(lab => lab.id === id);
