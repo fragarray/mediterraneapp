@@ -74,7 +74,7 @@ function buildPaymentDescription(cognome, nome, laboratorio) {
 function createBookingCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const bytes = nodeCrypto.randomBytes(8);
-  const values = bytes.length ? bytes : Array.from(bytes);
+  const values = Array.from(bytes);
   return `OM-${values.map(value => alphabet[value % alphabet.length]).join('')}`;
 }
 function extractDatabaseMessage(detail) {
