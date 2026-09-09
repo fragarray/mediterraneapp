@@ -94,6 +94,7 @@ create or replace function public.officinemobili_crea_prenotazione(
   p_num_posti integer,
   p_note text,
   p_payment_reference text,
+  p_booking_code text,
   p_importo numeric
 )
 returns public.officinemobili_prenotazioni
@@ -127,16 +128,16 @@ begin
   if v_prenotati + p_num_posti > v_laboratorio.capienza then raise exception 'POSTI_ESAURITI'; end if;
 
   insert into public.officinemobili_prenotazioni
-    (edizione_id, laboratorio_id, nome, cognome, email, telefono, num_posti, note, stato, payment_reference, importo_pagato, payment_method, expires_at)
+    (edizione_id, laboratorio_id, nome, cognome, email, telefono, num_posti, note, stato, payment_reference, booking_code, importo_pagato, payment_method, expires_at)
   values
-    (p_edizione_id, p_laboratorio_id, left(trim(p_nome), 100), left(trim(p_cognome), 100), lower(left(trim(p_email), 200)), left(trim(coalesce(p_telefono, '')), 30), p_num_posti, nullif(left(trim(coalesce(p_note, '')), 500), ''), 'pending_payment', p_payment_reference, p_importo, 'sumup', now() + interval '10 minutes')
+    (p_edizione_id, p_laboratorio_id, left(trim(p_nome), 100), left(trim(p_cognome), 100), lower(left(trim(p_email), 200)), left(trim(coalesce(p_telefono, '')), 30), p_num_posti, nullif(left(trim(coalesce(p_note, '')), 500), ''), 'pending_payment', p_payment_reference, p_booking_code, p_importo, 'sumup', now() + interval '10 minutes')
   returning * into v_result;
   return v_result;
 end;
 $$;
 
-revoke all on function public.officinemobili_crea_prenotazione(uuid, uuid, text, text, text, text, integer, text, text, numeric) from public;
-grant execute on function public.officinemobili_crea_prenotazione(uuid, uuid, text, text, text, text, integer, text, text, numeric) to service_role;
+revoke all on function public.officinemobili_crea_prenotazione(uuid, uuid, text, text, text, text, integer, text, text, text, numeric) from public;
+grant execute on function public.officinemobili_crea_prenotazione(uuid, uuid, text, text, text, text, integer, text, text, text, numeric) to service_role;
 
 alter table public.officinemobili_edizioni enable row level security;
 alter table public.officinemobili_laboratori enable row level security;

@@ -35,7 +35,7 @@ module.exports = async function handler(req, res) {
 
     const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/officinemobili_crea_prenotazione`, {
       method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_edizione_id: edition.id, p_laboratorio_id: b.laboratorio_id, p_nome: b.nome, p_cognome: b.cognome, p_email: b.email, p_telefono: b.telefono || '', p_num_posti: numPosti, p_note: b.note || '', p_payment_reference: checkoutRef, p_importo: amount }),
+      body: JSON.stringify({ p_edizione_id: edition.id, p_laboratorio_id: b.laboratorio_id, p_nome: b.nome, p_cognome: b.cognome, p_email: b.email, p_telefono: b.telefono || '', p_num_posti: numPosti, p_note: b.note || '', p_payment_reference: checkoutRef, p_booking_code: bookingCode, p_importo: amount }),
     });
     if (!rpcRes.ok) {
       const detail = await rpcRes.text();
@@ -45,15 +45,6 @@ module.exports = async function handler(req, res) {
     }
     const booking = await rpcRes.json();
     bookingId = booking.id;
-    const codeRes = await fetch(`${SUPABASE_URL}/rest/v1/officinemobili_prenotazioni?id=eq.${encodeURIComponent(bookingId)}`, {
-      method: 'PATCH', headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ booking_code: bookingCode }),
-    });
-    if (!codeRes.ok) {
-      const codeError = await codeRes.text();
-      console.error('[officinemobili-create] booking_code update failed:', codeError);
-      throw new Error('Impossibile assegnare il codice prenotazione');
-    }
 
     const safeBase = typeof redirectBase === 'string' ? redirectBase.replace(/[<>"'`]/g, '').substring(0, 300) : `https://${req.headers.host}/officinemobili.html`;
     const sumupRes = await fetch('https://api.sumup.com/v0.1/checkouts', {
