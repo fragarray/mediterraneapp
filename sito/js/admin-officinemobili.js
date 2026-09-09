@@ -7,10 +7,10 @@
   const notify = message => window.CodexUi?.showSnackbar ? CodexUi.showSnackbar(message) : alert(message);
   async function boot() {
     document.body.classList.add('ready');
+    $('loginForm').addEventListener('submit', login);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return showLogin();
     showMain(session);
-    $('loginForm').addEventListener('submit', login);
     $('signOutBtn').addEventListener('click', () => supabase.auth.signOut().then(() => showLogin()));
     document.querySelectorAll('.tab-btn').forEach(button => button.addEventListener('click', () => activateTab(button.dataset.tab)));
     $('labFilter').addEventListener('change', renderBookings);

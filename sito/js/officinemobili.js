@@ -2,7 +2,11 @@
   'use strict';
   const state = { edition: null, labs: [], selectedLab: null, seats: 1, amount: 0, reference: null };
   const $ = id => document.getElementById(id);
-  const show = (id, visible = true) => { $(id).style.display = visible ? '' : 'none'; };
+  const show = (id, visible = true) => {
+    const element = $(id);
+    if (!element) return;
+    element.style.display = visible ? 'block' : 'none';
+  };
   const snack = message => window.CodexUi?.showSnackbar ? CodexUi.showSnackbar(message) : alert(message);
 
   async function boot() {
