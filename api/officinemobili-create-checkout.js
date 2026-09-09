@@ -41,7 +41,12 @@ module.exports = async function handler(req, res) {
       const detail = await rpcRes.text();
       if (detail.includes('POSTI_ESAURITI')) return res.status(409).json({ error: 'Posti esauriti' });
       if (detail.includes('LABORATORIO_NON_DISPONIBILE')) return res.status(400).json({ error: 'Laboratorio non disponibile' });
-      throw new Error('Impossibile salvare la prenotazione');
+      console.error('[officinemobili-create] RPC failed:', detail);
+      if (detail.includes('PGRST202') || detail.includes('officinemobili_crea_prenotazione')) {
+        throw new Error('Configurazione database non aggiornata: esegui fix_booking_code_rpc.sql su Supabase');
+      }
+      console.error('[officinemobili-create] RPC request context:', { editionId: edition.id, laboratoryId: b.laboratorio_id, seats: numPosti, bookingCode });
+      throw new Error('Errore database durante il salvataggio della prenotazione (ID: RPC_OFFICINEMOBILI)');
     }
     const booking = await rpcRes.json();
     bookingId = booking.id;
