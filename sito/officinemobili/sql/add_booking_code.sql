@@ -14,3 +14,6 @@ alter table public.officinemobili_prenotazioni
 alter table public.officinemobili_prenotazioni
   add constraint officinemobili_booking_code_format
   check (booking_code is null or booking_code ~ '^OM-[A-HJ-NP-Z2-9]{8}$');
+
+-- Richiede a PostgREST di rileggere la struttura appena aggiornata.
+notify pgrst, 'reload schema';

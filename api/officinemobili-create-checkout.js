@@ -49,7 +49,11 @@ module.exports = async function handler(req, res) {
       method: 'PATCH', headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({ booking_code: bookingCode }),
     });
-    if (!codeRes.ok) throw new Error('Impossibile assegnare il codice prenotazione');
+    if (!codeRes.ok) {
+      const codeError = await codeRes.text();
+      console.error('[officinemobili-create] booking_code update failed:', codeError);
+      throw new Error('Impossibile assegnare il codice prenotazione');
+    }
 
     const safeBase = typeof redirectBase === 'string' ? redirectBase.replace(/[<>"'`]/g, '').substring(0, 300) : `https://${req.headers.host}/officinemobili.html`;
     const sumupRes = await fetch('https://api.sumup.com/v0.1/checkouts', {
