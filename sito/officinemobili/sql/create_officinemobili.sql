@@ -53,6 +53,7 @@ create table if not exists public.officinemobili_prenotazioni (
   note text,
   stato text not null default 'pending_payment' check (stato in ('pending_payment', 'confermata', 'cancellata')),
   payment_reference text unique,
+  booking_code text unique check (booking_code is null or booking_code ~ '^OM-[A-HJ-NP-Z2-9]{8}$'),
   importo_pagato numeric(10,2) not null check (importo_pagato >= 0),
   payment_method text not null default 'sumup',
   expires_at timestamptz,

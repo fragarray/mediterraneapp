@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const state = { edition: null, labs: [], selectedLab: null, seats: 1, amount: 0, reference: null };
+  const state = { edition: null, labs: [], selectedLab: null, seats: 1, amount: 0, reference: null, confirmedBooking: null };
   const $ = id => document.getElementById(id);
   const show = (id, visible = true) => {
     const element = $(id);
@@ -24,6 +24,13 @@
     $('btnPayNow').addEventListener('click', payNow);
     $('btnBackToForm').addEventListener('click', () => { show('paymentSection', false); show('formSection'); window.scrollTo({ top: $('formSection').offsetTop - 20, behavior: 'smooth' }); });
     $('btnAnother').addEventListener('click', () => location.href = location.pathname);
+    $('bookingLookupTrigger').addEventListener('click', () => {
+      $('bookingLookup').hidden = !$('bookingLookup').hidden;
+      if (!$('bookingLookup').hidden) $('bookingCode').focus();
+    });
+    $('bookingLookupForm').addEventListener('submit', lookupBooking);
+    $('downloadTicketBtn').addEventListener('click', () => downloadBookingFile('biglietto-officine-mobili.html', buildTicketHtml(state.confirmedBooking)));
+    $('downloadInfoBtn').addEventListener('click', () => downloadBookingFile('materiale-informativo-officine-mobili.txt', buildInfoText(state.confirmedBooking)));
   }
   function renderError(message) { $('labsContainer').innerHTML = `<div class="loading-state">${escapeHtml(message)}</div>`; }
   function renderLabs() {
@@ -51,8 +58,32 @@
   }
   async function verifyReturn(reference) {
     show('labsContainer', false); show('formPlaceholder', false); show('paymentVerifySection');
-    try { const response = await fetch('/api/officinemobili-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ checkout_reference: reference }) }); const result = await response.json(); if (result.success && result.status === 'PAID') { $('successText').textContent = `Grazie ${result.booking.nome}, la tua iscrizione è stata confermata.`; $('successDetail').textContent = `${result.booking.num_posti} partecipante/i · ${result.booking.laboratorio_id ? 'laboratorio selezionato' : ''}`; show('paymentVerifySection', false); show('successView'); } else { $('verifyStatusText').textContent = result.status === 'PENDING' ? 'Pagamento ancora in verifica. Ricarica tra poco.' : 'Il pagamento non è stato completato.'; } } catch { $('verifyStatusText').textContent = 'Non è stato possibile verificare il pagamento.'; }
+    try { const response = await fetch('/api/officinemobili-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ checkout_reference: reference }) }); const result = await response.json(); if (result.success && result.status === 'PAID') { state.confirmedBooking = { ...result.booking, laboratorio: 'Laboratorio selezionato', edizione: state.edition }; renderSuccess(state.confirmedBooking); show('paymentVerifySection', false); show('successView'); } else { $('verifyStatusText').textContent = result.status === 'PENDING' ? 'Pagamento ancora in verifica. Ricarica tra poco.' : 'Il pagamento non è stato completato.'; } } catch { $('verifyStatusText').textContent = 'Non è stato possibile verificare il pagamento.'; }
   }
+  async function lookupBooking(event) {
+    event.preventDefault();
+    const error = $('bookingLookupError');
+    const button = $('bookingLookupBtn');
+    error.textContent = '';
+    button.disabled = true;
+    try {
+      const response = await fetch('/api/officinemobili-booking', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ booking_code: $('bookingCode').value }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Codice non riconosciuto');
+      state.confirmedBooking = result.booking;
+      $('bookingLookupResult').hidden = false;
+      $('bookingLookupResult').innerHTML = `<strong>Prenotazione confermata</strong><p>${escapeHtml(result.booking.nome)} ${escapeHtml(result.booking.cognome)} · ${escapeHtml(result.booking.laboratorio)} · ${result.booking.num_posti} partecipante/i</p><p>Codice: <strong>${escapeHtml(result.booking.booking_code)}</strong></p><div class="lookup-downloads"><button type="button" class="btn-another" id="lookupTicketBtn">Scarica biglietto</button><button type="button" class="btn-another secondary" id="lookupInfoBtn">Scarica materiale informativo</button></div>`;
+      $('lookupTicketBtn').addEventListener('click', () => downloadBookingFile('biglietto-officine-mobili.html', buildTicketHtml(state.confirmedBooking)));
+      $('lookupInfoBtn').addEventListener('click', () => downloadBookingFile('materiale-informativo-officine-mobili.txt', buildInfoText(state.confirmedBooking)));
+    } catch (lookupError) {
+      error.textContent = lookupError.message;
+      $('bookingLookupResult').hidden = true;
+    } finally { button.disabled = false; }
+  }
+  function renderSuccess(booking) { $('successText').textContent = `Grazie ${booking.nome}, la tua iscrizione è stata confermata.`; $('successDetail').textContent = `${booking.num_posti} partecipante/i · ${booking.laboratorio}`; $('successCode').textContent = booking.booking_code || 'Codice non disponibile'; }
+  function downloadBookingFile(filename, content) { const blob = new Blob([content], { type: filename.endsWith('.html') ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); }
+  function buildTicketHtml(booking) { return `<!doctype html><html lang="it"><meta charset="utf-8"><title>Biglietto Officine Mobili</title><body style="font-family:Arial,sans-serif;max-width:640px;margin:40px auto;padding:24px;border:2px solid #e74628"><h1>Officine Mobili</h1><h2>Biglietto di iscrizione</h2><p><strong>${escapeHtml(booking.nome)} ${escapeHtml(booking.cognome)}</strong></p><p>Laboratorio: ${escapeHtml(booking.laboratorio)}</p><p>Periodo: 26–30 ottobre</p><p>Partecipanti: ${booking.num_posti}</p><h2>Codice: ${escapeHtml(booking.booking_code)}</h2></body></html>`; }
+  function buildInfoText(booking) { return `OFFICINE MOBILI\n\nLaboratorio: ${booking.laboratorio}\nPeriodo: 26–30 ottobre\nPartecipanti: ${booking.num_posti}\nCodice prenotazione: ${booking.booking_code}\n\nConserva questo codice per verificare la tua prenotazione dalla pagina Officine Mobili.`; }
   function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char])); }
   document.addEventListener('DOMContentLoaded', boot);
 })();

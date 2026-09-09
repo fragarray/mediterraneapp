@@ -1,4 +1,5 @@
 /* Officine Mobili - create SumUp checkout and reserve seats. */
+const nodeCrypto = require('crypto');
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -17,7 +18,8 @@ module.exports = async function handler(req, res) {
   const headers = { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` };
   const editionUrl = `${SUPABASE_URL}/rest/v1/officinemobili_edizioni?slug=eq.officine-mobili-2026&attiva=eq.true&select=id,prezzo,prenotazioni_aperte,data_inizio,data_fine`;
   let bookingId;
-  const checkoutRef = crypto.randomUUID();
+  const checkoutRef = nodeCrypto.randomUUID();
+  const bookingCode = createBookingCode();
   try {
     const editionRes = await fetch(editionUrl, { headers });
     if (!editionRes.ok) throw new Error('Impossibile leggere l\'edizione');
@@ -43,6 +45,11 @@ module.exports = async function handler(req, res) {
     }
     const booking = await rpcRes.json();
     bookingId = booking.id;
+    const codeRes = await fetch(`${SUPABASE_URL}/rest/v1/officinemobili_prenotazioni?id=eq.${encodeURIComponent(bookingId)}`, {
+      method: 'PATCH', headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_code: bookingCode }),
+    });
+    if (!codeRes.ok) throw new Error('Impossibile assegnare il codice prenotazione');
 
     const safeBase = typeof redirectBase === 'string' ? redirectBase.replace(/[<>"'`]/g, '').substring(0, 300) : `https://${req.headers.host}/officinemobili.html`;
     const sumupRes = await fetch('https://api.sumup.com/v0.1/checkouts', {
@@ -63,4 +70,10 @@ function cors(res) { res.setHeader('Access-Control-Allow-Origin', '*'); res.setH
 function buildPaymentDescription(cognome, nome, laboratorio) {
   const clean = value => String(value || '').trim().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '');
   return `OfficineMobili-${clean(cognome).toUpperCase()}-${clean(nome).toUpperCase()}-${clean(laboratorio)}`.substring(0, 120);
+}
+function createBookingCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = nodeCrypto.randomBytes(8);
+  const values = bytes.length ? bytes : Array.from(bytes);
+  return `OM-${values.map(value => alphabet[value % alphabet.length]).join('')}`;
 }

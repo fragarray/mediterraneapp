@@ -14,7 +14,7 @@ module.exports = async function handler(req, res) {
     const checkouts = await sumupRes.json();
     const checkout = Array.isArray(checkouts) ? checkouts[0] : null;
     if (!checkout) return res.status(404).json({ error: 'Pagamento non trovato' });
-    const bookingRes = await fetch(`${SUPABASE_URL}/rest/v1/officinemobili_prenotazioni?payment_reference=eq.${encodeURIComponent(checkout_reference)}&select=id,nome,cognome,num_posti,laboratorio_id,stato`, { headers });
+    const bookingRes = await fetch(`${SUPABASE_URL}/rest/v1/officinemobili_prenotazioni?payment_reference=eq.${encodeURIComponent(checkout_reference)}&select=id,nome,cognome,num_posti,laboratorio_id,stato,booking_code`, { headers });
     if (!bookingRes.ok) throw new Error('Impossibile leggere la prenotazione');
     const [booking] = await bookingRes.json();
     if (!booking) return res.status(404).json({ error: 'Prenotazione non trovata' });
@@ -34,5 +34,5 @@ module.exports = async function handler(req, res) {
   }
 };
 async function patchBooking(url, key, id, stato) { const response = await fetch(`${url}/rest/v1/officinemobili_prenotazioni?id=eq.${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${key}` }, body: JSON.stringify({ stato }) }); if (!response.ok) throw new Error('Impossibile aggiornare la prenotazione'); }
-function publicBooking(booking) { return { nome: booking.nome, cognome: booking.cognome, num_posti: booking.num_posti, laboratorio_id: booking.laboratorio_id }; }
+function publicBooking(booking) { return { nome: booking.nome, cognome: booking.cognome, num_posti: booking.num_posti, laboratorio_id: booking.laboratorio_id, booking_code: booking.booking_code }; }
 function cors(res) { res.setHeader('Access-Control-Allow-Origin', '*'); res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS'); res.setHeader('Access-Control-Allow-Headers', 'Content-Type'); }

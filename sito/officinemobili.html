@@ -16,7 +16,10 @@
   <header class="appbar">
     <img src="logopiccolo.png" alt="Mediterranea" class="appbar-logo-mobile">
     <span class="appbar-title">Mediterranea</span>
-    <a href="index.html" class="appbar-link"><span class="material-icons-outlined">arrow_back</span> Home</a>
+    <button type="button" class="booking-lookup-trigger" id="bookingLookupTrigger">
+      <span class="material-icons-outlined">confirmation_number</span>
+      Verifica prenotazione
+    </button>
   </header>
 
   <section class="om-hero" aria-label="Officine Mobili">
@@ -28,6 +31,11 @@
   </section>
 
   <main class="om-main">
+    <section id="bookingLookup" class="booking-lookup" aria-labelledby="bookingLookupTitle" hidden>
+      <div class="booking-lookup-heading"><span class="material-icons-outlined">confirmation_number</span><div><h2 id="bookingLookupTitle">Verifica la tua prenotazione</h2><p>Inserisci il codice ricevuto al termine del pagamento.</p></div></div>
+      <form id="bookingLookupForm" class="booking-lookup-form" novalidate><label for="bookingCode">Codice prenotazione</label><div class="booking-lookup-row"><input id="bookingCode" name="booking_code" placeholder="OM-XXXXXXXX" autocomplete="off" required><button type="submit" class="btn-submit" id="bookingLookupBtn"><span class="material-icons-outlined">search</span> Verifica</button></div><span id="bookingLookupError" class="lookup-error" role="alert"></span></form>
+      <div id="bookingLookupResult" class="booking-lookup-result" hidden></div>
+    </section>
     <section class="om-intro">
       <h2>Scegli il tuo laboratorio</h2>
       <p>Dal 26 al 30 ottobre. L'iscrizione comprende l'intero percorso del laboratorio scelto.</p>
@@ -66,7 +74,7 @@
     </section>
 
     <div id="paymentVerifySection" class="payment-verify-section" style="display:none"><span class="material-icons-outlined verify-spin">sync</span><p id="verifyStatusText">Verifica del pagamento in corso…</p></div>
-    <div id="successView" class="success-view"><div class="success-icon"><span class="material-icons-outlined">check_circle</span></div><h2>Iscrizione confermata!</h2><p id="successText"></p><div id="successDetail" class="success-detail"></div><button class="btn-another" id="btnAnother"><span class="material-icons-outlined">add_circle_outline</span> Nuova iscrizione</button></div>
+    <div id="successView" class="success-view"><div class="success-icon"><span class="material-icons-outlined">check_circle</span></div><h2>Iscrizione confermata!</h2><p id="successText"></p><div id="successDetail" class="success-detail"></div><p class="success-notice">Non riceverai una email. Conserva il codice mostrato qui sotto per verificare la prenotazione e scaricare il biglietto.</p><div id="successCode" class="success-code"></div><div class="success-downloads"><button type="button" class="btn-another" id="downloadTicketBtn"><span class="material-icons-outlined">download</span> Scarica biglietto</button><button type="button" class="btn-another secondary" id="downloadInfoBtn"><span class="material-icons-outlined">description</span> Scarica materiale informativo</button></div><button class="btn-another" id="btnAnother"><span class="material-icons-outlined">add_circle_outline</span> Nuova iscrizione</button></div>
   </main>
   <div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
