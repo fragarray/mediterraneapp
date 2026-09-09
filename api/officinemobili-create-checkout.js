@@ -46,7 +46,7 @@ module.exports = async function handler(req, res) {
         throw new Error('Configurazione database non aggiornata: esegui fix_booking_code_rpc.sql su Supabase');
       }
       console.error('[officinemobili-create] RPC request context:', { editionId: edition.id, laboratoryId: b.laboratorio_id, seats: numPosti, bookingCode });
-      throw new Error('Errore database durante il salvataggio della prenotazione (ID: RPC_OFFICINEMOBILI)');
+      return res.status(500).json({ error: `Errore database: ${extractDatabaseMessage(detail)}` });
     }
     const booking = await rpcRes.json();
     bookingId = booking.id;
@@ -76,4 +76,12 @@ function createBookingCode() {
   const bytes = nodeCrypto.randomBytes(8);
   const values = bytes.length ? bytes : Array.from(bytes);
   return `OM-${values.map(value => alphabet[value % alphabet.length]).join('')}`;
+}
+function extractDatabaseMessage(detail) {
+  try {
+    const parsed = JSON.parse(detail);
+    return String(parsed.message || parsed.details || parsed.hint || 'RPC_OFFICINEMOBILI').substring(0, 240);
+  } catch {
+    return String(detail || 'RPC_OFFICINEMOBILI').replace(/\s+/g, ' ').substring(0, 240);
+  }
 }
