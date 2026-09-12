@@ -25,8 +25,8 @@ function initRegistrationPage(config) {
     valid = validateRequired('nome') & valid;
     valid = validateRequired('cognome') & valid;
     valid = validateDate('dataNascita') & valid;
-    if (!optOut.getPhone()) valid = validatePhone('telefono') & valid;
-    if (!optOut.getEmail()) valid = validateEmail('email') & valid;
+    if (document.getElementById('telefono').value.trim()) valid = validatePhone('telefono') & valid;
+    if (document.getElementById('email').value.trim()) valid = validateEmail('email') & valid;
 
     if (isLegacyFlow) {
       valid = validateDate('dataRegTessera') & valid;
