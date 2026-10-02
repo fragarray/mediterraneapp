@@ -1,7 +1,157 @@
 (function () {
   const { showSnackbar, loadThemeAndReady } = CodexUi;
   const $ = id => document.getElementById(id);
-  const state = { events: [], bookings: [] };
+  const state = { events: [], bookings: [], eventImageUrls: [] };
+  const ENLARGE_FACTOR = 0.34;
+
+  function renderEventImageList() {
+    const list = $('eventCarouselImageList');
+    if (!state.eventImageUrls.length) {
+      list.innerHTML = '<div class="empty-state" style="padding:16px;">Nessuna immagine caricata.</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    state.eventImageUrls.forEach((url, idx) => {
+      const badge = document.createElement('div');
+      badge.className = 'carousel-image-badge';
+      badge.innerHTML = `
+        <img src="${url}" alt="" onerror="this.style.background='#ddd'">
+        <button class="badge-delete" title="Rimuovi" onclick="removeEventImageUrl(${idx})">
+          <span class="material-icons-outlined" style="font-size:16px;">close</span>
+        </button>`;
+      list.appendChild(badge);
+    });
+  }
+
+  function updateEventCarouselPreview() {
+    const wrap = $('eventCarouselPreviewWrap');
+    const track = $('eventCarouselTrack');
+    const height = parseInt($('eventSliderHeight').value, 10);
+    const visible = parseInt($('eventSliderItems').value, 10);
+    const seconds = parseInt($('eventSliderAutoplay').value, 10);
+
+    wrap.style.height = height + 'px';
+    clearInterval(window.__eventPreviewTimer);
+
+    if (!state.eventImageUrls.length) {
+      track.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#999;font-size:14px;">Nessuna immagine</div>';
+      return;
+    }
+
+    const previewRealCount = state.eventImageUrls.length;
+    const previewFraction = previewRealCount > 1 ? Math.min(Math.max(1 / visible, 0.28), 1) : 1;
+    const allUrls = previewRealCount > 1 ? [...state.eventImageUrls, ...state.eventImageUrls, ...state.eventImageUrls] : state.eventImageUrls;
+
+    track.innerHTML = '';
+    allUrls.forEach((url) => {
+      const slide = document.createElement('div');
+      slide.className = 'carousel-slide';
+      slide.style.flex = '0 0 ' + (previewFraction * 100) + '%';
+      slide.style.width = (previewFraction * 100) + '%';
+      slide.style.height = height + 'px';
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = '';
+      img.onerror = function() { this.style.background = '#ddd'; };
+      slide.appendChild(img);
+      track.appendChild(slide);
+    });
+
+    let previewIndex = 0;
+    const slideW = previewFraction * 100;
+    const padOffset = (100 - slideW) / 2;
+    const startReal = Math.floor(previewRealCount / 2);
+    const startIdx = previewRealCount > 1 ? previewRealCount + startReal : 0;
+    previewIndex = startIdx;
+    track.style.transition = 'none';
+    track.style.transform = 'translateX(' + (-(startIdx * slideW - padOffset)) + '%)';
+    requestAnimationFrame(() => { track.style.transition = ''; });
+
+    const applyScales = () => {
+      const slides = track.querySelectorAll('.carousel-slide');
+      slides.forEach((slide, i) => {
+        const isCenter = i === (previewIndex % previewRealCount) + previewRealCount; 
+        slide.style.transform = isCenter ? 'scale(1)' : `scale(${1 - ENLARGE_FACTOR})`;
+        slide.style.zIndex = isCenter ? '2' : '1';
+      });
+    };
+
+    applyScales();
+
+    if (previewRealCount > 1) {
+      window.__eventPreviewTimer = setInterval(() => {
+        previewIndex += 1;
+        const tx = previewIndex * slideW - padOffset;
+        track.style.transform = 'translateX(' + (-tx) + '%)';
+        applyScales();
+      }, seconds * 1000);
+    }
+  }
+
+  async function optimizeEventImage(file) {
+    const MAX_DIM = 1920;
+    const JPEG_QUALITY = 0.82;
+    if (file.type === 'image/gif') return file;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w <= MAX_DIM && h <= MAX_DIM) { resolve(file); return; }
+        const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+        w = Math.round(w * ratio); h = Math.round(h * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const isJpeg = file.type === 'image/jpeg' || file.type === 'image/jpg';
+        const mime = isJpeg ? 'image/jpeg' : 'image/png';
+        const quality = isJpeg ? JPEG_QUALITY : undefined;
+        canvas.toBlob((blob) => {
+          resolve(new File([blob], file.name, { type: mime }));
+        }, mime, quality);
+      };
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  async function uploadEventCarouselFiles(input) {
+    const files = Array.from(input.files);
+    if (!files.length) return;
+
+    for (const file of files) {
+      try {
+        const optimized = await optimizeEventImage(file);
+        const url = await uploadCarouselImage(optimized);
+        state.eventImageUrls.push(url);
+        $('eventImageInput').value = url;
+      } catch (error) {
+        showSnackbar(`Upload fallito: ${error.message}`, true);
+      }
+    }
+
+    input.value = '';
+    renderEventImageList();
+    updateEventCarouselPreview();
+  }
+
+  window.removeEventImageUrl = async (idx) => {
+    const url = state.eventImageUrls[idx];
+    if (!url) return;
+    state.eventImageUrls.splice(idx, 1);
+    renderEventImageList();
+    updateEventCarouselPreview();
+    if ($('eventImageInput').value === url) {
+      $('eventImageInput').value = state.eventImageUrls[0] || '';
+    }
+    try {
+      await deleteCarouselImageByPublicUrl(url);
+    } catch (error) {
+      console.warn('Eliminazione immagine evento fallita:', error);
+    }
+  };
+
+  window.uploadEventCarouselFiles = uploadEventCarouselFiles;
 
   function showMain() {
     $('loginView').style.display = 'none';
@@ -222,6 +372,8 @@
   $('eventForm').addEventListener('submit', async (event) => {
     event.preventDefault();
 
+    const imageUrl = ($('eventImageInput').value.trim() || state.eventImageUrls[0] || null);
+
     const payload = {
       slug: $('eventSlug').value.trim(),
       titolo: $('eventTitleInput').value.trim(),
@@ -229,7 +381,7 @@
       ora: $('eventTimeInput').value || '19:30',
       prezzo: Number($('eventPriceInput').value || 0),
       luogo: $('eventLocationInput').value.trim() || 'Mediterranea – Lecce',
-      immagine_url: $('eventImageInput').value.trim() || null,
+      immagine_url: imageUrl,
       note: $('eventNoteInput').value.trim() || null,
       is_active: true,
       prenotazioni_aperte: true,
@@ -250,6 +402,10 @@
     $('eventForm').reset();
     $('eventTimeInput').value = '19:30';
     $('eventPriceInput').value = '15';
+    $('eventImageInput').value = '';
+    state.eventImageUrls = [];
+    renderEventImageList();
+    updateEventCarouselPreview();
     showSnackbar('Evento salvato.');
     await loadEvents();
   });
@@ -306,5 +462,7 @@
     await loadBookings();
   };
 
+  renderEventImageList();
+  updateEventCarouselPreview();
   checkAuth();
 })();

@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
   <link rel="stylesheet" href="css/common.css">
   <link rel="stylesheet" href="css/admin-shared.css">
+  <link rel="stylesheet" href="css/admin.css">
   <style>
     .page-shell { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
     .tab-nav { display:flex; gap:10px; flex-wrap:wrap; margin: 16px 0 24px; }
@@ -95,6 +96,49 @@
       <div id="tabEvents" role="tabpanel">
         <div class="card">
           <h3>Aggiungi nuova serata</h3>
+          <div class="card" style="margin-top: 0; margin-bottom: 18px; background: rgba(255,255,255,0.5);">
+            <h3>Anteprima locandina / carosello</h3>
+            <div class="carousel-preview-outer" id="eventCarouselPreviewOuter">
+              <div class="carousel-preview-wrap" id="eventCarouselPreviewWrap" style="height:230px;">
+                <div class="carousel-viewport">
+                  <div class="carousel-track" id="eventCarouselTrack"></div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:16px; border-top:1px solid var(--border-color); padding-top:14px;">
+              <div class="slider-row">
+                <label>Altezza (px)</label>
+                <input type="range" id="eventSliderHeight" min="140" max="520" step="10" value="230"
+                  oninput="document.getElementById('eventValHeight').textContent=this.value; updateEventCarouselPreview()">
+                <span class="slider-value" id="eventValHeight">230</span>
+              </div>
+              <div class="slider-row">
+                <label>Immagini visibili</label>
+                <input type="range" id="eventSliderItems" min="1" max="6" step="1" value="2"
+                  oninput="document.getElementById('eventValItems').textContent=this.value; updateEventCarouselPreview()">
+                <span class="slider-value" id="eventValItems">2</span>
+              </div>
+              <div class="slider-row">
+                <label>Autoplay (secondi)</label>
+                <input type="range" id="eventSliderAutoplay" min="1" max="12" step="1" value="4"
+                  oninput="document.getElementById('eventValAutoplay').textContent=this.value; updateEventCarouselPreview()">
+                <span class="slider-value" id="eventValAutoplay">4</span>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 6px;">
+              <label class="btn-filled" style="cursor:pointer;">
+                <span class="material-icons-outlined">add_photo_alternate</span> Carica immagini
+                <input type="file" id="eventCarouselFileInput" accept="image/*" multiple style="display:none;" onchange="uploadEventCarouselFiles(this)">
+              </label>
+            </div>
+
+            <div id="eventCarouselImageList" class="carousel-image-list">
+              <div class="empty-state" style="padding:16px;">Nessuna immagine caricata.</div>
+            </div>
+          </div>
+
           <form id="eventForm">
             <div class="event-form-grid">
               <div>
