@@ -36,8 +36,14 @@ module.exports = async function handler(req, res) {
     const checkoutRef = crypto.randomUUID();
     const validUntil = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     const fullName = [String(b.nome || '').trim(), String(b.cognome || '').trim()].filter(Boolean).join(' ');
-    const eventDate = formatDate(eventDoc.data);
-    const description = `Prenotazione ${eventDoc.titolo || 'Evento'} – ${fullName || 'Prenotazione'} – ${eventDate} – ${numPosti} posti`;
+    const eventDate = String(eventDoc.data || '').trim();
+    const description = buildPaymentDescription({
+      nome: String(b.nome || '').trim(),
+      cognome: String(b.cognome || '').trim(),
+      numPosti,
+      eventName: String(eventDoc.titolo || 'EVENTO').trim(),
+      eventDate,
+    });
     const safeBase = typeof redirectBase === 'string' ? redirectBase.replace(/[<>"'`]/g, '').substring(0, 300) : `https://${req.headers.host}/booking-evento.html`;
     const redirectUrl = `${safeBase}?ref=${checkoutRef}`;
 
@@ -108,10 +114,21 @@ module.exports = async function handler(req, res) {
   }
 };
 
-function formatDate(dateValue) {
-  if (typeof dateValue !== 'string') return 'Data non disponibile';
-  const match = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return dateValue;
-  const [, y, m, d] = match;
-  return `${d}/${m}/${y}`;
+function buildPaymentDescription({ nome, cognome, numPosti, eventName, eventDate }) {
+  const sanitize = (value) => String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toUpperCase();
+
+  const cleanedNome = sanitize(nome);
+  const cleanedCognome = sanitize(cognome);
+  const cleanedEvent = sanitize(eventName);
+  const cleanedDate = sanitize(eventDate);
+  const cleanedPosti = String(numPosti || '').trim();
+
+  return [cleanedNome, cleanedCognome, cleanedPosti, cleanedEvent, cleanedDate]
+    .filter(Boolean)
+    .join('-');
 }

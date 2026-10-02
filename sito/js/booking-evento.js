@@ -60,7 +60,15 @@
   function setErrorState(message) {
     els.errorStateText.textContent = message;
     els.errorState.style.display = 'block';
+    els.formSection.classList.remove('visible');
     els.formSection.style.display = 'none';
+  }
+
+  function showFormSection() {
+    els.formSection.classList.add('visible');
+    els.formSection.style.display = 'block';
+    els.paymentSection.classList.remove('visible');
+    els.paymentSection.style.display = 'none';
   }
 
   function setEventDetails(eventDoc) {
@@ -124,7 +132,9 @@
     els.payNumPosti.textContent = String(numPosti);
     els.payPricePerPerson.textContent = formatPrice(state.currentPrice);
     els.payTotal.textContent = formatPrice(total);
+    els.formSection.classList.remove('visible');
     els.formSection.style.display = 'none';
+    els.paymentSection.classList.add('visible');
     els.paymentSection.style.display = 'block';
     els.paymentSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
@@ -150,8 +160,9 @@
   });
 
   els.btnBackToForm.addEventListener('click', () => {
+    els.paymentSection.classList.remove('visible');
     els.paymentSection.style.display = 'none';
-    els.formSection.style.display = 'block';
+    showFormSection();
     state.formData = null;
     els.formSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
@@ -269,6 +280,7 @@
     }
 
     setEventDetails(data);
+    showFormSection();
 
     const ref = new URLSearchParams(window.location.search).get('ref');
     if (ref) {
