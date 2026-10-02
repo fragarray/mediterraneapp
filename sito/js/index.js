@@ -2,9 +2,11 @@
     /* ======== Lightbox ======== */
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxBookingBtn = document.getElementById('lightboxBookingBtn');
     const { loadThemeAndReady } = CodexUi;
 
     let carouselImageUrls = [];
+    let carouselEventMap = [];
     let lightboxCurrentIndex = 0;
     let lightboxPointerId = null;
     let lightboxStartX = 0;
@@ -52,7 +54,28 @@
     function closeLightbox() {
       resetLightboxDragState();
       clearLightboxClickSuppression();
+      if (lightboxBookingBtn) {
+        lightboxBookingBtn.hidden = true;
+        lightboxBookingBtn.removeAttribute('data-slug');
+      }
       lightbox.classList.remove('active');
+    }
+
+    function updateLightboxBookingAction(eventDoc) {
+      if (!lightboxBookingBtn) return;
+      if (!eventDoc || !eventDoc.slug) {
+        lightboxBookingBtn.hidden = true;
+        lightboxBookingBtn.removeAttribute('data-slug');
+        return;
+      }
+
+      lightboxBookingBtn.hidden = false;
+      lightboxBookingBtn.setAttribute('data-slug', eventDoc.slug);
+      lightboxBookingBtn.onclick = function() {
+        if (eventDoc.slug) {
+          window.location.href = `booking-evento.html?slug=${encodeURIComponent(eventDoc.slug)}`;
+        }
+      };
     }
 
     function preloadLightboxImage(idx) {
@@ -62,23 +85,25 @@
       image.src = carouselImageUrls[normalized];
     }
 
-    function showLightboxImage(idx) {
+    function showLightboxImage(idx, forcedEventDoc = null) {
       if (!carouselImageUrls.length) return;
 
       lightboxCurrentIndex = normalizeLightboxIndex(idx);
+      const eventDoc = forcedEventDoc || carouselEventMap[lightboxCurrentIndex] || null;
       lightboxImg.src = carouselImageUrls[lightboxCurrentIndex];
       lightboxImg.alt = 'Immagine ' + (lightboxCurrentIndex + 1) + ' di ' + carouselImageUrls.length;
+      updateLightboxBookingAction(eventDoc);
 
       preloadLightboxImage(lightboxCurrentIndex + 1);
       preloadLightboxImage(lightboxCurrentIndex - 1);
     }
 
-    function openCarouselLightbox(idx) {
+    function openCarouselLightbox(idx, forcedEventDoc = null) {
       if (!carouselImageUrls.length) return;
 
       clearLightboxClickSuppression();
       resetLightboxDragState();
-      showLightboxImage(idx);
+      showLightboxImage(idx, forcedEventDoc);
       lightbox.classList.add('active');
     }
 
@@ -407,8 +432,12 @@
     }
 
     function renderCarousel(settings) {
-      const urls = settings.image_urls || [];
+      const eventItems = Array.isArray(settings.event_items) ? settings.event_items.filter(Boolean) : [];
+      const urls = eventItems.length
+        ? eventItems.map(eventDoc => eventDoc.immagine_url || '').filter(Boolean)
+        : (settings.image_urls || []);
       carouselImageUrls = urls.slice();
+      carouselEventMap = eventItems.length ? eventItems.slice() : [];
       if (!urls.length) return;
 
       const height      = Math.min(Math.max(Number(settings.widget_height)   || 230, 140), 520);
@@ -426,8 +455,6 @@
       const viewport = carouselWrapper.querySelector('.carousel-viewport');
       viewport.style.height = height + 'px';
 
-      /* Track = [cloni] [reali] [cloni]  —  3 copie per loop infinito.
-         La sezione "reale" va da indice realCount a 2*realCount-1.       */
       const allUrls = urls.length > 1 ? [...urls, ...urls, ...urls] : urls;
 
       carouselTrack.innerHTML = '';
@@ -444,7 +471,8 @@
         img.draggable = false;
         img.addEventListener('dragstart', function(event) { event.preventDefault(); });
         img.addEventListener('click', function() {
-          openCarouselLightbox(urls.length > 1 ? index % urls.length : 0);
+          const eventDoc = carouselEventMap.length ? carouselEventMap[index % carouselEventMap.length] : null;
+          openCarouselLightbox(urls.length > 1 ? index % urls.length : 0, eventDoc);
         });
         img.onerror = function() { this.alt = 'Immagine non disponibile'; };
 
@@ -455,8 +483,6 @@
       placeholder.style.display = 'none';
       carouselWrapper.style.display = 'block';
 
-      /* Partenza dalla foto centrale (sezione reale).
-         Es. 5 foto → indice reale 2 → indice interno realCount + 2. */
       var startReal = Math.floor(realCount / 2);
       var startIdx  = urls.length > 1 ? realCount + startReal : 0;
       goToSlide(startIdx, false);
@@ -472,15 +498,35 @@
       btn.addEventListener('click', () => window.open(url.trim(), '_blank'));
     }
 
+    async function loadActiveEventCarouselItems() {
+      try {
+        const { data, error } = await supabase
+          .from('eventi_associazione')
+          .select('id, slug, titolo, data, prezzo, immagine_url, sold_out, prenotazioni_aperte')
+          .eq('is_active', true)
+          .order('data', { ascending: true });
+
+        if (error || !data || !data.length) return [];
+        return data.filter(eventDoc => eventDoc.immagine_url).slice(0, 12);
+      } catch (error) {
+        console.warn('[home] event carousel unavailable', error);
+        return [];
+      }
+    }
+
     /* ======== Caricamento da Supabase ======== */
     (async function init() {
       await loadThemeAndReady();
 
-      // 2. Instagram
       const instagramUrl = await getAppSetting(SETTING_INSTAGRAM_URL);
       setupInstagram(instagramUrl);
 
-      // 3. Carosello
+      const eventItems = await loadActiveEventCarouselItems();
+      if (eventItems.length) {
+        renderCarousel({ event_items: eventItems, widget_height: 300, visible_items: 2, autoplay_seconds: 4 });
+        return;
+      }
+
       const carouselRaw = await getAppSetting(SETTING_CAROUSEL_CONFIG);
       if (carouselRaw) {
         try {

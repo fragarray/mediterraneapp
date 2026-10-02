@@ -60,7 +60,15 @@
 
   <!-- Lightbox -->
   <div class="lightbox" id="lightbox">
-    <img id="lightboxImg" src="" alt="Immagine ingrandita">
+    <div class="lightbox-inner">
+      <img id="lightboxImg" src="" alt="Immagine ingrandita">
+      <div class="lightbox-actions">
+        <button type="button" id="lightboxBookingBtn" class="btn-filled" hidden>
+          <span class="material-icons-outlined">event_available</span>
+          Prenota serata
+        </button>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>

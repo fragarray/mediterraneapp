@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eventi & prenotazioni – Mediterranea</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/admin-shared.css">
+  <style>
+    .page-shell { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+    .tab-nav { display:flex; gap:10px; flex-wrap:wrap; margin: 16px 0 24px; }
+    .tab-btn { background: rgba(0,0,0,0.02); border:1px solid var(--border-color); color: var(--text-primary); border-radius:12px; padding:10px 16px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px; }
+    .tab-btn.active { background: var(--seed-soft); border-color: rgba(46,125,50,.2); color: var(--seed); }
+    .stats-row { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:18px; }
+    .stat-chip { background:#fff; border:1px solid var(--border-color); border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; }
+    .stat-chip.accent { background: rgba(46,125,50,.06); }
+    .stat-chip-label { font-size:12px; color: var(--text-secondary); }
+    .stat-chip-value { font-size:28px; font-weight:700; }
+    .card { background:#fff; border:1px solid var(--border-color); border-radius:18px; padding:18px; margin-bottom:18px; }
+    .card h3 { margin: 0 0 16px; }
+    .event-form-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:12px; }
+    .event-form-grid .full { grid-column: 1 / -1; }
+    .table-wrap { overflow:auto; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:12px 10px; border-bottom:1px solid var(--border-color); text-align:left; vertical-align:top; }
+    th { font-size:12px; text-transform: uppercase; letter-spacing:.05em; color: var(--text-secondary); }
+    .status-badge { display:inline-flex; align-items:center; padding:5px 8px; border-radius:999px; font-size:12px; font-weight:700; }
+    .status-open { background: rgba(46,125,50,.12); color: var(--seed); }
+    .status-closed { background: rgba(170,170,170,.12); color: var(--text-secondary); }
+    .inline-toggle { display:flex; align-items:center; gap:8px; }
+    .muted { color: var(--text-secondary); }
+    .event-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .btn-icon { border:1px solid var(--border-color); background:#fff; width:36px; height:36px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+    .btn-warning { border-color: rgba(234,67,53,.2); color: #c62828; }
+    .empty-state { padding:20px; text-align:center; color:var(--text-secondary); }
+    .rendered-money { font-weight:700; }
+    @media (max-width: 640px) { .page-shell { padding: 16px 12px 32px; } }
+  </style>
+</head>
+<body>
+  <div id="loginView">
+    <div class="login-wrap">
+      <div class="login-card">
+        <img src="logopiccolo.png" alt="Mediterranea" class="login-logo">
+        <h1>Accesso admin</h1>
+        <p class="login-sub">Gestione eventi e prenotazioni</p>
+        <form id="loginForm" novalidate>
+          <div class="form-group">
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" autocomplete="username" required>
+            <span class="error-msg">Email obbligatoria</span>
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" autocomplete="current-password" required>
+            <span class="error-msg">Password obbligatoria</span>
+          </div>
+          <button type="submit" class="btn-filled full" id="loginBtn">
+            <span class="material-icons-outlined">lock_open</span>
+            Accedi
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="mainView" style="display:none">
+    <header class="appbar">
+      <a href="admin-shell.html?view=dashboard" class="appbar-action" title="Dashboard">
+        <span class="material-icons-outlined">arrow_back</span>
+      </a>
+      <span class="appbar-title">Eventi & prenotazioni</span>
+      <span class="appbar-user" id="appbarUser"></span>
+      <button class="appbar-action" id="signOutBtn" title="Esci">
+        <span class="material-icons-outlined">logout</span>
+      </button>
+    </header>
+
+    <div class="page-shell">
+      <nav class="tab-nav" role="tablist">
+        <button class="tab-btn active" data-tab="events" role="tab" aria-selected="true">
+          <span class="material-icons-outlined">event</span>
+          Eventi
+        </button>
+        <button class="tab-btn" data-tab="bookings" role="tab" aria-selected="false">
+          <span class="material-icons-outlined">receipt_long</span>
+          Prenotazioni
+        </button>
+      </nav>
+
+      <div id="tabEvents" role="tabpanel">
+        <div class="card">
+          <h3>Aggiungi nuova serata</h3>
+          <form id="eventForm">
+            <div class="event-form-grid">
+              <div>
+                <label for="eventSlug">Slug</label>
+                <input type="text" id="eventSlug" placeholder="serata-estate" required>
+              </div>
+              <div>
+                <label for="eventTitleInput">Titolo</label>
+                <input type="text" id="eventTitleInput" placeholder="Serata live jazz" required>
+              </div>
+              <div>
+                <label for="eventDateInput">Data</label>
+                <input type="date" id="eventDateInput" required>
+              </div>
+              <div>
+                <label for="eventTimeInput">Ora</label>
+                <input type="time" id="eventTimeInput" value="19:30">
+              </div>
+              <div>
+                <label for="eventPriceInput">Prezzo (€)</label>
+                <input type="number" id="eventPriceInput" min="0" step="0.50" value="15">
+              </div>
+              <div>
+                <label for="eventLocationInput">Luogo</label>
+                <input type="text" id="eventLocationInput" value="Mediterranea – Lecce">
+              </div>
+              <div class="full">
+                <label for="eventImageInput">Immagine URL</label>
+                <input type="url" id="eventImageInput" placeholder="https://...">
+              </div>
+              <div class="full">
+                <label for="eventNoteInput">Note</label>
+                <textarea id="eventNoteInput" rows="3" placeholder="Descrizione serata..."></textarea>
+              </div>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:16px; flex-wrap:wrap;">
+              <button type="submit" class="btn-filled">
+                <span class="material-icons-outlined">add</span>
+                Salva serata
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Serate attive</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Slug</th>
+                  <th>Titolo</th>
+                  <th>Data</th>
+                  <th>Prezzo</th>
+                  <th>Stato</th>
+                  <th>Home</th>
+                  <th>Azioni</th>
+                </tr>
+              </thead>
+              <tbody id="eventsTbody">
+                <tr><td colspan="7" class="empty-state">Caricamento…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="tabBookings" role="tabpanel" style="display:none">
+        <div class="stats-row">
+          <div class="stat-chip accent">
+            <span class="stat-chip-label">Totale prenotazioni</span>
+            <span class="stat-chip-value" id="statTotalBookings">0</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-chip-label">Posti</span>
+            <span class="stat-chip-value" id="statTotalSeats">0</span>
+          </div>
+          <div class="stat-chip accent">
+            <span class="stat-chip-label">Confermate</span>
+            <span class="stat-chip-value" id="statConfirmed">0</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-chip-label">Totale incasso</span>
+            <span class="stat-chip-value" id="statRevenue">€0,00</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Lista prenotazioni</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Evento</th>
+                  <th>Nome</th>
+                  <th>Email</th>
+                  <th>Telefono</th>
+                  <th>Posti</th>
+                  <th>Stato</th>
+                  <th>Data</th>
+                  <th>Azioni</th>
+                </tr>
+              </thead>
+              <tbody id="bookingsTbody">
+                <tr><td colspan="8" class="empty-state">Nessuna prenotazione.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="js/common-ui.js"></script>
+  <script src="js/admin-eventi.js"></script>
+</body>
+</html>

@@ -333,6 +333,14 @@ body.ready {
   display: flex;
 }
 
+.lightbox-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 92vw;
+}
+
 .lightbox img {
   max-width: 90vw;
   max-height: 90vh;
@@ -341,4 +349,15 @@ body.ready {
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+.lightbox-actions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.lightbox-actions .btn-filled {
+  min-width: 220px;
+  justify-content: center;
 }

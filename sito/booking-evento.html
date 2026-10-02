@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prenotazione evento – Mediterranea</title>
+  <meta name="description" content="Prenota un posto per la serata selezionata.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/pizzica-med.css">
+</head>
+<body>
+  <header class="appbar">
+    <a href="index.html" class="appbar-action" title="Torna alla home">
+      <span class="material-icons-outlined">arrow_back</span>
+    </a>
+    <span class="appbar-title" id="appbarTitle">Prenotazione</span>
+    <div class="lang-switcher">
+      <span class="lang-btn active" aria-label="Italiano">
+        <span class="flag-circle"><img src="https://flagcdn.com/it.svg" alt="Italiano"></span>
+      </span>
+    </div>
+  </header>
+
+  <section class="hero" role="banner" aria-label="Prenotazione evento">
+    <div class="hero-content">
+      <h1 class="hero-title" id="eventTitle">Caricamento…</h1>
+      <p class="hero-subtitle" id="eventSubtitle">Serata in organizzazione</p>
+      <div class="hero-chips">
+        <span class="hero-chip">
+          <span class="material-icons-outlined">calendar_today</span>
+          <span id="eventDateChip">–</span>
+        </span>
+        <span class="hero-chip">
+          <span class="material-icons-outlined">schedule</span>
+          <span id="eventTimeChip">–</span>
+        </span>
+        <span class="hero-chip">
+          <span class="material-icons-outlined">location_on</span>
+          <span id="eventPlaceChip">–</span>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <div class="info-bar" role="note">
+    <span class="info-main" id="eventPriceInfo">Prezzo a persona secondo la serata selezionata</span>
+    <span class="info-dimmed"> · calice di vino incluso · tessera associativa inclusa · pagamento online sicuro</span>
+  </div>
+
+  <main class="page-body">
+    <div class="page-container">
+      <div id="errorState" class="form-placeholder" style="display:none;">
+        <span class="material-icons-outlined" aria-hidden="true">error</span>
+        <p id="errorStateText">La serata richiesta non è disponibile.</p>
+      </div>
+
+      <section id="formSection" class="form-section" aria-labelledby="formHeading">
+        <h2 class="section-heading" id="formHeading">Completa la prenotazione</h2>
+        <div class="selected-date-banner" aria-live="polite">
+          <span class="material-icons-outlined" aria-hidden="true">event</span>
+          <span id="selectedDateLabel">–</span>
+          <div class="selected-price-info" id="selectedPriceInfo">–</div>
+        </div>
+
+        <div class="form-card">
+          <form id="bookingForm" novalidate>
+            <div class="fields-grid">
+              <div class="field-half form-group">
+                <label for="nome">Nome <span class="required-star" aria-hidden="true">*</span></label>
+                <input type="text" id="nome" name="nome" autocomplete="given-name" required>
+                <span class="error-msg" role="alert">Nome obbligatorio</span>
+              </div>
+
+              <div class="field-half form-group">
+                <label for="cognome">Cognome <span class="required-star" aria-hidden="true">*</span></label>
+                <input type="text" id="cognome" name="cognome" autocomplete="family-name" required>
+                <span class="error-msg" role="alert">Cognome obbligatorio</span>
+              </div>
+
+              <div class="field-half form-group">
+                <label for="email">Email <span class="required-star" aria-hidden="true">*</span></label>
+                <input type="email" id="email" name="email" autocomplete="email" required>
+                <span class="error-msg" role="alert">Email non valida</span>
+              </div>
+
+              <div class="field-half form-group">
+                <label for="telefono">Telefono <span class="required-star" aria-hidden="true">*</span></label>
+                <input type="tel" id="telefono" name="telefono" autocomplete="tel" required>
+                <span class="error-msg" role="alert">Telefono obbligatorio</span>
+              </div>
+
+              <div class="field-half form-group">
+                <label for="numPosti">Numero di posti <span class="required-star" aria-hidden="true">*</span></label>
+                <input type="number" id="numPosti" name="num_posti" min="1" value="1" required>
+                <span class="error-msg" role="alert">Inserisci un numero valido (min. 1)</span>
+              </div>
+
+              <div class="field-full form-group">
+                <label for="note">Note (preferenze alimentari, richieste speciali…)</label>
+                <textarea id="note" name="note" rows="3" placeholder="Facoltativo…"></textarea>
+              </div>
+            </div>
+
+            <div class="price-note">
+              <div class="price-note-row price-note-main">
+                <span class="material-icons-outlined" aria-hidden="true">info</span>
+                <span id="eventPriceNoteText">Prezzo a persona secondo la serata selezionata</span>
+              </div>
+              <div class="price-note-row">
+                <span class="material-icons-outlined" aria-hidden="true">wine_bar</span>
+                Calice di vino incluso
+              </div>
+              <div class="price-note-row">
+                <span class="material-icons-outlined" aria-hidden="true">badge</span>
+                Tessera associativa inclusa
+              </div>
+              <div class="price-note-row">
+                <span class="material-icons-outlined" aria-hidden="true">payments</span>
+                Pagamento online obbligatorio per confermare la prenotazione
+              </div>
+            </div>
+
+            <button type="submit" class="btn-submit" id="submitBtn">
+              <span class="material-icons-outlined" aria-hidden="true">check_circle</span>
+              <span id="submitBtnLabel">Procedi al pagamento</span>
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section id="paymentSection" class="payment-section" aria-labelledby="paymentHeading" style="display:none">
+        <h2 class="section-heading" id="paymentHeading">Pagamento</h2>
+        <div class="selected-date-banner" aria-live="polite">
+          <span class="material-icons-outlined" aria-hidden="true">event</span>
+          <span id="paymentDateLabel">–</span>
+        </div>
+        <div class="form-card payment-card">
+          <div class="payment-summary" role="region" aria-label="Riepilogo ordine">
+            <div class="pay-row">
+              <span class="material-icons-outlined" aria-hidden="true">event_seat</span>
+              <span>Posti prenotati</span>
+              <strong id="payNumPosti">–</strong>
+            </div>
+            <div class="pay-row">
+              <span class="material-icons-outlined" aria-hidden="true">euro</span>
+              <span>Prezzo a persona</span>
+              <strong id="payPricePerPerson">–</strong>
+            </div>
+            <div class="pay-row pay-total-row">
+              <span class="material-icons-outlined" aria-hidden="true">payments</span>
+              <span>Totale da pagare</span>
+              <strong id="payTotal">–</strong>
+            </div>
+          </div>
+
+          <div class="sumup-info-row">
+            <span class="material-icons-outlined" aria-hidden="true">lock</span>
+            <span>Pagamento sicuro gestito da <strong>SumUp</strong> – verrai reindirizzato alla pagina di pagamento.</span>
+          </div>
+
+          <button type="button" id="btnPayNow" class="btn-pay-sumup">
+            <span id="payNowSpinner" class="pay-spinner" style="display:none" aria-hidden="true">
+              <span class="material-icons-outlined spin-slow">sync</span>
+            </span>
+            <span class="material-icons-outlined" aria-hidden="true">open_in_new</span>
+            <span id="payNowLabel">Paga con SumUp</span>
+          </button>
+
+          <button type="button" class="btn-back-form" id="btnBackToForm">
+            <span class="material-icons-outlined" aria-hidden="true">arrow_back</span>
+            Torna al form
+          </button>
+        </div>
+      </section>
+
+      <div id="paymentVerifySection" class="payment-verify-section" style="display:none" role="status" aria-live="polite">
+        <span class="material-icons-outlined verify-spin" aria-hidden="true">sync</span>
+        <p id="verifyStatusText">Verifica pagamento in corso…</p>
+      </div>
+
+      <div id="successView" class="success-view" aria-live="polite" style="display:none">
+        <div class="success-icon" aria-hidden="true">
+          <span class="material-icons-outlined">check_circle</span>
+        </div>
+        <h2 class="success-title">Prenotazione confermata!</h2>
+        <p class="success-text" id="successText"></p>
+        <div class="success-detail" id="successDetail"></div>
+        <button class="btn-another" id="btnAnother" type="button">
+          <span class="material-icons-outlined" aria-hidden="true">add_circle_outline</span>
+          Prenota un'altra serata
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="js/common-ui.js"></script>
+  <script src="js/booking-evento.js"></script>
+</body>
+</html>

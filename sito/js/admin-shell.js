@@ -9,12 +9,14 @@ const shellHistoryPicker = document.getElementById('shellHistoryPicker');
 const shellRouteMap = {
   dashboard: 'admin.html?embedded=1',
   search: 'admin-ricerca.html?embedded=1',
+  eventi: 'admin-eventi.html?embedded=1',
   settings: 'settings.html?embedded=1',
   digitizzazione: 'admin-digitalizzazione.html?embedded=1',
 };
 const shellTitleMap = {
   dashboard: 'Dashboard',
   search: 'Ricerca',
+  eventi: 'Eventi & prenotazioni',
   settings: 'Impostazioni',
   digitizzazione: 'Digitalizzazione',
 };
