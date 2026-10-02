@@ -1,8 +1,38 @@
 (function () {
   const { showSnackbar, loadThemeAndReady } = CodexUi;
   const $ = id => document.getElementById(id);
-  const state = { events: [], bookings: [], eventImageUrls: [] };
+  const state = { events: [], bookings: [], eventImageUrls: [], editingEventId: null };
   const ENLARGE_FACTOR = 0.34;
+
+  function resetEventForm() {
+    state.editingEventId = null;
+    $('eventForm').reset();
+    $('eventTimeInput').value = '19:30';
+    $('eventPriceInput').value = '15';
+    $('eventImageInput').value = '';
+    state.eventImageUrls = [];
+    $('eventSubmitLabel').textContent = 'Salva serata';
+    $('eventCancelEditBtn').style.display = 'none';
+    renderEventImageList();
+    updateEventCarouselPreview();
+  }
+
+  function fillEventForm(eventDoc) {
+    state.editingEventId = eventDoc.id;
+    $('eventSlug').value = eventDoc.slug || '';
+    $('eventTitleInput').value = eventDoc.titolo || '';
+    $('eventDateInput').value = eventDoc.data || '';
+    $('eventTimeInput').value = eventDoc.ora || '19:30';
+    $('eventPriceInput').value = eventDoc.prezzo ?? '15';
+    $('eventLocationInput').value = eventDoc.luogo || 'Mediterranea – Lecce';
+    $('eventImageInput').value = eventDoc.immagine_url || '';
+    $('eventNoteInput').value = eventDoc.note || '';
+    state.eventImageUrls = eventDoc.immagine_url ? [eventDoc.immagine_url] : [];
+    $('eventSubmitLabel').textContent = 'Aggiorna serata';
+    $('eventCancelEditBtn').style.display = 'inline-flex';
+    renderEventImageList();
+    updateEventCarouselPreview();
+  }
 
   function renderEventImageList() {
     const list = $('eventCarouselImageList');
@@ -310,6 +340,9 @@
         </td>
         <td>
           <div class="event-actions">
+            <button class="btn-icon" title="Modifica serata" onclick="editEvent('${eventDoc.id}')">
+              <span class="material-icons-outlined">edit</span>
+            </button>
             <button class="btn-icon" title="Apri/chiudi prenotazioni" onclick="toggleEventOpen('${eventDoc.id}', ${eventDoc.prenotazioni_aperte ? 'false' : 'true'})">
               <span class="material-icons-outlined">${eventDoc.prenotazioni_aperte ? 'lock' : 'lock_open'}</span>
             </button>
@@ -373,7 +406,6 @@
     event.preventDefault();
 
     const imageUrl = ($('eventImageInput').value.trim() || state.eventImageUrls[0] || null);
-
     const payload = {
       slug: $('eventSlug').value.trim(),
       titolo: $('eventTitleInput').value.trim(),
@@ -393,22 +425,52 @@
       return;
     }
 
-    const { error } = await supabase.from('eventi_associazione').insert(payload);
-    if (error) {
-      showSnackbar(error.message || 'Errore durante il salvataggio dell\'evento.', true);
+    let result;
+    if (state.editingEventId) {
+      const { error } = await supabase
+        .from('eventi_associazione')
+        .update(payload)
+        .eq('id', state.editingEventId);
+      if (error) {
+        showSnackbar(error.message || 'Errore durante l\'aggiornamento dell\'evento.', true);
+        return;
+      }
+      result = { ok: true };
+      showSnackbar('Evento aggiornato.');
+    } else {
+      const { error } = await supabase.from('eventi_associazione').insert(payload);
+      if (error) {
+        showSnackbar(error.message || 'Errore durante il salvataggio dell\'evento.', true);
+        return;
+      }
+      showSnackbar('Evento salvato.');
+    }
+
+    resetEventForm();
+    await loadEvents();
+    await loadBookings();
+    if (result?.ok) {
+      console.log('[admin-eventi] event updated');
+    }
+  });
+
+  window.editEvent = async (id) => {
+    const { data, error } = await supabase
+      .from('eventi_associazione')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error || !data) {
+      showSnackbar('Evento non trovato.', true);
       return;
     }
 
-    $('eventForm').reset();
-    $('eventTimeInput').value = '19:30';
-    $('eventPriceInput').value = '15';
-    $('eventImageInput').value = '';
-    state.eventImageUrls = [];
-    renderEventImageList();
-    updateEventCarouselPreview();
-    showSnackbar('Evento salvato.');
-    await loadEvents();
-  });
+    fillEventForm(data);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  window.resetEventForm = resetEventForm;
 
   window.toggleEventActive = async (id, checked) => {
     const { error } = await supabase.from('eventi_associazione').update({ is_active: checked }).eq('id', id);

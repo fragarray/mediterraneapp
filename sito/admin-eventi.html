@@ -177,7 +177,11 @@
             <div style="display:flex; gap:12px; margin-top:16px; flex-wrap:wrap;">
               <button type="submit" class="btn-filled">
                 <span class="material-icons-outlined">add</span>
-                Salva serata
+                <span id="eventSubmitLabel">Salva serata</span>
+              </button>
+              <button type="button" class="btn-outlined" id="eventCancelEditBtn" style="display:none;" onclick="resetEventForm()">
+                <span class="material-icons-outlined">close</span>
+                Annulla modifica
               </button>
             </div>
           </form>
