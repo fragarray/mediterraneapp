@@ -26,7 +26,7 @@ module.exports = async function handler(req, res) {
     const checkout = Array.isArray(checkouts) ? checkouts[0] : null;
     if (!checkout) return res.status(404).json({ error: 'Checkout not found in SumUp' });
 
-    const status = checkout.status;
+    const status = String(checkout?.status ?? checkout?.payment_status ?? checkout?.checkout_status ?? 'PENDING').trim().toUpperCase();
     const bookingRes = await fetch(
       `${SUPABASE_URL}/rest/v1/eventi_associazione_prenotazioni?payment_reference=eq.${encodeURIComponent(checkout_reference)}&select=id,nome,cognome,num_posti,evento_id,stato` ,
       { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } }
@@ -34,7 +34,12 @@ module.exports = async function handler(req, res) {
     const [booking] = bookingRes.ok ? await bookingRes.json() : [];
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-    if (booking.stato === 'confermata') {
+    const bookingStatus = String(booking.stato || '').trim().toLowerCase();
+    const isPaidStatus = ['PAID', 'PAYMENT_CONFIRMED', 'SETTLED', 'SUCCESS', 'SUCCEEDED'].includes(status);
+    const isPendingBooking = ['pending_payment', 'pending', 'in_attesa', 'in attesa', 'awaiting_payment', 'da_pagare'].includes(bookingStatus);
+    const isCancelledBooking = ['cancellata', 'cancelled', 'failed', 'expired'].includes(bookingStatus);
+
+    if (bookingStatus === 'confermata') {
       const evRes = await fetch(
         `${SUPABASE_URL}/rest/v1/eventi_associazione?id=eq.${booking.evento_id}&select=titolo,data` ,
         { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } }
@@ -47,7 +52,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    if (status === 'PAID') {
+    if (isPaidStatus || (status === 'PAID' && isPendingBooking)) {
       await fetch(`${SUPABASE_URL}/rest/v1/eventi_associazione_prenotazioni?id=eq.${booking.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
@@ -67,7 +72,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    if (status === 'FAILED' || status === 'EXPIRED') {
+    if (['FAILED', 'EXPIRED', 'CANCELLED', 'CANCELED'].includes(status) || isCancelledBooking) {
       await fetch(`${SUPABASE_URL}/rest/v1/eventi_associazione_prenotazioni?id=eq.${booking.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },

@@ -1,8 +1,57 @@
 (function () {
   const { showSnackbar, loadThemeAndReady } = CodexUi;
   const $ = id => document.getElementById(id);
-  const state = { events: [], bookings: [], eventImageUrls: [], editingEventId: null };
+  const state = { events: [], bookings: [], eventImageUrls: [], editingEventId: null, selectedEventId: null };
   const ENLARGE_FACTOR = 0.34;
+
+  function ensureSelectedEvent() {
+    if (!state.events.length) {
+      state.selectedEventId = null;
+      return;
+    }
+
+    const exists = state.events.some(eventDoc => eventDoc.id === state.selectedEventId);
+    if (!state.selectedEventId || !exists) {
+      state.selectedEventId = state.events[0].id;
+    }
+  }
+
+  function renderBookingEventCarousel() {
+    const container = $('bookingsEventCarousel');
+    if (!container) return;
+
+    ensureSelectedEvent();
+
+    if (!state.events.length) {
+      container.innerHTML = '<div class="empty-state" style="padding:16px; width:100%;">Nessuna serata disponibile.</div>';
+      return;
+    }
+
+    container.innerHTML = state.events.map(eventDoc => {
+      const isSelected = state.selectedEventId === eventDoc.id;
+      const dateLabel = eventDoc.data ? new Date(eventDoc.data + 'T00:00:00').toLocaleDateString('it-IT') : 'Data da definire';
+      const imageUrl = eventDoc.immagine_url || 'https://placehold.co/900x540/ebebeb/444?text=' + encodeURIComponent(eventDoc.titolo || 'Evento');
+      return `
+        <button type="button" class="booking-event-card ${isSelected ? 'selected' : ''}" data-event-id="${eventDoc.id}" aria-pressed="${isSelected}">
+          <img src="${imageUrl}" alt="${eventDoc.titolo || 'Evento'}" onerror="this.src='https://placehold.co/900x540/ebebeb/444?text=Evento'">
+          <div class="booking-event-card-body">
+            <strong>${eventDoc.titolo || 'Evento senza titolo'}</strong>
+            <div class="booking-event-card-meta">${dateLabel}</div>
+            <div class="booking-event-card-meta">€${Number(eventDoc.prezzo || 0).toFixed(2).replace('.', ',')}</div>
+          </div>
+        </button>
+      `;
+    }).join('');
+
+    container.querySelectorAll('.booking-event-card').forEach(card => {
+      card.addEventListener('click', () => {
+        state.selectedEventId = card.dataset.eventId;
+        renderBookingEventCarousel();
+        renderBookingsTable();
+        updateStats();
+      });
+    });
+  }
 
   function resetEventForm() {
     state.editingEventId = null;
@@ -312,6 +361,8 @@
     }
 
     state.events = data || [];
+    ensureSelectedEvent();
+    renderBookingEventCarousel();
     renderEventsTable();
   }
 
@@ -392,17 +443,22 @@
 
   function renderBookingsTable() {
     const tbody = $('bookingsTbody');
-    if (!state.bookings.length) {
-      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Nessuna prenotazione.</td></tr>';
+    const filteredBookings = state.selectedEventId
+      ? state.bookings.filter(booking => booking.evento_id === state.selectedEventId)
+      : state.bookings;
+
+    if (!filteredBookings.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Nessuna prenotazione per questa serata.</td></tr>';
       return;
     }
 
     const eventMap = new Map(state.events.map(eventDoc => [eventDoc.id, eventDoc]));
-    tbody.innerHTML = state.bookings.map(booking => {
+    tbody.innerHTML = filteredBookings.map(booking => {
       const eventDoc = eventMap.get(booking.evento_id);
+      const eventTitle = eventDoc?.titolo || booking.evento || booking.evento_titolo || 'Evento non trovato';
       return `
         <tr>
-          <td>${eventDoc ? eventDoc.titolo : 'Evento non trovato'}</td>
+          <td>${eventTitle}</td>
           <td>${booking.nome} ${booking.cognome}</td>
           <td>${booking.email || '–'}</td>
           <td>${booking.telefono || '–'}</td>
@@ -423,12 +479,16 @@
     }).join('');
   }
 
-  function updateStats() {
-    const confirmed = state.bookings.filter(item => item.stato === 'confermata');
-    const totalSeats = state.bookings.reduce((sum, item) => sum + Number(item.num_posti || 0), 0);
+  function updateStats(bookings = state.bookings) {
+    const filteredBookings = state.selectedEventId
+      ? bookings.filter(item => item.evento_id === state.selectedEventId)
+      : bookings;
+
+    const confirmed = filteredBookings.filter(item => item.stato === 'confermata');
+    const totalSeats = filteredBookings.reduce((sum, item) => sum + Number(item.num_posti || 0), 0);
     const revenue = confirmed.reduce((sum, item) => sum + Number(item.importo_pagato || 0), 0);
 
-    $('statTotalBookings').textContent = String(state.bookings.length);
+    $('statTotalBookings').textContent = String(filteredBookings.length);
     $('statTotalSeats').textContent = String(totalSeats);
     $('statConfirmed').textContent = String(confirmed.length);
     $('statRevenue').textContent = formatMoney(revenue);
