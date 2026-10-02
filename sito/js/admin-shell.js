@@ -21,7 +21,12 @@ const shellTitleMap = {
   digitizzazione: 'Digitalizzazione',
 };
 
+if (!shellFrame) {
+  throw new Error('[admin-shell] adminFrame element not found');
+}
+
 let shellCurrentView = 'dashboard';
+let shellInitDone = false;
 
 function shellNormalizeView(view) {
   return Object.prototype.hasOwnProperty.call(shellRouteMap, view) ? view : 'dashboard';
@@ -119,16 +124,21 @@ shellButtons.forEach(btn => {
 });
 
 function shellInitFromUrl() {
+  if (shellInitDone) return;
+  shellInitDone = true;
+
   const params = new URLSearchParams(window.location.search);
   const requestedView = params.get('view');
   const initialView = shellNormalizeView(requestedView || shellCurrentView);
   shellNavigate(initialView, { replaceHistory: true, cacheBuster: true });
 }
 
-shellInitFromUrl();
-window.addEventListener('DOMContentLoaded', shellInitFromUrl);
+const shellSignOutBtn = document.getElementById('shellSignOutBtn');
+if (shellSignOutBtn) {
+  shellSignOutBtn.addEventListener('click', shellSignOut);
+}
 
-document.getElementById('shellSignOutBtn').addEventListener('click', shellSignOut);
+shellInitFromUrl();
 
 if (shellHistoryPicker) {
   shellHistoryPicker.addEventListener('change', () => {
@@ -155,14 +165,17 @@ window.addEventListener('popstate', event => {
 });
 
 (async function initShell() {
+  if (!shellFrame) return;
+
   await loadThemeAndReady({
     onError: error => console.error('[admin-shell] theme init error:', error),
   });
 
   const initialView = shellNormalizeView(new URLSearchParams(window.location.search).get('view'));
-  shellNavigate(initialView, { replaceHistory: true });
+  if (!shellInitDone) {
+    shellNavigate(initialView, { replaceHistory: true });
+  }
 
-  // Check backup reminder after navigation is set up
   await checkBackupReminder();
 })();
 

@@ -183,21 +183,43 @@
 
   window.uploadEventCarouselFiles = uploadEventCarouselFiles;
 
+  function isSupabaseReady() {
+    return Boolean(window.supabase && window.supabase.auth && typeof window.supabase.auth.getSession === 'function');
+  }
+
   function showMain() {
-    $('loginView').style.display = 'none';
-    $('mainView').style.display = '';
-    $('appbarUser').textContent = supabase.auth.getUser?.()?.then ? '' : '';
+    const loginView = $('loginView');
+    const mainView = $('mainView');
+    const appbarUser = $('appbarUser');
+    if (!loginView || !mainView || !appbarUser) return;
+
+    loginView.style.display = 'none';
+    mainView.style.display = '';
+    appbarUser.textContent = '';
     loadData();
   }
 
   async function checkAuth() {
+    if (!isSupabaseReady()) {
+      const loginView = $('loginView');
+      const mainView = $('mainView');
+      if (loginView) loginView.style.display = '';
+      if (mainView) mainView.style.display = 'none';
+      document.body.classList.add('ready');
+      showSnackbar('Il servizio di autenticazione non è disponibile in questo momento.', true);
+      return;
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
-      $('appbarUser').textContent = session.user.email || '';
+      const appbarUser = $('appbarUser');
+      if (appbarUser) appbarUser.textContent = session.user.email || '';
       showMain();
     } else {
-      $('loginView').style.display = '';
-      $('mainView').style.display = 'none';
+      const loginView = $('loginView');
+      const mainView = $('mainView');
+      if (loginView) loginView.style.display = '';
+      if (mainView) mainView.style.display = 'none';
       document.body.classList.add('ready');
     }
   }
@@ -264,6 +286,7 @@
   });
 
   async function loadData() {
+    if (!isSupabaseReady()) return;
     await Promise.all([loadEvents(), loadBookings()]);
     await loadThemeAndReady({ readyClass: true });
   }
