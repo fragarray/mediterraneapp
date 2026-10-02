@@ -80,6 +80,7 @@
       lightboxBookingBtn.onclick = function(event) {
         event.preventDefault();
         event.stopPropagation();
+        clearLightboxClickSuppression();
         navigateToBookingPage(eventDoc.slug);
       };
     }
@@ -116,6 +117,7 @@
     lightbox.addEventListener('click', function(event) {
       const bookingBtn = event.target.closest('#lightboxBookingBtn');
       if (bookingBtn) {
+        clearLightboxClickSuppression();
         event.preventDefault();
         event.stopPropagation();
         return;
@@ -132,6 +134,9 @@
     });
 
     lightbox.addEventListener('pointerdown', function(event) {
+      if (event.target.closest('#lightboxBookingBtn')) {
+        return;
+      }
       if (carouselImageUrls.length <= 1) return;
       if (event.button !== undefined && event.button !== 0) return;
       if (lightboxPointerId !== null) return;
@@ -170,6 +175,11 @@
 
     lightbox.addEventListener('pointerup', function(event) {
       if (lightboxPointerId !== event.pointerId) return;
+      if (event.target.closest('#lightboxBookingBtn')) {
+        resetLightboxDragState();
+        clearLightboxClickSuppression();
+        return;
+      }
 
       const deltaX = event.clientX - lightboxStartX;
       const swipeThreshold = Math.max(window.innerWidth * LIGHTBOX_SETTLE_RATIO, 64);
