@@ -118,6 +118,15 @@ shellButtons.forEach(btn => {
   });
 });
 
+function shellInitFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedView = params.get('view');
+  const initialView = shellNormalizeView(requestedView || shellCurrentView);
+  shellNavigate(initialView, { replaceHistory: true, cacheBuster: true });
+}
+
+window.addEventListener('DOMContentLoaded', shellInitFromUrl);
+
 document.getElementById('shellSignOutBtn').addEventListener('click', shellSignOut);
 
 if (shellHistoryPicker) {

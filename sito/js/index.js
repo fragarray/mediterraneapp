@@ -71,7 +71,9 @@
 
       lightboxBookingBtn.hidden = false;
       lightboxBookingBtn.setAttribute('data-slug', eventDoc.slug);
-      lightboxBookingBtn.onclick = function() {
+      lightboxBookingBtn.onclick = function(event) {
+        event.preventDefault();
+        event.stopPropagation();
         if (eventDoc.slug) {
           window.location.href = `booking-evento.html?slug=${encodeURIComponent(eventDoc.slug)}`;
         }
@@ -108,6 +110,12 @@
     }
 
     lightbox.addEventListener('click', function(event) {
+      if (event.target === lightboxBookingBtn || event.target.closest('#lightboxBookingBtn')) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
       if (lightboxSuppressNextClick) {
         event.preventDefault();
         event.stopPropagation();
