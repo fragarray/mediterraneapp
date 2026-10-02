@@ -8,6 +8,7 @@
   };
 
   const els = {
+    hero: document.querySelector('.hero'),
     title: document.getElementById('eventTitle'),
     subtitle: document.getElementById('eventSubtitle'),
     eventDateChip: document.getElementById('eventDateChip'),
@@ -65,6 +66,14 @@
   function setEventDetails(eventDoc) {
     state.event = eventDoc;
     state.currentPrice = Number(eventDoc.prezzo || 0) || 0;
+
+    const heroImage = eventDoc.immagine_url || 'img/pizzica-hero.jpg';
+    if (els.hero) {
+      els.hero.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.4), rgba(0,0,0,0.75), rgba(0,0,0,0.88)), url("${heroImage}")`;
+      els.hero.style.backgroundSize = 'cover';
+      els.hero.style.backgroundPosition = 'center center';
+      els.hero.style.backgroundRepeat = 'no-repeat';
+    }
 
     els.title.textContent = eventDoc.titolo || 'Prenotazione';
     els.subtitle.textContent = eventDoc.note || 'Serata in organizzazione';

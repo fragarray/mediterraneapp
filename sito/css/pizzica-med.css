@@ -114,10 +114,11 @@ body {
   background-repeat: no-repeat;
   background-color: #1c0a0a;
   /* Mobile: full width, no horizontal crop, vertically centered */
-  background-size: 100% auto;
+  background-size: cover;
   background-position: center center;
   min-height: 0;
   height: calc(65.6vw + 160px);
+  transition: background-image 0.2s ease;
 }
 
 /* Desktop: cap hero height on very wide screens to avoid 1100px+ heroes */
