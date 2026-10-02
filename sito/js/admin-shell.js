@@ -125,6 +125,7 @@ function shellInitFromUrl() {
   shellNavigate(initialView, { replaceHistory: true, cacheBuster: true });
 }
 
+shellInitFromUrl();
 window.addEventListener('DOMContentLoaded', shellInitFromUrl);
 
 document.getElementById('shellSignOutBtn').addEventListener('click', shellSignOut);

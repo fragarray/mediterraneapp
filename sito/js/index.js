@@ -61,11 +61,17 @@
       lightbox.classList.remove('active');
     }
 
+    function navigateToBookingPage(slug) {
+      if (!slug) return;
+      window.location.assign(`booking-evento.html?slug=${encodeURIComponent(slug)}`);
+    }
+
     function updateLightboxBookingAction(eventDoc) {
       if (!lightboxBookingBtn) return;
       if (!eventDoc || !eventDoc.slug) {
         lightboxBookingBtn.hidden = true;
         lightboxBookingBtn.removeAttribute('data-slug');
+        lightboxBookingBtn.onclick = null;
         return;
       }
 
@@ -74,9 +80,7 @@
       lightboxBookingBtn.onclick = function(event) {
         event.preventDefault();
         event.stopPropagation();
-        if (eventDoc.slug) {
-          window.location.href = `booking-evento.html?slug=${encodeURIComponent(eventDoc.slug)}`;
-        }
+        navigateToBookingPage(eventDoc.slug);
       };
     }
 
@@ -110,7 +114,8 @@
     }
 
     lightbox.addEventListener('click', function(event) {
-      if (event.target === lightboxBookingBtn || event.target.closest('#lightboxBookingBtn')) {
+      const bookingBtn = event.target.closest('#lightboxBookingBtn');
+      if (bookingBtn) {
         event.preventDefault();
         event.stopPropagation();
         return;
