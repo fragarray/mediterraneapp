@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Eventi & prenotazioni – Mediterranea</title>
+  <script>
+    if (new URLSearchParams(window.location.search).get('embedded') === '1') {
+      document.documentElement.classList.add('embedded-admin');
+    }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -12,6 +17,8 @@
   <link rel="stylesheet" href="css/admin-shared.css">
   <link rel="stylesheet" href="css/admin.css">
   <style>
+    html.embedded-admin #loginView { display: none !important; }
+    html.embedded-admin #mainView { display: block !important; }
     .page-shell { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
     .tab-nav { display:flex; gap:10px; flex-wrap:wrap; margin: 16px 0 24px; }
     .tab-btn { background: rgba(0,0,0,0.02); border:1px solid var(--border-color); color: var(--text-primary); border-radius:12px; padding:10px 16px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px; }
