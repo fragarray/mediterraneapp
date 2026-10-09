@@ -243,7 +243,7 @@
     if (!loginView || !mainView || !appbarUser) return;
 
     loginView.style.display = 'none';
-    mainView.style.display = '';
+    mainView.style.display = 'block';
     appbarUser.textContent = '';
     loadData();
   }
