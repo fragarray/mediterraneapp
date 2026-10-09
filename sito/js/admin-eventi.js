@@ -249,15 +249,6 @@
   }
 
   async function checkAuth() {
-    const isEmbedded = new URLSearchParams(window.location.search).get('embedded') === '1';
-
-    if (isEmbedded) {
-      const appbarUser = $('appbarUser');
-      if (appbarUser) appbarUser.textContent = 'Admin';
-      showMain();
-      return;
-    }
-
     if (!isSupabaseReady()) {
       const loginView = $('loginView');
       const mainView = $('mainView');
