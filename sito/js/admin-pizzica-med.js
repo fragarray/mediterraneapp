@@ -525,7 +525,11 @@
     tbody.innerHTML = sorted.map(ev => `
       <tr data-id="${esc(ev.id)}">
         <td class="event-date-cell">${esc(formatDate(ev.data))}</td>
-        <td>${esc(ev.ora?.slice(0,5) || '19:30')}</td>
+        <td>
+          <input type="time" class="time-inline-input" value="${esc(ev.ora?.slice(0,5) || '19:30')}"
+            onchange="updateEventTime('${esc(ev.id)}', this.value)"
+            title="Modifica orario">
+        </td>
         <td>
           <input type="number" class="price-inline-input" value="${parseFloat(ev.prezzo || 15).toFixed(2)}"
             min="0" step="0.50" style="width:72px"
@@ -638,7 +642,9 @@
   $('addDateBtn').addEventListener('click', async () => {
     const input = $('newDateInput');
     const date  = input.value;
+    const time  = $('newDateTime')?.value;
     if (!date) { showSnackbar('Inserisci una data valida.', true); return; }
+    if (!time) { showSnackbar('Inserisci un orario valido.', true); return; }
 
     const today = new Date();
     const todayIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
@@ -652,7 +658,7 @@
 
     const { error } = await supabase.from('pizzica_eventi').insert({
       data: date,
-      ora: '19:30',
+      ora: time,
       luogo: 'Mediterranea – Palazzo dei Celestini – Lecce',
       prenotazioni_aperte: true,
       prezzo: priceVal,
@@ -683,13 +689,36 @@
     showSnackbar(`Prezzo aggiornato: €${newPrice.toFixed(2)}`);
   };
 
+  window.updateEventTime = async (id, newTime) => {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(newTime)) {
+      showSnackbar('Orario non valido.', true);
+      await loadEventsData();
+      return;
+    }
+    const { data: updated, error } = await supabase
+      .from('pizzica_eventi')
+      .update({ ora: newTime })
+      .eq('id', id)
+      .select('id');
+    if (error) { showSnackbar('Errore aggiornamento orario.', true); await loadEventsData(); return; }
+    if (!updated || updated.length === 0) {
+      showSnackbar('Aggiornamento bloccato: verifica la policy UPDATE su pizzica_eventi in Supabase.', true);
+      await loadEventsData();
+      return;
+    }
+    const ev = allEvents.find(e => e.id === id);
+    if (ev) ev.ora = newTime;
+    showSnackbar(`Orario aggiornato: ${newTime}`);
+  };
+
   // Generate dates (Mon/Wed/Sat)
   $('generateDatesBtn').addEventListener('click', async () => {
     const fromInput  = $('genFromDate').value;
     const weeksInput = parseInt($('genWeeks').value, 10);
+    const time = $('genTime').value;
 
-    if (!fromInput || isNaN(weeksInput) || weeksInput < 1) {
-      showSnackbar('Inserisci una data di inizio e un numero di settimane valido.', true);
+    if (!fromInput || isNaN(weeksInput) || weeksInput < 1 || !time) {
+      showSnackbar('Inserisci data, orario e numero di settimane validi.', true);
       return;
     }
 
@@ -711,7 +740,7 @@
 
     const rows = newDates.map(d => ({
       data: d,
-      ora: '19:30',
+      ora: time,
       luogo: 'Mediterranea – Palazzo dei Celestini – Lecce',
       prenotazioni_aperte: true,
       prezzo: defaultPrice,

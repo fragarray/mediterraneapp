@@ -234,6 +234,7 @@
 }
 
 .generate-row input[type="date"],
+.generate-row input[type="time"],
 .generate-row input[type="number"] {
   padding: 9px 12px;
   font-size: 14px;
@@ -398,7 +399,8 @@
 }
 
 /* ── Inline price input in events table ── */
-.price-inline-input {
+.price-inline-input,
+.time-inline-input {
   padding: 5px 8px;
   font-size: 13px;
   font-family: inherit;
@@ -412,7 +414,13 @@
   text-align: right;
 }
 
-.price-inline-input:focus {
+.time-inline-input {
+  width: 96px;
+  text-align: left;
+}
+
+.price-inline-input:focus,
+.time-inline-input:focus {
   border-color: var(--seed);
   box-shadow: 0 0 0 2px var(--seed-10);
 }
@@ -425,7 +433,8 @@
   align-items: flex-end;
 }
 
-.add-date-row input[type="date"] {
+.add-date-row input[type="date"],
+.add-date-row input[type="time"] {
   padding: 9px 12px;
   font-size: 14px;
   font-family: inherit;
@@ -437,7 +446,8 @@
   transition: border-color .15s;
 }
 
-.add-date-row input[type="date"]:focus {
+.add-date-row input[type="date"]:focus,
+.add-date-row input[type="time"]:focus {
   border-color: var(--seed);
   box-shadow: 0 0 0 2px var(--seed-10);
 }

@@ -169,6 +169,7 @@
         <h3 class="card-title">Aggiungi serata singola</h3>
         <div class="add-date-row">
           <input type="date" id="newDateInput" aria-label="Data nuova serata">
+          <input type="time" id="newDateTime" value="19:30" required aria-label="Orario serata">
           <input type="number" id="newDatePrice" value="15" min="0" step="0.50" style="width:90px" aria-label="Prezzo serata (€)" title="Prezzo (\u20ac)" placeholder="€">
           <button class="btn-filled" id="addDateBtn">
             <span class="material-icons-outlined">add</span>
@@ -192,6 +193,10 @@
             <input type="date" id="genFromDate">
           </div>
           <div class="gen-field">
+            <label for="genTime">Orario</label>
+            <input type="time" id="genTime" value="19:30" required>
+          </div>
+          <div class="gen-field">
             <label for="genWeeks">Per quante settimane</label>
             <input type="number" id="genWeeks" value="4" min="1" max="52" style="width:90px">
           </div>
@@ -209,7 +214,7 @@
           <table id="eventsTable">
             <colgroup>
               <col style="width:200px">
-              <col style="width:80px">
+              <col style="width:100px">
               <col style="width:80px">
               <col style="width:110px">
               <col>

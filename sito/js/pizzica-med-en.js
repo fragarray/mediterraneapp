@@ -4,7 +4,6 @@ initEstateMediterranea({
   otherLangHref: 'pizzica-med.html',
   days: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
   monthsFull: ['January','February','March','April','May','June','July','August','September','October','November','December'],
-  timeLabel: '7:30 PM',
   s: {
     loading:     'Loading available evenings…',
     loadError:   'Unable to load events. Please try again later.',

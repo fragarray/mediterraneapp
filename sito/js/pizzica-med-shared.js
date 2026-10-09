@@ -5,7 +5,7 @@
 
 window.initEstateMediterranea = function (config) {
   const { showSnackbar, loadThemeAndReady, scrollToFirstInvalidField } = CodexUi;
-  const { days, monthsFull, timeLabel, s } = config;
+  const { days, monthsFull, s } = config;
 
   // ── State ─────────────────────────────────────────────────
   let events            = [];
@@ -65,9 +65,19 @@ window.initEstateMediterranea = function (config) {
     return new Date(y, m - 1, d);
   }
 
-  function formatDateFull(iso) {
+  function formatEventTime(value) {
+    const match = String(value || '').match(/^(\d{2}):(\d{2})/);
+    if (!match) return '';
+    const [, hourText, minute] = match;
+    if (config.lang !== 'en') return `${hourText}:${minute}`;
+    const hour = Number(hourText);
+    return `${hour % 12 || 12}:${minute} ${hour >= 12 ? 'PM' : 'AM'}`;
+  }
+
+  function formatDateFull(iso, eventTime = '') {
     const d = parseLocalDate(iso);
-    return `${days[d.getDay()]} ${d.getDate()} ${monthsFull[d.getMonth()]} ${d.getFullYear()} · ${timeLabel}`;
+    const time = formatEventTime(eventTime);
+    return `${days[d.getDay()]} ${d.getDate()} ${monthsFull[d.getMonth()]} ${d.getFullYear()}${time ? ` · ${time}` : ''}`;
   }
 
   function formatDateCard(iso) {
@@ -111,6 +121,7 @@ window.initEstateMediterranea = function (config) {
     const cards = evts.map(ev => {
       const price = normalizeEventPrice(ev.prezzo, defaultEventPrice);
       const { weekday, day, month, year } = formatDateCard(ev.data);
+      const eventTime = formatEventTime(ev.ora);
       const isSoldOut = Boolean(ev.sold_out);
       return `
         <button type="button" class="date-card${isSoldOut ? ' sold-out' : ''}"
@@ -119,10 +130,11 @@ window.initEstateMediterranea = function (config) {
           data-price="${price}"
           data-sold-out="${isSoldOut ? '1' : '0'}"
           ${isSoldOut ? 'disabled' : ''}
-          aria-label="${esc(weekday)} ${day} ${esc(month)} ${year}${isSoldOut ? ' · sold out' : ''}">
+          aria-label="${esc(weekday)} ${day} ${esc(month)} ${year}${eventTime ? ` · ${esc(eventTime)}` : ''}${isSoldOut ? ' · sold out' : ''}">
           <span class="dc-weekday">${esc(weekday)}</span>
           <span class="dc-day">${day}</span>
           <span class="dc-month">${esc(month)} ${year}</span>
+          ${eventTime ? `<span class="dc-time">${esc(eventTime)}</span>` : ''}
           <span class="dc-status">${isSoldOut ? 'Sold out' : 'Prenotabile'}</span>
         </button>`;
     }).join('');
@@ -135,13 +147,14 @@ window.initEstateMediterranea = function (config) {
         card.dataset.id,
         card.dataset.date,
         price,
+        events.find(ev => ev.id === card.dataset.id)?.ora || '',
         false
       ));
     });
   }
 
   // ── Select date ───────────────────────────────────────────
-  function onDateClick(eventId, isoDate, price, isSoldOut = false) {
+  function onDateClick(eventId, isoDate, price, eventTime, isSoldOut = false) {
     if (isSoldOut) {
       showSnackbar(config.lang === 'en'
         ? 'This evening is sold out and reservations are no longer available.'
@@ -158,7 +171,7 @@ window.initEstateMediterranea = function (config) {
     successView.classList.remove('visible');
     paymentSection?.classList.remove('visible');
     formSection.classList.add('visible');
-    selectedDateLabel.textContent = formatDateFull(isoDate);
+    selectedDateLabel.textContent = formatDateFull(isoDate, eventTime);
     const priceInfo = document.getElementById('selectedPriceInfo');
     if (priceInfo) {
       priceInfo.textContent = `${config.lang === 'en' ? 'Price per person:' : 'Prezzo a persona:'} ${formatPrice(currentEventPrice)} ${config.lang === 'en' ? '· paid entry from age 13 and up' : '· ingresso a pagamento dai 13 anni in su'}`;

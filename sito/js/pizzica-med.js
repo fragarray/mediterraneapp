@@ -4,7 +4,6 @@ initEstateMediterranea({
   otherLangHref: 'pizzica-med-en.html',
   days: ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'],
   monthsFull: ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'],
-  timeLabel: 'ore 19:30',
   s: {
     loading:     'Caricamento serate disponibili…',
     loadError:   'Impossibile caricare le serate. Riprova più tardi.',
