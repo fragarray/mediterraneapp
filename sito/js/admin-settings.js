@@ -289,10 +289,15 @@ async function loadSettingsValues() {
       getAppSetting(SETTING_LAST_BACKUP),
     ]);
 
-    if (start) document.getElementById('membershipStartInput').value = start;
-    if (instagram) document.getElementById('instagramInput').value = instagram;
+    const membershipStartInput = document.getElementById('membershipStartInput');
+    if (membershipStartInput && start) membershipStartInput.value = start;
 
-    if (backupInterval) document.getElementById('backupIntervalInput').value = backupInterval;
+    const instagramInput = document.getElementById('instagramInput');
+    if (instagramInput && instagram) instagramInput.value = instagram;
+
+    const backupIntervalInput = document.getElementById('backupIntervalInput');
+    if (backupIntervalInput && backupInterval) backupIntervalInput.value = backupInterval;
+
     const lastBackupLabel = document.getElementById('lastBackupLabel');
     if (lastBackupLabel) {
       if (lastBackup) {
@@ -308,16 +313,23 @@ async function loadSettingsValues() {
     const savedColor = normalizeThemeColorHex(colorHex) || _selectedColorHex || '#2E7D32';
     setColorFromSaved(savedColor);
 
+    const sliderHeight = document.getElementById('sliderHeight');
+    const valHeight = document.getElementById('valHeight');
+    const sliderItems = document.getElementById('sliderItems');
+    const valItems = document.getElementById('valItems');
+    const sliderAutoplay = document.getElementById('sliderAutoplay');
+    const valAutoplay = document.getElementById('valAutoplay');
+
     if (carouselRaw) {
       try {
         const cfg = JSON.parse(carouselRaw);
         _carouselUrls = cfg.image_urls || [];
-        document.getElementById('sliderHeight').value = cfg.widget_height || 230;
-        document.getElementById('valHeight').textContent = cfg.widget_height || 230;
-        document.getElementById('sliderItems').value = cfg.visible_items || 2;
-        document.getElementById('valItems').textContent = cfg.visible_items || 2;
-        document.getElementById('sliderAutoplay').value = cfg.autoplay_seconds || 4;
-        document.getElementById('valAutoplay').textContent = cfg.autoplay_seconds || 4;
+        if (sliderHeight) sliderHeight.value = cfg.widget_height || 230;
+        if (valHeight) valHeight.textContent = cfg.widget_height || 230;
+        if (sliderItems) sliderItems.value = cfg.visible_items || 2;
+        if (valItems) valItems.textContent = cfg.visible_items || 2;
+        if (sliderAutoplay) sliderAutoplay.value = cfg.autoplay_seconds || 4;
+        if (valAutoplay) valAutoplay.textContent = cfg.autoplay_seconds || 4;
       } catch (_) {}
     }
 
@@ -413,6 +425,8 @@ async function saveThemeColor() {
 
 function renderCarouselImageList() {
   const list = document.getElementById('carouselImageList');
+  if (!list) return;
+
   if (!_carouselUrls.length) {
     list.innerHTML = '<div class="empty-state" style="padding:16px;">Nessuna immagine caricata.</div>';
     return;
@@ -444,6 +458,8 @@ async function removeCarouselUrl(idx) {
 
 function updateSlideScales() {
   const track = document.getElementById('carouselTrack');
+  if (!track) return;
+
   const slides = track.querySelectorAll('.carousel-slide');
   slides.forEach((slide, i) => {
     if (_previewEnlarge && _previewRealCount > 1) {
@@ -459,8 +475,10 @@ function updateSlideScales() {
 
 function goToPreviewSlide(idx, animate) {
   if (animate === undefined) animate = true;
-  _previewIndex = idx;
   const track = document.getElementById('carouselTrack');
+  if (!track) return;
+
+  _previewIndex = idx;
   if (!animate) {
     track.style.transition = 'none';
   }
@@ -478,9 +496,15 @@ function goToPreviewSlide(idx, animate) {
 function updateCarouselPreview() {
   const wrap = document.getElementById('carouselPreviewWrap');
   const track = document.getElementById('carouselTrack');
-  const height = parseInt(document.getElementById('sliderHeight').value, 10);
-  const visible = parseInt(document.getElementById('sliderItems').value, 10);
-  const seconds = parseInt(document.getElementById('sliderAutoplay').value, 10);
+  const sliderHeight = document.getElementById('sliderHeight');
+  const sliderItems = document.getElementById('sliderItems');
+  const sliderAutoplay = document.getElementById('sliderAutoplay');
+
+  if (!wrap || !track) return;
+
+  const height = parseInt(sliderHeight ? sliderHeight.value : '230', 10);
+  const visible = parseInt(sliderItems ? sliderItems.value : '2', 10);
+  const seconds = parseInt(sliderAutoplay ? sliderAutoplay.value : '4', 10);
 
   wrap.style.height = height + 'px';
   clearInterval(_previewTimer);
@@ -578,11 +602,19 @@ async function uploadCarouselFiles(input) {
 }
 
 async function saveCarouselConfig() {
+  const sliderHeight = document.getElementById('sliderHeight');
+  const sliderItems = document.getElementById('sliderItems');
+  const sliderAutoplay = document.getElementById('sliderAutoplay');
+  if (!sliderHeight || !sliderItems || !sliderAutoplay) {
+    settingsShowSnackbar('Questa configurazione non è disponibile nella vista attuale.', true);
+    return;
+  }
+
   const config = {
     image_urls: _carouselUrls,
-    widget_height: parseInt(document.getElementById('sliderHeight').value, 10),
-    visible_items: parseInt(document.getElementById('sliderItems').value, 10),
-    autoplay_seconds: parseInt(document.getElementById('sliderAutoplay').value, 10),
+    widget_height: parseInt(sliderHeight.value, 10),
+    visible_items: parseInt(sliderItems.value, 10),
+    autoplay_seconds: parseInt(sliderAutoplay.value, 10),
   };
   try {
     await saveAppSetting(SETTING_CAROUSEL_CONFIG, JSON.stringify(config));

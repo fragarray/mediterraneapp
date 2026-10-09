@@ -9,17 +9,24 @@ const shellHistoryPicker = document.getElementById('shellHistoryPicker');
 const shellRouteMap = {
   dashboard: 'admin.html?embedded=1',
   search: 'admin-ricerca.html?embedded=1',
+  eventi: 'admin-eventi.html?embedded=1',
   settings: 'settings.html?embedded=1',
   digitizzazione: 'admin-digitalizzazione.html?embedded=1',
 };
 const shellTitleMap = {
   dashboard: 'Dashboard',
   search: 'Ricerca',
+  eventi: 'Eventi & prenotazioni',
   settings: 'Impostazioni',
   digitizzazione: 'Digitalizzazione',
 };
 
+if (!shellFrame) {
+  throw new Error('[admin-shell] adminFrame element not found');
+}
+
 let shellCurrentView = 'dashboard';
+let shellInitDone = false;
 
 function shellNormalizeView(view) {
   return Object.prototype.hasOwnProperty.call(shellRouteMap, view) ? view : 'dashboard';
@@ -116,7 +123,22 @@ shellButtons.forEach(btn => {
   });
 });
 
-document.getElementById('shellSignOutBtn').addEventListener('click', shellSignOut);
+function shellInitFromUrl() {
+  if (shellInitDone) return;
+  shellInitDone = true;
+
+  const params = new URLSearchParams(window.location.search);
+  const requestedView = params.get('view');
+  const initialView = shellNormalizeView(requestedView || shellCurrentView);
+  shellNavigate(initialView, { replaceHistory: true, cacheBuster: true });
+}
+
+const shellSignOutBtn = document.getElementById('shellSignOutBtn');
+if (shellSignOutBtn) {
+  shellSignOutBtn.addEventListener('click', shellSignOut);
+}
+
+shellInitFromUrl();
 
 if (shellHistoryPicker) {
   shellHistoryPicker.addEventListener('change', () => {
@@ -143,14 +165,17 @@ window.addEventListener('popstate', event => {
 });
 
 (async function initShell() {
+  if (!shellFrame) return;
+
   await loadThemeAndReady({
     onError: error => console.error('[admin-shell] theme init error:', error),
   });
 
   const initialView = shellNormalizeView(new URLSearchParams(window.location.search).get('view'));
-  shellNavigate(initialView, { replaceHistory: true });
+  if (!shellInitDone) {
+    shellNavigate(initialView, { replaceHistory: true });
+  }
 
-  // Check backup reminder after navigation is set up
   await checkBackupReminder();
 })();
 

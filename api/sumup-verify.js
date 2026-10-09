@@ -35,7 +35,7 @@ module.exports = async function handler(req, res) {
 
     if (!checkout) return res.status(404).json({ error: 'Checkout not found in SumUp' });
 
-    const status = checkout.status; // PENDING | PAID | FAILED | EXPIRED
+    const status = String(checkout?.status ?? checkout?.payment_status ?? checkout?.checkout_status ?? 'PENDING').trim().toUpperCase();
 
     // ── Step 2: Find booking in Supabase ─────────────────────
     const bookingRes = await fetch(
@@ -47,8 +47,13 @@ module.exports = async function handler(req, res) {
 
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
+    const bookingStatus = String(booking.stato || '').trim().toLowerCase();
+    const isPaidStatus = ['PAID', 'PAYMENT_CONFIRMED', 'SETTLED', 'SUCCESS', 'SUCCEEDED'].includes(status);
+    const isPendingBooking = ['pending_payment', 'pending', 'in_attesa', 'in attesa', 'awaiting_payment', 'da_pagare'].includes(bookingStatus);
+    const isCancelledBooking = ['cancellata', 'cancelled', 'failed', 'expired'].includes(bookingStatus);
+
     // Already confirmed (e.g. double-visit on success page)
-    if (booking.stato === 'confermata') {
+    if (bookingStatus === 'confermata') {
       const evRes = await fetch(
         `${SUPABASE_URL}/rest/v1/pizzica_eventi?id=eq.${booking.evento_id}&select=data`,
         { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } }
@@ -62,7 +67,7 @@ module.exports = async function handler(req, res) {
     }
 
     // ── Step 3: Handle by SumUp status ───────────────────────
-    if (status === 'PAID') {
+    if (isPaidStatus || (status === 'PAID' && isPendingBooking)) {
       // Confirm booking
       await fetch(`${SUPABASE_URL}/rest/v1/pizzica_prenotazioni?id=eq.${booking.id}`, {
         method:  'PATCH',
@@ -83,7 +88,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    if (status === 'FAILED' || status === 'EXPIRED') {
+    if (['FAILED', 'EXPIRED', 'CANCELLED', 'CANCELED'].includes(status) || isCancelledBooking) {
       await fetch(`${SUPABASE_URL}/rest/v1/pizzica_prenotazioni?id=eq.${booking.id}`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json', apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },

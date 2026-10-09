@@ -125,54 +125,6 @@
         </div>
       </div>
       
-      <div class="card">
-        <div class="card-title">Carosello</div>
-
-        <div class="carousel-preview-outer" id="carouselPreviewOuter">
-          <div class="carousel-preview-wrap" id="carouselPreviewWrap" style="height:230px;">
-            <div class="carousel-viewport">
-              <div class="carousel-track" id="carouselTrack"></div>
-            </div>
-          </div>
-        </div>
-
-        <div style="margin-top:16px; border-top:1px solid var(--border-color); padding-top:14px;">
-          <div class="slider-row">
-            <label>Altezza (px)</label>
-            <input type="range" id="sliderHeight" min="140" max="520" step="10" value="230"
-              oninput="document.getElementById('valHeight').textContent=this.value; updateCarouselPreview()">
-            <span class="slider-value" id="valHeight">230</span>
-          </div>
-          <div class="slider-row">
-            <label>Immagini visibili</label>
-            <input type="range" id="sliderItems" min="1" max="6" step="1" value="2"
-              oninput="document.getElementById('valItems').textContent=this.value; updateCarouselPreview()">
-            <span class="slider-value" id="valItems">2</span>
-          </div>
-          <div class="slider-row">
-            <label>Autoplay (secondi)</label>
-            <input type="range" id="sliderAutoplay" min="1" max="12" step="1" value="4"
-              oninput="document.getElementById('valAutoplay').textContent=this.value; updateCarouselPreview()">
-            <span class="slider-value" id="valAutoplay">4</span>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 6px;">
-          <label class="btn-filled" style="cursor:pointer;">
-            <span class="material-icons-outlined">add_photo_alternate</span> Carica immagini
-            <input type="file" id="carouselFileInput" accept="image/*" multiple style="display:none;" onchange="uploadCarouselFiles(this)">
-          </label>
-        </div>
-
-        <div id="carouselImageList" class="carousel-image-list">
-          <div class="empty-state" style="padding:16px;">Nessuna immagine caricata.</div>
-        </div>
-
-        <button class="btn-filled" style="margin-top:12px;" onclick="saveCarouselConfig()">
-          <span class="material-icons-outlined">save</span> Salva configurazione carosello
-        </button>
-      </div>
-
             <div class="card">
         <div class="card-title">Numero iniziale tessere</div>
         <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">
