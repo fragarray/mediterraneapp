@@ -66,9 +66,19 @@
       window.location.assign(`booking-evento.html?slug=${encodeURIComponent(slug)}`);
     }
 
+    function isEventBookingAvailable(eventDoc) {
+      if (!eventDoc?.slug || !eventDoc.prenotazioni_aperte || eventDoc.sold_out || !eventDoc.data) {
+        return false;
+      }
+
+      const now = new Date();
+      const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      return eventDoc.data >= todayIso;
+    }
+
     function updateLightboxBookingAction(eventDoc) {
       if (!lightboxBookingBtn) return;
-      if (!eventDoc || !eventDoc.slug) {
+      if (!isEventBookingAvailable(eventDoc)) {
         lightboxBookingBtn.hidden = true;
         lightboxBookingBtn.removeAttribute('data-slug');
         lightboxBookingBtn.onclick = null;
