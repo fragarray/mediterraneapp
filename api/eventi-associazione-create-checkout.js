@@ -45,7 +45,9 @@ module.exports = async function handler(req, res) {
       eventDate,
     });
     const safeBase = typeof redirectBase === 'string' ? redirectBase.replace(/[<>"'`]/g, '').substring(0, 300) : `https://${req.headers.host}/booking-evento.html`;
-    const redirectUrl = `${safeBase}?ref=${checkoutRef}`;
+    const redirectUrl = new URL(safeBase);
+    redirectUrl.searchParams.set('slug', eventDoc.slug);
+    redirectUrl.searchParams.set('ref', checkoutRef);
 
     const sumupRes = await fetch('https://api.sumup.com/v0.1/checkouts', {
       method: 'POST',
@@ -59,7 +61,7 @@ module.exports = async function handler(req, res) {
         currency: 'EUR',
         merchant_code: SUMUP_MERCHANT_CODE,
         description,
-        redirect_url: redirectUrl,
+        redirect_url: redirectUrl.toString(),
         valid_until: validUntil,
         hosted_checkout: { enabled: true },
       }),
