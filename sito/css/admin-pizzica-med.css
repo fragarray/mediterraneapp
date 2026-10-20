@@ -3,6 +3,8 @@
    Admin booking management styles
    ============================================================ */
 
+html.embedded-admin .appbar { display: none; }
+
 /* ── Login card ── */
 .login-wrap {
   min-height: 100vh;

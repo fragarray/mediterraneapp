@@ -12,6 +12,7 @@ const shellRouteMap = {
   eventi: 'admin-eventi.html?embedded=1',
   settings: 'settings.html?embedded=1',
   digitizzazione: 'admin-digitalizzazione.html?embedded=1',
+  pizzica: 'admin-pizzica-med.html?embedded=1',
 };
 const shellTitleMap = {
   dashboard: 'Dashboard',
@@ -19,6 +20,7 @@ const shellTitleMap = {
   eventi: 'Eventi & prenotazioni',
   settings: 'Impostazioni',
   digitizzazione: 'Digitalizzazione',
+  pizzica: 'Pizzica Pizzica',
 };
 
 if (!shellFrame) {
