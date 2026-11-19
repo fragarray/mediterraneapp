@@ -61,15 +61,29 @@
       lightbox.classList.remove('active');
     }
 
-    function navigateToBookingPage(slug) {
-      if (!slug) return;
-      window.location.assign(`booking-evento.html?slug=${encodeURIComponent(slug)}`);
+    function navigateToBookingPage(eventDoc) {
+      if (typeof eventDoc?.bookingUrl === 'string' && eventDoc.bookingUrl.trim()) {
+        try {
+          const bookingUrl = new URL(eventDoc.bookingUrl);
+          if (bookingUrl.protocol === 'https:' || bookingUrl.protocol === 'http:') {
+            window.location.assign(bookingUrl.toString());
+            return;
+          }
+          console.warn('[home] ignored unsupported booking URL protocol', bookingUrl.protocol);
+        } catch (error) {
+          console.warn('[home] ignored invalid booking URL', error);
+        }
+      }
+      if (!eventDoc?.slug) return;
+      window.location.assign(`booking-evento.html?slug=${encodeURIComponent(eventDoc.slug)}`);
     }
 
     function isEventBookingAvailable(eventDoc) {
       if (!eventDoc?.slug || !eventDoc.prenotazioni_aperte || eventDoc.sold_out || !eventDoc.data) {
         return false;
       }
+
+      if (eventDoc.persistent === true) return true;
 
       const now = new Date();
       const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -91,7 +105,7 @@
         event.preventDefault();
         event.stopPropagation();
         clearLightboxClickSuppression();
-        navigateToBookingPage(eventDoc.slug);
+        navigateToBookingPage(eventDoc);
       };
     }
 
@@ -540,7 +554,34 @@
           .order('data', { ascending: true });
 
         if (error || !data || !data.length) return [];
-        return data.filter(eventDoc => eventDoc.immagine_url).slice(0, 12);
+        const eventItems = data.filter(eventDoc => eventDoc.immagine_url).slice(0, 12);
+        if (!eventItems.length) return [];
+
+        const { data: settings, error: settingsError } = await supabase
+          .from('app_settings')
+          .select('key, value')
+          .in('key', eventItems.map(eventDoc => getEventBookingSettingKey(eventDoc.id)));
+        if (settingsError) {
+          console.warn('[home] event booking settings unavailable', settingsError);
+          return eventItems;
+        }
+
+        const settingsByEventId = new Map();
+        (settings || []).forEach(setting => {
+          try {
+            settingsByEventId.set(
+              setting.key.slice(EVENT_BOOKING_SETTING_PREFIX.length),
+              JSON.parse(setting.value)
+            );
+          } catch {
+            console.warn('[home] invalid booking settings for', setting.key);
+          }
+        });
+
+        return eventItems.map(eventDoc => ({
+          ...eventDoc,
+          ...(settingsByEventId.get(eventDoc.id) || {}),
+        }));
       } catch (error) {
         console.warn('[home] event carousel unavailable', error);
         return [];

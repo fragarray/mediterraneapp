@@ -1,7 +1,7 @@
 (function () {
   const { showSnackbar, loadThemeAndReady } = CodexUi;
   const $ = id => document.getElementById(id);
-  const state = { events: [], bookings: [], eventImageUrls: [], editingEventId: null, selectedEventId: null };
+  const state = { events: [], bookings: [], eventImageUrls: [], eventBookingSettings: {}, eventBookingSettingsLoaded: false, editingEventId: null, selectedEventId: null };
   const ENLARGE_FACTOR = 0.34;
 
   function ensureSelectedEvent() {
@@ -59,6 +59,8 @@
     $('eventTimeInput').value = '19:30';
     $('eventPriceInput').value = '15';
     $('eventImageInput').value = '';
+    $('eventBookingUrlInput').value = '';
+    $('eventPersistentInput').checked = false;
     state.eventImageUrls = [];
     $('eventSubmitLabel').textContent = 'Salva serata';
     $('eventCancelEditBtn').style.display = 'none';
@@ -76,6 +78,9 @@
     $('eventLocationInput').value = eventDoc.luogo || 'Mediterranea – Lecce';
     $('eventImageInput').value = eventDoc.immagine_url || '';
     $('eventNoteInput').value = eventDoc.note || '';
+    const bookingSettings = state.eventBookingSettings[eventDoc.id] || {};
+    $('eventBookingUrlInput').value = bookingSettings.bookingUrl || '';
+    $('eventPersistentInput').checked = bookingSettings.persistent === true;
     state.eventImageUrls = eventDoc.immagine_url ? [eventDoc.immagine_url] : [];
     $('eventSubmitLabel').textContent = 'Aggiorna serata';
     $('eventCancelEditBtn').style.display = 'inline-flex';
@@ -352,6 +357,29 @@
     }
 
     state.events = data || [];
+    state.eventBookingSettingsLoaded = false;
+    try {
+      state.eventBookingSettings = {};
+      if (state.events.length) {
+        const { data: settings, error: settingsError } = await supabase
+          .from('app_settings')
+          .select('key, value')
+          .in('key', state.events.map(eventDoc => getEventBookingSettingKey(eventDoc.id)));
+        if (settingsError) throw settingsError;
+        (settings || []).forEach(setting => {
+          try {
+            state.eventBookingSettings[setting.key.slice(EVENT_BOOKING_SETTING_PREFIX.length)] = JSON.parse(setting.value);
+          } catch {
+            console.warn('[admin-eventi] invalid booking settings for', setting.key);
+          }
+        });
+      }
+      state.eventBookingSettingsLoaded = true;
+    } catch (error) {
+      state.eventBookingSettings = {};
+      showSnackbar('Impossibile caricare link e impostazioni di prenotazione degli eventi.', true);
+      console.error('[admin-eventi] booking settings load error', error);
+    }
     ensureSelectedEvent();
     renderBookingEventCarousel();
     renderEventsTable();
@@ -404,6 +432,8 @@
             <span class="status-badge ${eventDoc.sold_out ? 'status-closed' : 'status-open'}">
               ${eventDoc.sold_out ? 'Sold out' : 'Prenotabile'}
             </span>
+            ${state.eventBookingSettings[eventDoc.id]?.persistent === true ? '<div style="margin-top:6px;"><span class="status-badge status-open">Sempre prenotabile</span></div>' : ''}
+            ${state.eventBookingSettings[eventDoc.id]?.bookingUrl ? '<div style="margin-top:6px;"><span class="status-badge status-closed">Link dedicato</span></div>' : ''}
           </div>
         </td>
         <td>
@@ -488,7 +518,25 @@
   $('eventForm').addEventListener('submit', async (event) => {
     event.preventDefault();
 
+    if (!state.eventBookingSettingsLoaded) {
+      showSnackbar('Impossibile salvare: le impostazioni di prenotazione non sono state caricate.', true);
+      return;
+    }
+
     const imageUrl = ($('eventImageInput').value.trim() || state.eventImageUrls[0] || null);
+    const bookingUrl = $('eventBookingUrlInput').value.trim();
+    if (bookingUrl) {
+      try {
+        const parsedBookingUrl = new URL(bookingUrl);
+        if (parsedBookingUrl.protocol !== 'https:' && parsedBookingUrl.protocol !== 'http:') {
+          throw new Error('protocol');
+        }
+      } catch {
+        showSnackbar('Inserisci un link di prenotazione valido (http o https).', true);
+        $('eventBookingUrlInput').focus();
+        return;
+      }
+    }
     const payload = {
       slug: $('eventSlug').value.trim(),
       titolo: $('eventTitleInput').value.trim(),
@@ -498,9 +546,6 @@
       luogo: $('eventLocationInput').value.trim() || 'Mediterranea – Lecce',
       immagine_url: imageUrl,
       note: $('eventNoteInput').value.trim() || null,
-      is_active: true,
-      prenotazioni_aperte: true,
-      sold_out: false,
     };
 
     if (!payload.slug || !payload.titolo || !payload.data) {
@@ -508,7 +553,7 @@
       return;
     }
 
-    let result;
+    let eventId = state.editingEventId;
     if (state.editingEventId) {
       const { error } = await supabase
         .from('eventi_associazione')
@@ -518,23 +563,41 @@
         showSnackbar(error.message || 'Errore durante l\'aggiornamento dell\'evento.', true);
         return;
       }
-      result = { ok: true };
       showSnackbar('Evento aggiornato.');
     } else {
-      const { error } = await supabase.from('eventi_associazione').insert(payload);
+      const { data, error } = await supabase
+        .from('eventi_associazione')
+        .insert({ ...payload, is_active: true, prenotazioni_aperte: true, sold_out: false })
+        .select('id')
+        .single();
       if (error) {
         showSnackbar(error.message || 'Errore durante il salvataggio dell\'evento.', true);
         return;
       }
+      eventId = data.id;
       showSnackbar('Evento salvato.');
+    }
+
+    const bookingSettings = {
+      bookingUrl: bookingUrl || null,
+      persistent: $('eventPersistentInput').checked,
+    };
+    try {
+      if (bookingSettings.bookingUrl || bookingSettings.persistent) {
+        await saveAppSetting(getEventBookingSettingKey(eventId), JSON.stringify(bookingSettings));
+      } else if (state.eventBookingSettings[eventId]) {
+        const { error } = await supabase.from('app_settings').delete().eq('key', getEventBookingSettingKey(eventId));
+        if (error) throw error;
+      }
+    } catch (error) {
+      showSnackbar(`Evento salvato, ma non è stato possibile salvare le impostazioni di prenotazione: ${error.message}`, true);
+      await loadEvents();
+      return;
     }
 
     resetEventForm();
     await loadEvents();
     await loadBookings();
-    if (result?.ok) {
-      console.log('[admin-eventi] event updated');
-    }
   });
 
   window.editEvent = async (id) => {
@@ -590,6 +653,13 @@
     const { error } = await supabase.from('eventi_associazione').delete().eq('id', id);
     if (error) {
       showSnackbar('Errore eliminazione evento.', true);
+      return;
+    }
+    const { error: settingsError } = await supabase.from('app_settings').delete().eq('key', getEventBookingSettingKey(id));
+    if (settingsError) {
+      showSnackbar(`Evento eliminato, ma non è stato possibile rimuovere le impostazioni di prenotazione: ${settingsError.message}`, true);
+      await loadEvents();
+      await loadBookings();
       return;
     }
     showSnackbar('Evento eliminato.');

@@ -48,6 +48,11 @@ const SETTING_MEMBERSHIP_START = 'membership_start_number';
 const SETTING_APPROVED_LIMIT   = 'admin_approved_table_limit';
 const SETTING_BACKUP_INTERVAL  = 'backup_interval_days';
 const SETTING_LAST_BACKUP      = 'last_backup_date';
+const EVENT_BOOKING_SETTING_PREFIX = 'event_booking_';
+
+function getEventBookingSettingKey(eventId) {
+  return `${EVENT_BOOKING_SETTING_PREFIX}${eventId}`;
+}
 
 /* ================================================================
    Verifica numero tessera legacy
